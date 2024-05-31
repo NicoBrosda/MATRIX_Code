@@ -176,3 +176,4 @@ bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
 
 plt.show()
 
+
