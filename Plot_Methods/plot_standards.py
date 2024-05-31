@@ -15,7 +15,7 @@ from Plot_Methods.helper_functions import *
 from Plot_Methods.label_standard import *
 
 # Standard save format for plots
-save_format = '.pdf'
+save_format = '.png'
 
 # Tex or no Tex?
 use_LaTeX = True

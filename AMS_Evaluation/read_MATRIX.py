@@ -1,9 +1,11 @@
+import numpy as np
+
 from AMS_Evaluation.DataAnalysis import threshold_otsu
 from Plot_Methods.plot_standards import *
 import matplotlib
+from mpl_toolkits.mplot3d import axes3d
 
-fig, ax = plt.subplots()
-ax2 = ax.twinx()
+save_path = '/Users/nico_brosda/Desktop/iphc_python_misc/Results/maps/'
 
 
 def read(file_path, fast=False):
@@ -20,15 +22,13 @@ def read(file_path, fast=False):
     return data
 
 
-data = read('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_20000p_nA_2.csv')
-
-
-def read_channels(data) -> list:
+def read_channels(data, excluded_channel=[], advanced_output=False) -> list or np.ndarray:
     thresholds = []
     signals = []
     signal_std = []
     darks = []
     dark_std = []
+
     for i, col in enumerate(data):
         if i == 0 or i == 1:
             continue
@@ -39,38 +39,36 @@ def read_channels(data) -> list:
         thresholds.append(threshold)
 
         if threshold is not None:
-            signals.append(np.mean(data[col][data[col] > threshold]))
-            signal_std.append(np.std(data[col][data[col] > threshold]))
-            darks.append(np.mean(data[col][data[col] < threshold]))
-            dark_std.append(np.std(data[col][data[col] < threshold]))
+            if advanced_output:
+                signals.append(np.mean(data[col][data[col] > threshold]))
+                signal_std.append(np.std(data[col][data[col] > threshold]))
+                darks.append(np.mean(data[col][data[col] < threshold]))
+                dark_std.append(np.std(data[col][data[col] < threshold]))
+            else:
+                sig = np.mean(data[col][data[col] > threshold])
+                dar = np.mean(data[col][data[col] < threshold])
+                if sig is not np.nan and dar is not np.nan:
+                    signals.append(sig - dar)
+                elif sig is not np.nan and dar is np.nan:
+                    signals.append(sig)
+                else:
+                    signals.append(0)
         else:
             signals.append(0)
             darks.append(0)
-
-    '''
-    # fig, ax = plt.subplots()
-    ax.plot(signals)
-    ax.plot(darks, c='b')
-    # ax.plot(thresholds, c='k')
-    # ax2.plot(signal_std, c='r', ls='--')
-    # ax2.plot(dark_std, c='b', ls='--')
-    # plt.show()
-    # '''
-
-    return [np.array(signals), np.array(signal_std), np.array(darks), np.array(dark_std), np.array(thresholds)]
+    if advanced_output:
+        return [np.array(signals), np.array(signal_std), np.array(darks), np.array(dark_std), np.array(thresholds)]
+    else:
+        return np.array(signals)
 
 
-output = read_channels(read('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_screwsmaller_horizontal_500p_diff_scan_nA_2.0_0_111_1_71.csv'))
-print(output[0])
-
-
-def normalization(paths):
+def normalization(paths_of_norm_files):
     cache = []
-    for i, path in enumerate(paths):
+    for i, path in enumerate(paths_of_norm_files):
         data = read(path)
         cache.append(read_channels(data))
 
-    max_signal = np.amax(np.array([i[0] for i in cache]), axis=0)
+    max_signal = np.amax(np.array(cache), axis=0)
     '''
     max_signal = []
     for i, measurement in enumerate(cache):
@@ -86,25 +84,29 @@ def normalization(paths):
         if signal/mean <= 0.1:
             factor.append(0)
         else:
-            factor.append(signal/mean)
+            factor.append(mean/signal)
     return factor
 
 
-def lin_calib(path):
+def lin_test(path):
     pass
 
 
-def interpret_map(folder, criteria):
+def interpret_map(folder, criteria, plot=False, paths_of_norm_files=None):
     files = os.listdir(Path(folder))
     cache = []
     for file in files:
         if file[-4:] == '.csv' and criteria in file:
             cache.append(file)
     files = cache
-    print(len(files))
+    if len(files) == 0:
+        print('No according files found in the given directory under the search criteria!')
+        return None
+    print(len(files), 'files found to construct a map!')
+
 
     position = []
-    cache = []
+    readout = []
     for file in files:
         # The parsing of the position out of the name and save it
         i = 1
@@ -124,56 +126,64 @@ def interpret_map(folder, criteria):
         data2 = read(Path(folder) / file)
         readout2 = read_channels(data2)
         # Normalization
-        # readout2[0] = readout2[0]*factor
-        cache.append(readout2)
+        if paths_of_norm_files is not None:
+            factor = normalization(paths_of_norm_files)
+            readout2 = readout2*factor
+        readout.append(readout2)
 
-    return position, cache
+    print(position, readout)
+    position, readout = np.array(position), np.array(readout)
+    sorting = np.argsort(position)
+    readout = readout[sorting]
+    position = position[sorting]
+    if not plot:
+        return position, readout
+    else:
+        fig, ax = plt.subplots()
+        print(np.size(readout))
+        print(readout)
+        channels = np.arange(0, np.size(readout[1]), 1)
+        X, Y, Z = position, channels, readout.T
+        Z = Z[:][::-1]
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
+
+        if np.max(Z) > 10 * np.mean(Z):
+            intensity_limits = [0, 1500]
+        else:
+            intensity_limits = [0, np.max(Z)*0.85]
+        intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
+        levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
+        color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels)
+        if np.min(Z) < intensity_limits[0] and np.max(Z) > intensity_limits[1]:
+            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='both', levels=levels)
+        elif np.min(Z) < intensity_limits[0]:
+            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='min', levels=levels)
+        elif np.max(Z) > intensity_limits[1]:
+            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='max', levels=levels)
+        else:
+            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels)
+
+        norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+        sm.set_array([])
+        bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
+        ax.set_xlabel(r'Position ($\#$Steps)')
+        ax.set_ylabel(r'Position ($64 - \#$ Diode Channel)')
+        bar.set_label('Measured Amplitude')
+        format_save(save_path=save_path, save_name=criteria+'nohomogenisation_map')
+        plt.show()
+        return position, readout
 
 
 paths = ['/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_500p_bottom_nA_2.csv',
          '/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_500p_nA_2.csv',
          '/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_500p_top_nA_2.csv']
 
-factor = normalization(paths)
 
-position, readout = interpret_map('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/', 'screwsmaller')
+# for crit in ['screwsmaller_horizontal', 'noscrew', '_screw_', 'screw8_vertical', 'screw8_horizontal_', 'screw8_horizontal2_', 'beamshape_', 'beamshape2_']:
+for crit in ['noscrew']:
+    out = interpret_map('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/', crit, plot=True, paths_of_norm_files=None)
 
-Y = np.array(position)
-print(position)
-X = np.arange(0, 64, 1)
-Z = np.array([np.array(i[0], dtype=np.float64) for i in readout], dtype=np.float64)
-print(Z[:][3])
-print(Z[3])
-# Z = np.array([np.append(np.array(i[0]), np.zeros(len(X)-len(Y))) for i in readout])
-# Y = np.append(Y, np.zeros(len(X)-len(Y)))
 
-cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
-# X2, Y2, Z2 = interpolate_map_data(X, Y, Z)
-# print(np.shape(X2), np.shape(Y2), np.shape(Z2))
-
-intensity_limits = [600, 2600]
-intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
-levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
-color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels)
-
-'''
-if np.min(Z) < intensity_limits[0] and np.max(Z) > intensity_limits[1]:
-    color_map = ax.contourf(X2, Y2, Z2, cmap=cmap, extend='both', levels=levels)
-elif np.min(Z) < intensity_limits[0]:
-    color_map = ax.contourf(X2, Y2, Z2, cmap=cmap, extend='min', levels=levels)
-elif np.max(Z) > intensity_limits[1]:
-    color_map = ax.contourf(X2, Y2, Z2, cmap=cmap, extend='max', levels=levels)
-else:
-    color_map = ax.contourf(X2, Y2, Z2, cmap=cmap, extend='neither', levels=levels)
-'''
-
-# fig.colorbar(color_map, cmap=color_map.cmap)
-# '''
-norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
-sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
-sm.set_array([])
-bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
-
-plt.show()
 
 
