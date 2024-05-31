@@ -1,8 +1,13 @@
 # MATRIX_Code
 
+## Purpose
+This is a MATRIX project repository intended for easier sharing of code connected to evaluation and measurement routines.
+
+## Maintainer
+This repo was initialized by Nico Brosda, Ruhr Universität Bochum. For any questions, remarks, etc. contact nico.brosda@rub.de. Developers with permission to edit the code must be named by the project's maintainer.
 
 
-## Getting started
+## Git Start Infos
 
 To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
