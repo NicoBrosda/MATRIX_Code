@@ -183,7 +183,3 @@ paths = ['/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_500p_bo
 # for crit in ['screwsmaller_horizontal', 'noscrew', '_screw_', 'screw8_vertical', 'screw8_horizontal_', 'screw8_horizontal2_', 'beamshape_', 'beamshape2_']:
 for crit in ['noscrew']:
     out = interpret_map('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/', crit, plot=True, paths_of_norm_files=None)
-
-
-
-
