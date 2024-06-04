@@ -403,7 +403,7 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
         ax = axes[k]
 
         if no_colorbar[k]:
-            ax.xaxis.set_major_locator(ticker.AutoLocator())
+            # ax.xaxis.set_major_locator(ticker.AutoLocator())
             if minor_xticks:
                 ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
 
