@@ -5,6 +5,8 @@ from AMS_Evaluation.DataAnalysis import threshold_otsu
 from Plot_Methods.plot_standards import *
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
+from FitFuncs import apply_super_resolution
+from matplotlib.colors import BoundaryNorm
 
 
 # Function for reading the csv files and create a data array out of it. Note that the return is a pd.Dataframe Object
@@ -131,8 +133,9 @@ def lin_test(path):
     pass
 
 
-def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_files=None, excluded_channel=[], do_normalization=True,
-                  convert_param=True, diode_size=0.5, diode_space=0.0, x_stepwidth=0.25,
+def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_files=None, excluded_channel=[],
+                  do_normalization=True, convert_param=True, diode_size=(0.5, 0.5), diode_space=0.08, x_stepwidth=0.25,
+                  super_resolution=False, contour=True, realistic=False, avoid_sample=True,
                   Z_conversion=lambda Z: Z, *args, **kwargs):
     files = os.listdir(Path(folder))
     cache = []
@@ -173,7 +176,7 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
                 readout2 = readout2*factor
         readout.append(readout2)
 
-    print(position, readout)
+    # print(position, readout)
     position, readout = np.array(position), np.array(readout)
     sorting = np.argsort(position)
     readout = readout[sorting]
@@ -182,17 +185,45 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
         return position, readout
     else:
         fig, ax = plt.subplots()
-        print(np.size(readout))
-        print(readout)
+        print('Shape of the readout array', np.shape(readout))
+        print(len(readout[0]))
         channels = np.arange(0, np.size(readout[1]), 1)
         X, Y, Z = position, channels, readout.T
         Z = Z[:][::-1]
+        print('Shape of the readout array after mirroring', np.shape(Z))
+        print(len(Z[0]))
+        if super_resolution:
+            if len(X) % 2 != 0:
+                X = X[1:]
+                Z = Z[:, 1:]
+            Z = apply_super_resolution(Z)
+        elif x_stepwidth < diode_size[0] and avoid_sample:
+            X = X[::2]
+            Z = Z[:, ::2]
         if convert_param:
-            X = x_stepwidth * X  # Defining X as translated position in mm
-            # Defining the Y conversion based on the geometry of the diodes
-            Y = Y*(diode_size+diode_space)
-            # Defining the conversion of amplitude z into a current pA
-            Z = Z_conversion(Z)
+            if realistic and not contour:
+                X = x_stepwidth * X
+                X = np.append(X, (X[-1]+x_stepwidth))
+                cache = []
+                y = 0
+                for i in range(len(Y)*2+1):
+                    cache.append(y)
+                    if i % 2 == 0:
+                        y += diode_size[1]
+                    else:
+                        y += diode_space
+                Y = np.array(cache)
+                cache = []
+                for row in Z:
+                    cache.append(row)
+                    cache.append(np.full_like(row, 0))
+                Z = np.array(cache)
+            else:
+                X = x_stepwidth * X  # Defining X as translated position in mm
+                # Defining the Y conversion based on the geometry of the diodes
+                Y = Y*(diode_size[1]+diode_space)
+                # Defining the conversion of amplitude z into a current pA
+                Z = Z_conversion(Z)
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
         if np.max(Z) > 8.5 * np.mean(Z):
@@ -202,22 +233,38 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
         intensity_limits = [0, 1600]
         if 'beamshape' in criteria:
             intensity_limits = [0, np.max(Z)*0.85]
-        intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
+        if super_resolution:
+            intensity_limits = np.array(intensity_limits)/2
+        # intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
+        intensity_limits2 = intensity_limits
         levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
-        # color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
-        if np.min(Z) < intensity_limits[0] and np.max(Z) > intensity_limits[1]:
-            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='both', levels=levels, *args, **kwargs)
-        elif np.min(Z) < intensity_limits[0]:
-            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='min', levels=levels, *args, **kwargs)
-        elif np.max(Z) > intensity_limits[1]:
-            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='max', levels=levels, *args, **kwargs)
+        print(intensity_limits)
+        print(intensity_limits2)
+        if not contour:
+            norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+            if realistic:
+                color_map = ax.pcolormesh(X, Y, Z, cmap=cmap, norm=norm, shading='flat')
+            else:
+                color_map = ax.pcolormesh(X, Y, Z, cmap=cmap, norm=norm, *args, **kwargs)
+            norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+            sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+            sm.set_array([])
+            bar = fig.colorbar(sm, ax=ax, extend='max')
         else:
-            color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
-
-        norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
-        sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
-        sm.set_array([])
-        bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
+            # color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
+            if np.min(Z) < intensity_limits[0] and np.max(Z) > intensity_limits[1]:
+                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='both', levels=levels)
+            elif np.min(Z) < intensity_limits[0]:
+                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='min', levels=levels)
+            elif np.max(Z) > intensity_limits[1]:
+                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='max', levels=levels)
+            else:
+                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels)
+            # '''
+            norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+            sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+            sm.set_array([])
+            bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
         if convert_param:
             ax.set_xlabel(r'Position Translation Stage (mm)')
             ax.set_ylabel(r'Position Diode Array (mm)')
@@ -230,9 +277,17 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
 
         save_name = str(criteria)+'_map'
         if not do_normalization:
-            save_name += '_nonormalization'
-        if convert_param:
-            save_name += '_real_param'
+            save_name += '_nonorm'
+        if not convert_param:
+            save_name += '_ams'
+        if super_resolution:
+            save_name += '_superres'
+        if contour:
+            save_name += '_contour'
+        if realistic:
+            save_name += '_realistic'
+        if not avoid_sample:
+            save_name += '_sampling'
         format_save(save_path=save_path, save_name=save_name)
         plt.show()
         return position, readout

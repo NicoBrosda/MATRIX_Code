@@ -75,13 +75,26 @@ for j, files in enumerate([files_e1, files_e2, files_d2]):
     noise = np.array(noise)
     noise_dark = np.array(noise_dark)
     c = sns.color_palette("bright")[j]
-    c2 = sns.color_palette("dark")[j]
+    c2 = sns.color_palette("tab10")[j]
+    c3 = sns.color_palette("dark")[j]
     markers = ['x', '+', 'o', '^', 'v', '*']
     for k, i in enumerate([30, 32, 34, 36, 38, 40]):
-        ax.plot(signals[:, i], noise[:, i], label=labels[j]+'-Channel'+str(i), ls='', marker=markers[k], c=c)
-        ax.plot(signals[:, i], noise_dark[:, i], label=labels[j] + '-Channel' + str(i), ls='', marker=markers[k], c=c2)
+        break
+        ax.plot(current, noise[:, i], label=labels[j]+'-Channel'+str(i), ls='', marker=markers[k], c=c)
+        ax.plot(current, noise_dark[:, i], label=labels[j] + '-Channel' + str(i), ls='', marker=markers[k], c=c2)
+        ax.plot(current, signals[:, i], label=labels[j] + '-Channel' + str(i), ls='', marker=markers[k], c=c3)
 
+    ax.plot(current, np.mean(signals[:, [30, 32, 34, 36, 38, 40]], axis=1), label=labels[j]+' - Signal', ls='', marker='x', c=c)
+    ax.plot(current, np.mean(noise[:, [30, 32, 34, 36, 38, 40]], axis=1), label=labels[j]+' - Signal Noise', ls='', marker='o', c=c2)
+    ax.plot(current, np.mean(noise_dark[:, [30, 32, 34, 36, 38, 40]], axis=1), label=labels[j]+' - Dark Noise', ls='', marker='^', c=c3)
+
+ax.set_xlim(9, 1.5*max(current))
 ax.set_xscale('log')
 ax.set_yscale('log')
-ax.legend()
-plt.show()
+ax.set_xlabel('Proton Beam Current [pA]')
+ax.set_ylabel('Measured amplitude')
+
+save_name = 'Noise_Comparison'
+just_save(save_path=save_path, save_name=save_name, minor_xticks=False)
+# format_save(save_path=save_path, save_name=save_name)
+
