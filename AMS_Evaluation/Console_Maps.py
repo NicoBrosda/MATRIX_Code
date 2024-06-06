@@ -22,6 +22,7 @@ for crit in tqdm(['screwsmaller_horizontal']):
     else:
         x_step = 0.25
 
+
     out = interpret_map('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/', crit, plot=True,
                         paths_of_norm_files=paths, excluded_channel=ex, do_normalization=True, save_path=save_path,
                         convert_param=True, super_resolution=False, contour=True, x_stepwidth=x_step)

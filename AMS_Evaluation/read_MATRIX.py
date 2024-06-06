@@ -231,6 +231,8 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
         else:
             intensity_limits = [0, np.max(Z)*0.85]
         intensity_limits = [0, 1600]
+        intensity_limits = [0, 8500]
+
         if 'beamshape' in criteria:
             intensity_limits = [0, np.max(Z)*0.85]
         if super_resolution:
