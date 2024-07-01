@@ -59,3 +59,7 @@ def interpolate_map_data(x, y, z, max_distance=np.inf):
 
     zi[dists >= max_distance] = np.nan
     return xi, yi, zi
+
+
+def mean_eval(x, *args, **kwargs) -> float or None:
+    return np.mean(x, *args, **kwargs)

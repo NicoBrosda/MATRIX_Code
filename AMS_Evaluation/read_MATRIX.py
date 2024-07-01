@@ -31,7 +31,7 @@ def read(file_path, fast=False) -> pd.DataFrame:
 # - standard - or return of separate arrays: signal, signal_std, dark, dark_std, thresholds - advanced_output = True
 # The signal and dark amplitudes of each diode are calculated with the threshold_otsu algorithm, designed to find the
 # separating value of 2 Gaussian populations.
-def read_channels(data, excluded_channel=[], advanced_output=False) -> list or np.ndarray:
+def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=True) -> list or np.ndarray:
     """
     Function to convert the data of each channel into values representing the signal response (as on - off amplitude)
     - standard - or return of separate arrays: signal, signal_std, dark, dark_std, thresholds - advanced_output = True
@@ -40,58 +40,83 @@ def read_channels(data, excluded_channel=[], advanced_output=False) -> list or n
     :param data: input data, pd.DataFrame or np.NdArray in required DataStructure (channels = rows, rows = samples)
     :param excluded_channel: array with indices of excluded channels, that are added as signal=0 for further processing
     :param advanced_output: advanced return
+    :param varied_beam: Defines if the beam was varied on/off or constant on in measurements - standard is on/off
     :return:
     """
-    thresholds = []
     signals = []
     signal_std = []
-    darks = []
-    dark_std = []
-
-    for i, col in enumerate(data):
-        if i in excluded_channel:
-            if advanced_output:
-                signals.append(0)
-                darks.append(0)
-                signal_std.append(0)
-                dark_std.append(0)
-                thresholds.append(None)
-            else:
-                signals.append(0)
-        if i == 0 or i == 1:
-            continue
-        try:
-            threshold = threshold_otsu(data[col])
-        except ValueError:
-            threshold = None
-        thresholds.append(threshold)
-
-        if threshold is not None:
-            if advanced_output:
-                signals.append(np.mean(data[col][data[col] > threshold]))
-                signal_std.append(np.std(data[col][data[col] > threshold]))
-                darks.append(np.mean(data[col][data[col] < threshold]))
-                dark_std.append(np.std(data[col][data[col] < threshold]))
-            else:
-                sig = np.mean(data[col][data[col] > threshold])
-                dar = np.mean(data[col][data[col] < threshold])
-                if sig is not np.nan and dar is not np.nan:
-                    signals.append(sig - dar)
-                elif sig is not np.nan and dar is np.nan:
-                    signals.append(sig)
+    if not varied_beam:
+        for i, col in enumerate(data):
+            if i in excluded_channel:
+                if advanced_output:
+                    signals.append(0)
+                    signal_std.append(0)
                 else:
                     signals.append(0)
+            if i == 0 or i == 1:
+                continue
+            try:
+                signals.append(np.mean(data[col]))
+                signal_std.append(np.std(data[col]))
+            except ValueError:
+                signals.append(0)
+                signal_std.append(0)
+        if advanced_output:
+            return [np.array(signals)[:len(signals)-len(excluded_channel)],
+                    np.array(signal_std)[:len(signals)-len(excluded_channel)]]
         else:
-            signals.append(0)
-            darks.append(0)
-    if advanced_output:
-        return [np.array(signals)[:len(signals)-len(excluded_channel)],
-                np.array(signal_std)[:len(signal_std)-len(excluded_channel)],
-                np.array(darks)[:len(darks)-len(excluded_channel)],
-                np.array(dark_std)[:len(dark_std)-len(excluded_channel)],
-                np.array(thresholds)[:len(thresholds)-len(excluded_channel)]]
+            return np.array(signals)[:len(signals)-len(excluded_channel)]
+
     else:
-        return np.array(signals)[:len(signals)-len(excluded_channel)]
+        thresholds = []
+        signals = []
+        signal_std = []
+        darks = []
+        dark_std = []
+        for i, col in enumerate(data):
+            if i in excluded_channel:
+                if advanced_output:
+                    signals.append(0)
+                    darks.append(0)
+                    signal_std.append(0)
+                    dark_std.append(0)
+                    thresholds.append(None)
+                else:
+                    signals.append(0)
+            if i == 0 or i == 1:
+                continue
+            try:
+                threshold = threshold_otsu(data[col])
+            except ValueError:
+                threshold = None
+            thresholds.append(threshold)
+
+            if threshold is not None:
+                if advanced_output:
+                    signals.append(np.mean(data[col][data[col] > threshold]))
+                    signal_std.append(np.std(data[col][data[col] > threshold]))
+                    darks.append(np.mean(data[col][data[col] < threshold]))
+                    dark_std.append(np.std(data[col][data[col] < threshold]))
+                else:
+                    sig = np.mean(data[col][data[col] > threshold])
+                    dar = np.mean(data[col][data[col] < threshold])
+                    if sig is not np.nan and dar is not np.nan:
+                        signals.append(sig - dar)
+                    elif sig is not np.nan and dar is np.nan:
+                        signals.append(sig)
+                    else:
+                        signals.append(0)
+            else:
+                signals.append(0)
+                darks.append(0)
+        if advanced_output:
+            return [np.array(signals)[:len(signals)-len(excluded_channel)],
+                    np.array(signal_std)[:len(signal_std)-len(excluded_channel)],
+                    np.array(darks)[:len(darks)-len(excluded_channel)],
+                    np.array(dark_std)[:len(dark_std)-len(excluded_channel)],
+                    np.array(thresholds)[:len(thresholds)-len(excluded_channel)]]
+        else:
+            return np.array(signals)[:len(signals)-len(excluded_channel)]
 
 
 def normalization(paths_of_norm_files, excluded_channel=[]):
@@ -136,7 +161,7 @@ def lin_test(path):
 def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_files=None, excluded_channel=[],
                   do_normalization=True, convert_param=True, diode_size=(0.5, 0.5), diode_space=0.08, x_stepwidth=0.25,
                   super_resolution=False, contour=True, realistic=False, avoid_sample=True,
-                  Z_conversion=lambda Z: Z, *args, **kwargs):
+                  Z_conversion=lambda Z: Z, varied_beam=True, *args, **kwargs):
     files = os.listdir(Path(folder))
     cache = []
     for file in files:
@@ -167,7 +192,7 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
 
         # For each file read the channels (and apply normalization) - saved under same ordering
         data2 = read(Path(folder) / file)
-        readout2 = read_channels(data2, excluded_channel)
+        readout2 = read_channels(data2, excluded_channel, varied_beam=varied_beam)
         # Normalization
         if do_normalization:
             if paths_of_norm_files is not None:
@@ -295,9 +320,9 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
 
 
 def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_files=None, excluded_channel=[],
-                    do_normalization=True, convert_param=True, diode_direction='y', diode_size=(0.5, 0.5),
+                    do_normalization=True, convert_param=True, diode_direction='y', array_len=64, diode_size=(0.5, 0.5),
                     diode_space=0.08, x_stepwidth=0.25, y_stepwidth=0.25, super_resolution=False, contour=True,
-                    realistic=False, avoid_sample=True, Z_conversion=lambda Z: Z, *args, **kwargs):
+                    realistic=False, avoid_sample=True, Z_conversion=lambda Z: Z, varied_beam=True, *args, **kwargs):
     # This part remains the same between 1D map naming and 2D mapping
     files = os.listdir(Path(folder))
     cache = []
@@ -315,24 +340,21 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
     readout = []
     for file in files:
         # The parsing of the position out of the name and save it
-        i = 1
-        pos = None
-        while True:
-            try:
-                index = file.index('.csv')
-                pos = float(file[(index-i):index])
-            except ValueError:
-                break
-            i += 1
-        position.append(pos)
-        if pos is None:
+        try:
+            index3 = file.index('.csv')
+            index2 = file.index('_y_')
+            index1 = file.index('_x_')
+            pos_x = float(file[index1+3:index2])
+            pos_y = float(file[index2+3:index3])
+        except ValueError:
             continue
+        position.append(np.array([pos_x, pos_y]))
 
         # For each file read the channels (and apply normalization) - saved under same ordering
         data2 = read(Path(folder) / file)
-        readout2 = read_channels(data2, excluded_channel)
+        readout2 = read_channels(data2, excluded_channel, varied_beam=varied_beam)
 
-        # ToDo: Check if normalization is still viable or a better method is available
+        # ToDo: Check if normalization is still viable or a better method is available (y-shifted measurements)
         # Normalization
         if do_normalization:
             if paths_of_norm_files is not None:
@@ -340,126 +362,203 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
                 readout2 = readout2*factor
         readout.append(readout2)
 
-    print(position, readout)
+    print(np.shape(position), np.shape(readout))
+
+    distinct_x = sorted(set([i[0] for i in position]))
+    distinct_y = sorted(set([i[1] for i in position]))
+    if diode_direction == 'y':
+        distinct = distinct_y
+        print('There are ', len(distinct_x), ' different steps in the x direction (orthogonal to diode array)')
+        print('There are ', len(distinct_y), ' different positions in the y direction (direction of diode array)')
+        if len(distinct_y) == 1:
+            print('Out of 1 y row a standard map is calculated, no overlap in the y direction needs to be considered.')
+        else:
+            d = [(distinct_y[i+1]-distinct_y[i])/(diode_size[1]+diode_space) for i in range(len(distinct_y)-1)]
+            print('Multiple y rows are found. This corresponds a distance between measurement points of ',
+                  [round(i) for i in d], ' # diodes - thus leaving an overlap of ',
+                  [round(abs(array_len/2-i))+round(array_len/2) for i in d], ' # diodes')
+    else:
+        distinct = distinct_x
+        print('There are ', len(distinct_x), ' different steps in the x direction (direction of the diode array)')
+        print('There are ', len(distinct_y), ' different positions in the y direction (orthogonal to diode array)')
+        if len(distinct_x) == 1:
+            print('Out of 1 x row a standard map is calculated, no overlap in the y direction needs to be considered.')
+        else:
+            d = [(distinct_x[i+1]-distinct_x[i])/(diode_size[1]+diode_space) for i in range(len(distinct_x)-1)]
+            print('Multiple x rows are found. This corresponds a distance between measurement points of ',
+                  [round(i) for i in d], ' # diodes - thus leaving an overlap of ',
+                  [round(abs(array_len/2-i))+round(array_len/2) for i in d], ' # diodes')
     position, readout = np.array(position), np.array(readout)
-    return None
+
+    '''
+    fig, ax = plt.subplots()
+    for pos in position:
+        i = 0
+        while True:
+            if pos[1] == distinct_y[i]:
+                break
+            else:
+                i += 1
+        ax.scatter(*pos, marker='x', color=sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))])
+    for i, j in enumerate(distinct_y):
+        color = sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))]
+        x = min(distinct_x) + i
+        for k in range(int(array_len/2)):
+            rect1 = mpl.patches.Rectangle((x, j-k*(diode_size[1]+diode_space)), *diode_size, edgecolor=color, facecolor='none')
+            rect2 = mpl.patches.Rectangle((x, j + k * (diode_size[1] + diode_space)), *diode_size, edgecolor=color, facecolor='none')
+            ax.add_patch(rect1)
+            ax.add_patch(rect2)
+    ax.set_xlabel('Position x direction')
+    ax.set_ylabel('Position y direction')
+    format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/', criteria)
+    '''
 
     # ToDo: Sort the position after x and y - sort the readout accordingly
-    sorting = np.argsort(position)
+    sorting = np.argsort(position[:, 0])
     readout = readout[sorting]
     position = position[sorting]
+    sorting = np.argsort(position[:, 1], kind='mergesort')
+    readout = readout[sorting]
+    position = position[sorting]
+
     # ToDo: Convert the information from diode array direction and - if available - translation steps in this direction
     #  into 1 coherent Z information
+    # ToDo: Before - Just plot a map for all Z steps
     if not plot:
         return position, readout
     else:
         # ToDo: Adapt the plotting, maybe with more different options
-        fig, ax = plt.subplots()
-        print('Shape of the readout array', np.shape(readout))
-        print(len(readout[0]))
-        channels = np.arange(0, np.size(readout[1]), 1)
-        X, Y, Z = position, channels, readout.T
-        Z = Z[:][::-1]
-        print('Shape of the readout array after mirroring', np.shape(Z))
-        print(len(Z[0]))
-        if super_resolution:
-            if len(X) % 2 != 0:
-                X = X[1:]
-                Z = Z[:, 1:]
-            Z = apply_super_resolution(Z)
-        elif x_stepwidth < diode_size[0] and avoid_sample:
-            X = X[::2]
-            Z = Z[:, ::2]
-        if convert_param:
-            if realistic and not contour:
-                X = x_stepwidth * X
-                X = np.append(X, (X[-1]+x_stepwidth))
-                cache = []
-                y = 0
-                for i in range(len(Y)*2+1):
-                    cache.append(y)
-                    if i % 2 == 0:
-                        y += diode_size[1]
-                    else:
-                        y += diode_space
-                Y = np.array(cache)
-                cache = []
-                for row in Z:
-                    cache.append(row)
-                    cache.append(np.full_like(row, 0))
-                Z = np.array(cache)
+        for step in distinct:
+            if diode_direction == 'y':
+                indices = np.where(position[:, 1] == step)[0]
+                print(position[:, 1])
+                print(indices)
+                if len(indices) <= 1:
+                    print('For 1 translation step no map is created!')
+                    continue
+                X = position[:, 0][indices]
+                x_stepwidth = X[1]-X[0]
+                channels = np.arange(0, np.size(readout[1]), 1)
+                Y = channels
+                print('Shape of the readout array', np.shape(readout))
+                Z = readout[indices].T
+                # Z = Z[:][::-1]
+                print('Shape of the readout array after mirroring', np.shape(Z))
+                print(len(Z[0]))
             else:
-                X = x_stepwidth * X  # Defining X as translated position in mm
-                # Defining the Y conversion based on the geometry of the diodes
-                Y = Y*(diode_size[1]+diode_space)
-                # Defining the conversion of amplitude z into a current pA
-                Z = Z_conversion(Z)
-        cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
+                indices = np.where(position[:, 0] == step)[0]
+                if len(indices) <= 1:
+                    print('For 1 translation step no map is created!')
+                    continue
+                Y = position[:, 1][indices]
+                y_stepwidth = Y[1]-Y[0]
+                channels = np.arange(0, np.size(readout[1]), 1)
+                X = channels
+                print('Shape of the readout array', np.shape(readout))
+                Z = readout[indices]
+                print('Shape of the readout array after mirroring', np.shape(Z))
+                print(len(Z[0]))
 
-        if np.max(Z) > 8.5 * np.mean(Z):
-            intensity_limits = [0, 1500]
-        else:
-            intensity_limits = [0, np.max(Z)*0.85]
-        intensity_limits = [0, 1600]
-        intensity_limits = [0, 8500]
+            fig, ax = plt.subplots()
+            if super_resolution:
+                if len(X) % 2 != 0:
+                    X = X[1:]
+                    Z = Z[:, 1:]
+                Z = apply_super_resolution(Z)
+            elif x_stepwidth < diode_size[0] and avoid_sample:
+                X = X[::2]
+                Z = Z[:, ::2]
+            if convert_param:
+                if realistic and not contour:
+                    X = x_stepwidth * X
+                    X = np.append(X, (X[-1]+x_stepwidth))
+                    cache = []
+                    y = 0
+                    for i in range(len(Y)*2+1):
+                        cache.append(y)
+                        if i % 2 == 0:
+                            y += diode_size[1]
+                        else:
+                            y += diode_space
+                    Y = np.array(cache)
+                    cache = []
+                    for row in Z:
+                        cache.append(row)
+                        cache.append(np.full_like(row, 0))
+                    Z = np.array(cache)
+                else:
+                    X = x_stepwidth * X  # Defining X as translated position in mm
+                    # Defining the Y conversion based on the geometry of the diodes
+                    Y = Y*(diode_size[1]+diode_space)
+                    # Defining the conversion of amplitude z into a current pA
+                    Z = Z_conversion(Z)
+            cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
-        if 'beamshape' in criteria:
-            intensity_limits = [0, np.max(Z)*0.85]
-        if super_resolution:
-            intensity_limits = np.array(intensity_limits)/2
-        # intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
-        intensity_limits2 = intensity_limits
-        levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
-        print(intensity_limits)
-        print(intensity_limits2)
-        if not contour:
-            norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+            if np.max(Z) > 8.5 * np.mean(Z):
+                intensity_limits = [0, 1500]
+            else:
+                intensity_limits = [0, np.max(Z)*0.85]
+            intensity_limits = [0, 1600]
+            intensity_limits = [0, 8500]
+
+            if 'beamshape' in criteria:
+                intensity_limits = [0, np.max(Z)*0.85]
+            if super_resolution:
+                intensity_limits = np.array(intensity_limits)/2
+            # intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
+            intensity_limits2 = intensity_limits
+            levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
+            print(intensity_limits)
+            print(intensity_limits2)
+            if not contour:
+                norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+                if realistic:
+                    color_map = ax.pcolormesh(X, Y, Z, cmap=cmap, norm=norm, shading='flat')
+                else:
+                    color_map = ax.pcolormesh(X, Y, Z, cmap=cmap, norm=norm, *args, **kwargs)
+                norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+                sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+                sm.set_array([])
+                bar = fig.colorbar(sm, ax=ax, extend='max')
+            else:
+                # color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
+                if np.min(Z) < intensity_limits[0] and np.max(Z) > intensity_limits[1]:
+                    color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='both', levels=levels)
+                elif np.min(Z) < intensity_limits[0]:
+                    color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='min', levels=levels)
+                elif np.max(Z) > intensity_limits[1]:
+                    color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='max', levels=levels)
+                else:
+                    color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels)
+                # '''
+                norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+                sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+                sm.set_array([])
+                bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
+            if convert_param:
+                ax.set_xlabel(r'Position Translation Stage (mm)')
+                ax.set_ylabel(r'Position Diode Array (mm)')
+                bar.set_label('Measured Amplitude')
+
+            else:
+                ax.set_xlabel(r'Position ($\#$Steps)')
+                ax.set_ylabel(r'Position ($64 - \#$ Diode Channel)')
+                bar.set_label('Measured Amplitude')
+
+            save_name = str(criteria)+'_map'
+            if not do_normalization:
+                save_name += '_nonorm'
+            if not convert_param:
+                save_name += '_ams'
+            if super_resolution:
+                save_name += '_superres'
+            if contour:
+                save_name += '_contour'
             if realistic:
-                color_map = ax.pcolormesh(X, Y, Z, cmap=cmap, norm=norm, shading='flat')
-            else:
-                color_map = ax.pcolormesh(X, Y, Z, cmap=cmap, norm=norm, *args, **kwargs)
-            norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
-            sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
-            sm.set_array([])
-            bar = fig.colorbar(sm, ax=ax, extend='max')
-        else:
-            # color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
-            if np.min(Z) < intensity_limits[0] and np.max(Z) > intensity_limits[1]:
-                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='both', levels=levels)
-            elif np.min(Z) < intensity_limits[0]:
-                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='min', levels=levels)
-            elif np.max(Z) > intensity_limits[1]:
-                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='max', levels=levels)
-            else:
-                color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels)
-            # '''
-            norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
-            sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
-            sm.set_array([])
-            bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
-        if convert_param:
-            ax.set_xlabel(r'Position Translation Stage (mm)')
-            ax.set_ylabel(r'Position Diode Array (mm)')
-            bar.set_label('Measured Amplitude')
-
-        else:
-            ax.set_xlabel(r'Position ($\#$Steps)')
-            ax.set_ylabel(r'Position ($64 - \#$ Diode Channel)')
-            bar.set_label('Measured Amplitude')
-
-        save_name = str(criteria)+'_map'
-        if not do_normalization:
-            save_name += '_nonorm'
-        if not convert_param:
-            save_name += '_ams'
-        if super_resolution:
-            save_name += '_superres'
-        if contour:
-            save_name += '_contour'
-        if realistic:
-            save_name += '_realistic'
-        if not avoid_sample:
-            save_name += '_sampling'
-        format_save(save_path=save_path, save_name=save_name)
-        plt.show()
+                save_name += '_realistic'
+            if not avoid_sample:
+                save_name += '_sampling'
+            format_save(save_path=save_path, save_name=save_name+'_'+str(step)+'_')
+            plt.show()
         return position, readout
+
