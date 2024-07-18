@@ -13,6 +13,8 @@ import seaborn as sns  # v. 0.12.2 (seaborn isn't necessarily required, but offe
 from pathlib import Path
 from Plot_Methods.helper_functions import *
 from Plot_Methods.label_standard import *
+import matplotlib
+from matplotlib.collections import LineCollection
 
 # Standard save format for plots
 save_format = '.png'
@@ -205,6 +207,26 @@ else:
 # that automatically adapts , or . depending on the language setting
 fmt = ticker.FuncFormatter(format_func)
 
+# '''
+def gradient_arrow(ax, start, end, cmap="viridis", n=50, lw=3):
+    cmap = plt.get_cmap(cmap, n)
+    # Arrow shaft: LineCollection
+    x = np.linspace(start[0], end[0], n)
+    y = np.linspace(start[1], end[1], n)
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    lc = LineCollection(segments, cmap=cmap, linewidth=lw)
+    lc.set_array(np.linspace(0, 1, n))
+    ax.add_collection(lc)
+    # Arrow head: Triangle
+    tricoords = [(0, -0.4), (0.5, 0), (0, 0.4), (0, -0.4)]
+    angle = np.arctan2(end[1]-start[1], end[0]-start[0])
+    rot = matplotlib.transforms.Affine2D().rotate(angle)
+    tricoords2 = rot.transform(tricoords)
+    tri = matplotlib.path.Path(tricoords2, closed=True)
+    ax.scatter(end[0], end[1], c=1, s=(2*lw)**2, marker=tri, cmap=cmap,vmin=0)
+    ax.autoscale_view()
+# '''
 
 # Now to the interesting part: This function represents an example how to apply settings to a generated plot, without
 # the necessity to call the settings during plotting.

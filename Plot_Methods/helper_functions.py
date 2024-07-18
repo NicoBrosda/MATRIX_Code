@@ -163,3 +163,4 @@ def array_txt_file_search(array, blacklist=[], searchlist=None, txt_file=True, f
                     if list_check(i, searchlist):
                         txt_files.append(i)
     return txt_files
+

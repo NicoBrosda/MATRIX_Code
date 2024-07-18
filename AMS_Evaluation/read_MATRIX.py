@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from copy import deepcopy
 
 from AMS_Evaluation.DataAnalysis import threshold_otsu
 from Plot_Methods.plot_standards import *
@@ -31,7 +32,7 @@ def read(file_path, fast=False) -> pd.DataFrame:
 # - standard - or return of separate arrays: signal, signal_std, dark, dark_std, thresholds - advanced_output = True
 # The signal and dark amplitudes of each diode are calculated with the threshold_otsu algorithm, designed to find the
 # separating value of 2 Gaussian populations.
-def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=True) -> list or np.ndarray:
+def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=True, path_dark=None) -> list or np.ndarray:
     """
     Function to convert the data of each channel into values representing the signal response (as on - off amplitude)
     - standard - or return of separate arrays: signal, signal_std, dark, dark_std, thresholds - advanced_output = True
@@ -46,8 +47,19 @@ def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=
     signals = []
     signal_std = []
     if not varied_beam:
+        # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
+        dark = []
+        if path_dark is not None:
+            if not isinstance(path_dark, (tuple, list, np.ndarray)):
+                path_dark = [path_dark]
+            for file2 in path_dark:
+                dark.append(read_channels(read(file2), excluded_channel=excluded_channel, varied_beam=False))
+            dark = np.mean(np.array(dark), axis=0)
+        else:
+            dark = np.zeros(np.shape(data)[1])
         for i, col in enumerate(data):
             if i in excluded_channel:
+                print('Yes')
                 if advanced_output:
                     signals.append(0)
                     signal_std.append(0)
@@ -56,9 +68,11 @@ def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=
             if i == 0 or i == 1:
                 continue
             try:
-                signals.append(np.mean(data[col]))
+                # print(np.mean(data[col])-dark[i-2])
+                signals.append(np.mean(data[col])-dark[i-2])
                 signal_std.append(np.std(data[col]))
             except ValueError:
+                print('Yes')
                 signals.append(0)
                 signal_std.append(0)
         if advanced_output:
@@ -119,6 +133,7 @@ def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=
             return np.array(signals)[:len(signals)-len(excluded_channel)]
 
 
+
 def normalization(paths_of_norm_files, excluded_channel=[]):
     cache = []
     for i, path in enumerate(paths_of_norm_files):
@@ -152,10 +167,6 @@ def normalization(paths_of_norm_files, excluded_channel=[]):
     except ValueError:
         pass
     return factor
-
-
-def lin_test(path):
-    pass
 
 
 def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_files=None, excluded_channel=[],
@@ -470,7 +481,6 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
                 Z = Z[:, ::2]
             if convert_param:
                 if realistic and not contour:
-                    X = x_stepwidth * X
                     X = np.append(X, (X[-1]+x_stepwidth))
                     cache = []
                     y = 0
@@ -487,19 +497,15 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
                         cache.append(np.full_like(row, 0))
                     Z = np.array(cache)
                 else:
-                    X = x_stepwidth * X  # Defining X as translated position in mm
                     # Defining the Y conversion based on the geometry of the diodes
                     Y = Y*(diode_size[1]+diode_space)
                     # Defining the conversion of amplitude z into a current pA
                     Z = Z_conversion(Z)
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
-            if np.max(Z) > 8.5 * np.mean(Z):
-                intensity_limits = [0, 1500]
-            else:
-                intensity_limits = [0, np.max(Z)*0.85]
-            intensity_limits = [0, 1600]
-            intensity_limits = [0, 8500]
+            intensity_limits = [0, min(np.max(Z)*0.8, np.mean(Z)*2)]
+            intensity_limits = [0, 200]
+            print(np.max(Z), np.mean(Z), np.median(Z), np.std(Z))
 
             if 'beamshape' in criteria:
                 intensity_limits = [0, np.max(Z)*0.85]
