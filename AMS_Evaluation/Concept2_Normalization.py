@@ -4,6 +4,7 @@ import pandas as pd
 from read_MATRIX import *
 from copy import deepcopy
 from tqdm import tqdm
+from scipy.optimize import least_squares
 
 folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_19062024/')
 dark_path = folder_path / 'd2_1n_3s_beam_all_without_diffuser_dark.csv'
@@ -51,7 +52,7 @@ for crit in ['5s_flat_calib_', '500p_center_']:
         cache[:, 1] = cache[:, 1] + (32 - i) * (0.5 + 0.08)
         # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
         positions.append(cache)
-
+    positions = np.array(positions)
 
     def group(input_list, group_range):
         class Group:
@@ -94,8 +95,10 @@ for crit in ['5s_flat_calib_', '500p_center_']:
 
 
     print(len(np.array(positions)[:, :, 1].flatten()))
-    groups = group(np.array(positions)[:, :, 1].flatten(), 0.2)
+    group_distance = 0.4
+    groups = group(np.array(positions)[:, :, 1].flatten(), group_distance)
     print(len(groups))
+
     '''
     fig, ax = plt.subplots()
     for i, pos in enumerate(positions):
@@ -105,37 +108,92 @@ for crit in ['5s_flat_calib_', '500p_center_']:
         ax.axhline(np.mean(group), ls='--', zorder=-1)
     plt.show()
     # '''
+
     print(np.shape(signals))
     print(np.shape(positions))
     print(np.shape(np.array(positions)[:, :, 1].T))
+    mean_result = []
+    groups = np.sort(groups)
     for mean in groups:
-        pass
-    '''
-        fig, ax = plt.subplots()
-        # This defines a colour range for measurement temperatures between 5 and 40 K
-        diode_colourmap = sns.color_palette("coolwarm", as_cmap=True)
-        diode_colourmapper = lambda x: color_mapper(x, 0, 63)
-        diode_colour = lambda x: diode_colourmap(diode_colourmapper(x))
+        indices = []
+        for k, channel in enumerate(np.array(positions)[:, :, 1]):
+            index_min = np.argsort(np.abs(channel - mean))[0]
+            if np.abs(channel[index_min] - mean) <= group_distance:
+                indices.append(index_min)
+            else:
+                indices.append(None)
+        cache = 0
+        j = 0
+        for i in range(len(indices)):
+            if indices[i] is not None and signals[indices[i]][i] != 0:
+                cache += signals[indices[i]][i]
+                j += 1
+        if j > 0:
+            mean_result.append(cache/j)
+        else:
+            mean_result.append(cache)
+    mean_result = np.array(mean_result)
+    mean_x = np.array(groups)
+    # '''
+    fig, ax = plt.subplots()
+    # This defines a colour range for measurement temperatures between 5 and 40 K
+    diode_colourmap = sns.color_palette("coolwarm", as_cmap=True)
+    diode_colourmapper = lambda x: color_mapper(x, 0, 63)
+    diode_colour = lambda x: diode_colourmap(diode_colourmapper(x))
 
-        maxima = [position[:, 1][np.argmax(signals[:, i])] for i in range(64)]
+    maxima = [position[:, 1][np.argmax(signals[:, i])] for i in range(64)]
 
-        for i in range(64):
-            c = diode_colour(i)
-            # shift = np.mean(maxima) - maxima[i]
-            ax.plot(position[:, 1] + (32 - i) * (0.5 + 0.08 - 0), signals[:, i], c=c, ls='--')
-            # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
+    for i in range(64):
+        c = diode_colour(i)
+        # shift = np.mean(maxima) - maxima[i]
+        ax.plot(position[:, 1] + (32 - i) * (0.5 + 0.08 - 0), signals[:, i], c=c, ls='--', alpha=0.2)
+        # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
 
-        ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
-        ax.set_ylabel('Measured Amplitude')
-        ax.set_xlim(ax.get_xlim())
-        ax.set_ylim(ax.get_ylim())
-        gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.89, 0.91]),
-                       transform_axis_to_data_coordinates(ax, [0.89, 0.61]), cmap=diode_colourmap, lw=5)
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.94]), r'Diode $\#$1', fontsize=15,
-                c=diode_colour(0))  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$64', fontsize=15,
-                c=diode_colour(63))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
-        plt.show()
-        '''
+    ax.plot(groups, mean_result, c='k', lw=2)
+    ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
+    ax.set_ylabel('Measured Amplitude')
+    ax.set_xlim(ax.get_xlim())
+    ax.set_ylim(ax.get_ylim())
+    gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.89, 0.91]),
+                   transform_axis_to_data_coordinates(ax, [0.89, 0.61]), cmap=diode_colourmap, lw=5)
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.94]), r'Diode $\#$1', fontsize=15,
+            c=diode_colour(0))  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$64', fontsize=15,
+            c=diode_colour(63))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+    # plt.show()
+    # '''
 
+    # Interpolation
+    factor_1 = np.array([])
+    factor_2 = np.array([])
+    for channel in range(np.shape(signals)[1]):
+        mean_interp = np.interp(positions[channel, :, 1], mean_x, mean_result)
+        factor = mean_interp[signals[:, channel] > 300]/signals[:, channel][signals[:, channel] > 300]
+        # factor = np.mean(factor[signals[:, channel] > 0.5 * np.std(signals[:, channel])])
+        factor = np.mean(factor)
+        if np.isnan(factor):
+            factor = 0
 
+        func_opt = lambda a: mean_interp - signals[:, channel] * a
+        factor2 = least_squares(func_opt, 1)
+        if factor2.nfev == 1 and factor2.optimality == 0.0:
+            factor2 = 0
+        else:
+            factor2 = factor2.x
+
+        c = diode_colour(channel)
+        # shift = np.mean(maxima) - maxima[i]
+        ax.plot(positions[channel, :, 1], signals[:, channel]*factor2, c=c, ls='--')
+        print('-' * 30)
+        print(channel, factor, factor2)
+        factor_1 = np.append(factor_1, factor)
+        factor_2 = np.append(factor_2, factor2)
+    plt.show()
+
+    fig, ax = plt.subplots()
+    ax.plot(factor_1)
+    ax.plot(factor_2)
+    ax.plot(normalization(['/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_bottom_nA_2.csv',
+             '/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_nA_2.csv',
+             '/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_top_nA_2.csv'], excluded_channel=[38])[::-1])
+    plt.show()

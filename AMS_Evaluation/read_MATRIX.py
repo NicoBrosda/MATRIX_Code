@@ -1,13 +1,13 @@
 import numpy as np
 import pandas as pd
 from copy import deepcopy
-
 from AMS_Evaluation.DataAnalysis import threshold_otsu
 from Plot_Methods.plot_standards import *
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
 from FitFuncs import apply_super_resolution
 from matplotlib.colors import BoundaryNorm
+from scipy.optimize import least_squares
 
 
 # Function for reading the csv files and create a data array out of it. Note that the return is a pd.Dataframe Object
@@ -133,7 +133,6 @@ def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=
             return np.array(signals)[:len(signals)-len(excluded_channel)]
 
 
-
 def normalization(paths_of_norm_files, excluded_channel=[]):
     cache = []
     for i, path in enumerate(paths_of_norm_files):
@@ -166,6 +165,155 @@ def normalization(paths_of_norm_files, excluded_channel=[]):
         factor = factor / np.mean(factor)
     except ValueError:
         pass
+    return factor
+
+
+def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_direction='y', method='leastsquares',
+                      dark_path=None, diode_size=(0.5, 0.5), diode_space=0.08, cache_save=True):
+    # Check if factor is already saved and is not needed to be recalculated:
+    if os.path.isfile(path_to_folder / 'normalization_factor.npy'):
+        try:
+            factor = np.load(path_to_folder / 'normalization_factor.npy')
+            return factor
+        except ValueError:
+            pass
+
+    # Little helper function to group the recalculated positions
+    def group(input_list, group_range):
+        class Group:
+            def __init__(self, value):
+                self.mean = value
+                self.start_value = value
+                self.members = 1
+
+            def add(self, value):
+                self.mean = (self.mean * self.members + value)/(self.members + 1)
+                self.members += 1
+
+            def check_add(self, value):
+                return (self.mean * self.members + value)/(self.members + 1)
+
+        if not isinstance(input_list, (np.ndarray, pd.DataFrame)):
+            input_list = np.array(input_list)
+        input_list = input_list.flatten()
+
+        groups = []
+        for j in input_list:
+            if len(groups) == 0:
+                groups.append(Group(j))
+                continue
+            in_group = False
+            for group in groups:
+                if group.mean - group_range <= j <= group.mean + group_range:
+                    # check for drift of the group:
+                    if group.start_value - group_range < group.check_add(j) < group.start_value + group_range:
+                        group.add(j)
+                        in_group = True
+                        break
+
+            if not in_group:
+                groups.append(Group(j))
+
+        return [g.mean for g in groups if g.members != 0]
+
+    # Direction of the measurement: x or y
+    if scan_direction == 'x':
+        sp = 0
+    elif scan_direction == 'y':
+        sp = 1
+    else:
+        sp = 0
+    # Load in the data from a list of files in a folder; save position and signal
+    path_to_folder = Path(path_to_folder)
+    position = []
+    signals = []
+    for file in list_of_files:
+        # The parsing of the position out of the name and save it
+        try:
+            index3 = file.index('.csv')
+            index2 = file.index('_y_')
+            index1 = file.index('_x_')
+            pos_x = float(file[index1 + 3:index2])
+            pos_y = float(file[index2 + 3:index3])
+        except ValueError:
+            continue
+        position.append(np.array([pos_x, pos_y]))
+
+        data = read(path_to_folder / file)
+        signal = read_channels(data, excluded_channel=excluded_channel, varied_beam=False, path_dark=dark_path)
+        signals.append(np.array(signal))
+
+    # Sort the arrays by the position
+    indices = np.argsort(np.array(position)[:, sp])
+    signals = np.array(signals)[indices]
+    position = np.array(position)[indices]
+
+    # Recalculate the positions considering the size of the diodes and thus the expected real positions
+    positions = []
+    for i in range(np.shape(position)[0]):
+        cache = deepcopy(position)
+        cache[:, sp] = cache[:, sp] + (int(np.shape(position)[0]/2) - i) * (diode_size[sp] + diode_space)
+        positions.append(cache)
+    positions = np.array(positions)
+
+    # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
+    group_distance = diode_size[sp]
+    groups = group(positions[:, :, sp].flatten(), group_distance)
+
+    # Calculate the mean for each grouped position, consider only the diode signals that were close to this position
+    mean_result = []
+    groups = np.sort(groups)
+    for mean in groups:
+        indices = []
+        for k, channel in enumerate(np.array(positions)[:, :, sp]):
+            index_min = np.argsort(np.abs(channel - mean))[0]
+            if np.abs(channel[index_min] - mean) <= group_distance:
+                indices.append(index_min)
+            else:
+                indices.append(None)
+        cache = 0
+        j = 0
+        for i in range(len(indices)):
+            if indices[i] is not None and signals[indices[i]][i] != 0:
+                cache += signals[indices[i]][i]
+                j += 1
+        if j > 0:
+            mean_result.append(cache / j)
+        else:
+            mean_result.append(cache)
+    mean_result = np.array(mean_result)
+    mean_x = np.array(groups)
+
+    # Interpolation
+    factor = np.array([])
+    print(np.shape(positions)[0])
+    for channel in range(np.shape(positions)[0]):
+        mean_interp = np.interp(positions[channel, :, sp], mean_x, mean_result)
+        if isinstance(method, (float, int, np.float64)):
+            # Method 1: Threshold for range consideration, for each diode channel mean of the factor between points
+            factor2 = mean_interp[signals[:, channel] > method] / signals[:, channel][signals[:, channel] > method]
+            factor2 = np.mean(factor2)
+            if np.isnan(factor2):
+                factor2 = 0
+        elif method == 'least_squares':
+            # Method 2: Optimization with least squares method, recommended
+            func_opt = lambda a: mean_interp - signals[:, channel] * a
+            factor2 = least_squares(func_opt, 1)
+            if factor2.nfev == 1 and factor2.optimality == 0.0:
+                factor2 = 0
+            else:
+                factor2 = factor2.x
+        else:
+            # Standard method: For the moment method 1 with automatic threshold
+            factor2 = mean_interp[signals[:, channel] > np.mean(signals[:, channel])] / \
+                      signals[:, channel][signals[:, channel] > np.mean(signals[:, channel])]
+            factor2 = np.mean(factor2)
+            if np.isnan(factor2):
+                factor2 = 0
+        factor = np.append(factor, factor2)
+
+    if cache_save:
+        np.save(path_to_folder / 'normalization_factor.npy', factor)
     return factor
 
 
