@@ -69,8 +69,14 @@ def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=
                 continue
             try:
                 # print(np.mean(data[col])-dark[i-2])
-                signals.append(np.mean(data[col])-dark[i-2])
-                signal_std.append(np.std(data[col]))
+                cache = np.mean(data[col])-dark[i-2]
+                cache_std = np.std(data[col])
+                if not np.isnan(cache):
+                    signals.append(cache)
+                    signal_std.append(cache_std)
+                else:
+                    signals.append(0)
+                    signal_std.append(0)
             except ValueError:
                 print('Yes')
                 signals.append(0)
@@ -114,7 +120,7 @@ def read_channels(data, excluded_channel=[], advanced_output=False, varied_beam=
                 else:
                     sig = np.mean(data[col][data[col] > threshold])
                     dar = np.mean(data[col][data[col] < threshold])
-                    if sig is not np.nan and dar is not np.nan:
+                    if not np.isnan(sig) and not np.isnan(dar):
                         signals.append(sig - dar)
                     elif sig is not np.nan and dar is np.nan:
                         signals.append(sig)
@@ -169,14 +175,21 @@ def normalization(paths_of_norm_files, excluded_channel=[]):
 
 
 def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_direction='y', method='leastsquares',
-                      dark_path=None, diode_size=(0.5, 0.5), diode_space=0.08, cache_save=True):
+                      dark_path=None, diode_size=(0.5, 0.5), diode_space=0.08, cache_save=True, factor_limits=(0, 3),
+                      norm_factor=True):
     # Check if factor is already saved and is not needed to be recalculated:
-    if os.path.isfile(path_to_folder / 'normalization_factor.npy'):
+    if cache_save and os.path.isfile(path_to_folder / 'normalization_factor.npy'):
         try:
             factor = np.load(path_to_folder / 'normalization_factor.npy')
+            factor[((factor < factor_limits[0]) | (factor > factor_limits[1]))] = 0
+            if norm_factor:
+                factor = factor / np.mean(factor[factor != 0])
             return factor
         except ValueError:
-            pass
+            print('Error while loading the factor - note that another file in the given folder might collide with the '
+                  'utilized save name "normalization_factor.npy". For safety reasons the calculated factor will not be '
+                  'saved')
+            cache_save = False
 
     # Little helper function to group the recalculated positions
     def group(input_list, group_range):
@@ -250,7 +263,7 @@ def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_d
 
     # Recalculate the positions considering the size of the diodes and thus the expected real positions
     positions = []
-    for i in range(np.shape(position)[0]):
+    for i in range(np.shape(signals)[1]):
         cache = deepcopy(position)
         cache[:, sp] = cache[:, sp] + (int(np.shape(position)[0]/2) - i) * (diode_size[sp] + diode_space)
         positions.append(cache)
@@ -286,8 +299,7 @@ def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_d
 
     # Interpolation
     factor = np.array([])
-    print(np.shape(positions)[0])
-    for channel in range(np.shape(positions)[0]):
+    for channel in range(np.shape(signals)[1]):
         mean_interp = np.interp(positions[channel, :, sp], mean_x, mean_result)
         if isinstance(method, (float, int, np.float64)):
             # Method 1: Threshold for range consideration, for each diode channel mean of the factor between points
@@ -311,9 +323,12 @@ def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_d
             if np.isnan(factor2):
                 factor2 = 0
         factor = np.append(factor, factor2)
-
+    # Save a raw factor to allow later changes on the factor's parameters
     if cache_save:
         np.save(path_to_folder / 'normalization_factor.npy', factor)
+    factor[((factor < factor_limits[0]) | (factor > factor_limits[1]))] = 0
+    if norm_factor:
+        factor = factor / np.mean(factor[factor != 0])
     return factor
 
 
@@ -481,7 +496,8 @@ def interpret_map(folder, criteria, save_path='', plot=False, paths_of_norm_file
 def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_files=None, excluded_channel=[],
                     do_normalization=True, convert_param=True, diode_direction='y', array_len=64, diode_size=(0.5, 0.5),
                     diode_space=0.08, x_stepwidth=0.25, y_stepwidth=0.25, super_resolution=False, contour=True,
-                    realistic=False, avoid_sample=True, Z_conversion=lambda Z: Z, varied_beam=True, *args, **kwargs):
+                    realistic=False, avoid_sample=True, Z_conversion=lambda Z: Z, varied_beam=True, path_dark=None,
+                    normalization_files=None, *args, **kwargs):
     # This part remains the same between 1D map naming and 2D mapping
     files = os.listdir(Path(folder))
     cache = []
@@ -511,13 +527,15 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
 
         # For each file read the channels (and apply normalization) - saved under same ordering
         data2 = read(Path(folder) / file)
-        readout2 = read_channels(data2, excluded_channel, varied_beam=varied_beam)
+        readout2 = read_channels(data2, excluded_channel, varied_beam=varied_beam, path_dark=path_dark)
 
         # ToDo: Check if normalization is still viable or a better method is available (y-shifted measurements)
         # Normalization
         if do_normalization:
-            if paths_of_norm_files is not None:
-                factor = normalization(paths_of_norm_files, excluded_channel=excluded_channel)
+            if paths_of_norm_files is not None and normalization_files is not None:
+                factor = normalization_new(paths_of_norm_files, normalization_files, excluded_channel=excluded_channel,
+                                           scan_direction=diode_direction, dark_path=path_dark, diode_size=diode_size,
+                                           diode_space=diode_space)
                 readout2 = readout2*factor
         readout.append(readout2)
 
@@ -590,8 +608,8 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
         for step in distinct:
             if diode_direction == 'y':
                 indices = np.where(position[:, 1] == step)[0]
-                print(position[:, 1])
-                print(indices)
+                # print(position[:, 1])
+                # print(indices)
                 if len(indices) <= 1:
                     print('For 1 translation step no map is created!')
                     continue
@@ -651,8 +669,16 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
                     Z = Z_conversion(Z)
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
-            intensity_limits = [0, min(np.max(Z)*0.8, np.mean(Z)*2)]
-            intensity_limits = [0, 200]
+            # intensity_limits = [0, np.abs(min(np.max(Z)*0.8, np.mean(Z)*2))]
+            intensity_limits = [0, np.abs(np.max(Z) * 0.9)]
+            # intensity_limits = [0, 6500]
+            # intensity_limits = [0, 200]
+            print(Z)
+            for i, element in enumerate(Z.flatten()):
+                if np.isnan(element):
+                    print(i, 'Nan 1', element)
+                elif element != element:
+                    print(i, 'Nan 2', element)
             print(np.max(Z), np.mean(Z), np.median(Z), np.std(Z))
 
             if 'beamshape' in criteria:
@@ -661,6 +687,7 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
                 intensity_limits = np.array(intensity_limits)/2
             # intensity_limits2 = (max(np.min(Z), intensity_limits[0]), min(np.max(Z), intensity_limits[1]))
             intensity_limits2 = intensity_limits
+            print(intensity_limits2)
             levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
             print(intensity_limits)
             print(intensity_limits2)

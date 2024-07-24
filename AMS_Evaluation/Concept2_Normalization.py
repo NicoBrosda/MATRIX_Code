@@ -8,7 +8,8 @@ from scipy.optimize import least_squares
 
 folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_19062024/')
 dark_path = folder_path / 'd2_1n_3s_beam_all_without_diffuser_dark.csv'
-for crit in ['5s_flat_calib_', '500p_center_']:
+fig2, ax2 = plt.subplots()
+for crit_num, crit in enumerate(['5s_flat_calib_', '500p_center_']):
     excluded = []
     print('-' * 100)
     print(crit)
@@ -102,11 +103,13 @@ for crit in ['5s_flat_calib_', '500p_center_']:
     '''
     fig, ax = plt.subplots()
     for i, pos in enumerate(positions):
-        ax.plot(pos[:, 0] + i, pos[:, 1], ls='', marker='x')
+        ax.plot(np.full_like(pos[:, 1], i), pos[:, 1], ls='', marker='x')
 
     for group in groups:
         ax.axhline(np.mean(group), ls='--', zorder=-1)
-    plt.show()
+    ax.set_xlabel(r'\# Measurement')
+    ax.set_ylabel(r'y-position (mm)')
+    format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/', crit+'_pos_', legend=True)
     # '''
 
     print(np.shape(signals))
@@ -134,7 +137,7 @@ for crit in ['5s_flat_calib_', '500p_center_']:
             mean_result.append(cache)
     mean_result = np.array(mean_result)
     mean_x = np.array(groups)
-    # '''
+    '''
     fig, ax = plt.subplots()
     # This defines a colour range for measurement temperatures between 5 and 40 K
     diode_colourmap = sns.color_palette("coolwarm", as_cmap=True)
@@ -149,7 +152,7 @@ for crit in ['5s_flat_calib_', '500p_center_']:
         ax.plot(position[:, 1] + (32 - i) * (0.5 + 0.08 - 0), signals[:, i], c=c, ls='--', alpha=0.2)
         # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
 
-    ax.plot(groups, mean_result, c='k', lw=2)
+    ax.plot(groups, mean_result, c='k', lw=2, zorder=5)
     ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
     ax.set_ylabel('Measured Amplitude')
     ax.set_xlim(ax.get_xlim())
@@ -181,19 +184,39 @@ for crit in ['5s_flat_calib_', '500p_center_']:
         else:
             factor2 = factor2.x
 
-        c = diode_colour(channel)
-        # shift = np.mean(maxima) - maxima[i]
-        ax.plot(positions[channel, :, 1], signals[:, channel]*factor2, c=c, ls='--')
         print('-' * 30)
         print(channel, factor, factor2)
         factor_1 = np.append(factor_1, factor)
         factor_2 = np.append(factor_2, factor2)
-    plt.show()
+    # fig.show()
+    factor_1[((factor_1 < 0) | (factor_1 > 3))] = 0
+    factor_2[((factor_2 < 0) | (factor_2 > 3))] = 0
+    factor_1 = factor_1/np.mean(factor_1[factor_1 != 0])
+    factor_2 = factor_2/np.mean(factor_2[factor_2 != 0])
 
-    fig, ax = plt.subplots()
-    ax.plot(factor_1)
-    ax.plot(factor_2)
-    ax.plot(normalization(['/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_bottom_nA_2.csv',
-             '/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_nA_2.csv',
-             '/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_top_nA_2.csv'], excluded_channel=[38])[::-1])
-    plt.show()
+    '''
+    for channel in range(np.shape(signals)[1]):
+        c = diode_colour(channel)
+        # shift = np.mean(maxima) - maxima[i]
+        ax.plot(positions[channel, :, 1], signals[:, channel] * factor_2[channel], c=c, ls='--')
+    ax.set_xlabel(r'Calculated real position of diodes (mm)')
+    ax.set_ylabel(r'Signal Amplitude')
+    format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/', crit+'_afternorm_', legend=True)
+    # '''
+    c = sns.color_palette("tab10")[crit_num]
+    ax2.plot(factor_1, c=c, ls='--', label=crit+'_method1_')
+    ax2.plot(factor_2, c=c, ls='-', label=crit+'_method_lsq_')
+
+c = sns.color_palette("tab10")[crit_num+1]
+ax2.plot(normalization(['/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_bottom_nA_2.csv',
+         '/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_nA_2.csv',
+         '/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e2_500p_top_nA_2.csv'], excluded_channel=[38])[::-1], c=c, label='Factor from 27_05_24')
+# fig2.show()
+ax2.legend()
+ax2.set_xlabel(r'\# Diode')
+ax2.set_ylabel(r'Factor')
+format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/', crit + '_factors_',
+            legend=True)
+
+print(np.shape(factor_1))
+# '''
