@@ -569,26 +569,45 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
 
     '''
     fig, ax = plt.subplots()
-    for pos in position:
+    if len(distinct_x) == 1:
+        ax.set_xlabel(r'$\#$ Measurements at x position '+str(distinct_x[0])+r'$\,$mm')
+    else:
+        ax.set_xlabel('Position x direction')
+    ax.set_ylabel('Position y direction')
+    for kount, pos in enumerate(position):
         i = 0
         while True:
             if pos[1] == distinct_y[i]:
                 break
             else:
                 i += 1
-        ax.scatter(*pos, marker='x', color=sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))])
+        if kount == 0:
+            if len(distinct_x) == 1:
+                ax.scatter(0, pos[1], marker='x', color=sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))],
+                           label='Measurement position')
+            else:
+                ax.scatter(*pos, marker='x', color=sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))],
+                           label='Measurement position')
+        else:
+            if len(distinct_x) == 1:
+                ax.scatter(0, pos[1], marker='x', color=sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))])
+            else:
+                ax.scatter(*pos, marker='x', color=sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))])
     for i, j in enumerate(distinct_y):
         color = sns.color_palette("tab10")[i % len(sns.color_palette("tab10"))]
-        x = min(distinct_x) + i
+        if len(distinct_x) == 1:
+            x = 1 + i
+        else:
+            x = min(distinct_x) + i
         for k in range(int(array_len/2)):
             rect1 = mpl.patches.Rectangle((x, j-k*(diode_size[1]+diode_space)), *diode_size, edgecolor=color, facecolor='none')
             rect2 = mpl.patches.Rectangle((x, j + k * (diode_size[1] + diode_space)), *diode_size, edgecolor=color, facecolor='none')
             ax.add_patch(rect1)
             ax.add_patch(rect2)
-    ax.set_xlabel('Position x direction')
-    ax.set_ylabel('Position y direction')
-    format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/', criteria)
-    '''
+    ax.set_title('Measurement: '+str(criteria)+'\n Overview - Measured positions and positioning of diode array')
+    format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/Overview/', criteria, legend=True)
+    return None
+    # '''
 
     # ToDo: Sort the position after x and y - sort the readout accordingly
     sorting = np.argsort(position[:, 0])

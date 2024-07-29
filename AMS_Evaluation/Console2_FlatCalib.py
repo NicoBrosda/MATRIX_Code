@@ -75,10 +75,12 @@ for crit in ['5s_flat_calib_', '500p_center_']:
     for i in range(64):
         c = diode_colour(i)
         shift = np.mean(maxima) - maxima[i]
-        ax.plot(position[:, 1]+(32-i)*(0.5+0.08), signals[:, i], c=c, ls='--')
+        # ax.plot(position[:, 1]+(32-i)*(0.5+0.08), signals[:, i], c=c, ls='--')
+        ax.plot(position[:, 1], signals[:, i], c=c, ls='--')
         # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
 
-    ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
+    # ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
+    ax.set_xlabel('Y-Position of Diode - Not shifted; at y position from measurement file (mm)')
     ax.set_ylabel('Measured Amplitude')
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
@@ -89,5 +91,5 @@ for crit in ['5s_flat_calib_', '500p_center_']:
     ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$64', fontsize=15,
             c=diode_colour(63))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/'), crit,
+    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/'), crit+'_notshifted_',
                 legend=False)
