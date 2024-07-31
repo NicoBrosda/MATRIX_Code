@@ -189,8 +189,8 @@ for crit_num, crit in enumerate(['5s_flat_calib_', '500p_center_']):
         factor_1 = np.append(factor_1, factor)
         factor_2 = np.append(factor_2, factor2)
     # fig.show()
-    factor_1[((factor_1 < 0) | (factor_1 > 3))] = 0
-    factor_2[((factor_2 < 0) | (factor_2 > 3))] = 0
+    factor_1[((factor_1 < 0) | (factor_1 > 8))] = 0
+    factor_2[((factor_2 < 0) | (factor_2 > 8))] = 0
     factor_1 = factor_1/np.mean(factor_1[factor_1 != 0])
     factor_2 = factor_2/np.mean(factor_2[factor_2 != 0])
 
@@ -215,7 +215,7 @@ ax2.plot(normalization(['/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_
 ax2.legend()
 ax2.set_xlabel(r'\# Diode')
 ax2.set_ylabel(r'Factor')
-format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/', crit + '_factors_',
+format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/', crit + '_factorslesslimited_',
             legend=True)
 
 print(np.shape(factor_1))

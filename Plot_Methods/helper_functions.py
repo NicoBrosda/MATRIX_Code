@@ -22,26 +22,6 @@ def x_conversion(x):
     return wv_to_e(x)
 
 
-def load_saved_spectrum(sample_name, save_path=None, baseline_return=False) -> (np.ndarray, np.ndarray):
-    if save_path is None:
-        save_path = Path('./ExampleData/SpectrumCorrected/')
-    if '.npz' not in sample_name:
-        path = Path(save_path) / (sample_name + '.npz')
-    else:
-        path = Path(save_path) / sample_name
-    if os.path.isfile(path):
-        with np.load(path) as data:
-            if baseline_return:
-                return (data['spectrum'][0], data['spectrum'][1]), data['baseline']
-            else:
-                return data['spectrum'][0], data['spectrum'][1]
-    else:
-        if baseline_return:
-            return None, None
-        else:
-            return None
-
-
 def find_10power(array) -> int:
     # Returns the power of base 10 of the mean of the given array
     if not isinstance(array, np.ndarray):
@@ -137,7 +117,7 @@ def list_check(name, list_):
 def array_txt_file_search(array, blacklist=[], searchlist=None, txt_file=True, file_suffix=None):
     txt_files = []
     for i in array:
-        if isinstance(i, pathlib.PosixPath):
+        if isinstance(i, pathlib.PurePath):
             i = str(i)
         if txt_file:
             if '.TXT' in i or '.txt' in i or '.npz' in i:
