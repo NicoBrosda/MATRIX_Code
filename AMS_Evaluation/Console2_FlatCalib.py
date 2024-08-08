@@ -32,7 +32,7 @@ for crit in ['5s_flat_calib_', '500p_center_']:
     signals = np.array(signals)[indices]
     position = np.array(position)[indices]
 
-    # '''
+    '''
     fig, ax = plt.subplots()
 
     # This defines a colour range for measurement temperatures between 5 and 40 K
@@ -62,34 +62,39 @@ for crit in ['5s_flat_calib_', '500p_center_']:
                 legend=False)
     # '''
 
+    for shift_param in np.arange(0, 15, 1)/-100:
+        fig, ax = plt.subplots()
 
-    fig, ax = plt.subplots()
+        for i, signal in enumerate(signals):
+            signal[60] = 0
 
-    # This defines a colour range for measurement temperatures between 5 and 40 K
-    diode_colourmap = sns.color_palette("coolwarm", as_cmap=True)
-    diode_colourmapper = lambda x: color_mapper(x, 0, 63)
-    diode_colour = lambda x: diode_colourmap(diode_colourmapper(x))
+        # This defines a colour range for measurement temperatures between 5 and 40 K
+        diode_colourmap = sns.color_palette("coolwarm", as_cmap=True)
+        diode_colourmapper = lambda x: color_mapper(x, 0, 63)
+        diode_colour = lambda x: diode_colourmap(diode_colourmapper(x))
 
-    maxima = [position[:, 1][np.argmax(signals[:, i])] for i in range(64)]
+        maxima = [position[:, 1][np.argmax(signals[:, i])] for i in range(64)]
 
-    for i in range(64):
-        c = diode_colour(i)
-        shift = np.mean(maxima) - maxima[i]
-        # ax.plot(position[:, 1]+(32-i)*(0.5+0.08), signals[:, i], c=c, ls='--')
-        ax.plot(position[:, 1], signals[:, i], c=c, ls='--')
-        # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
+        for i in range(64):
+            c = diode_colour(i)
+            shift = np.mean(maxima) - maxima[i]
+            ax.plot(position[:, 1]+(32-i)*(0.5+0.08+shift_param), signals[:, i], c=c, ls='--')
+            # ax.plot(position[:, 1], signals[:, i], c=c, ls='--')
+            # ax.plot(position[:, 1]+shift, signals[:, i], c=c)
 
-    # ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
-    ax.set_xlabel('Y-Position of Diode - Not shifted; at y position from measurement file (mm)')
-    ax.set_ylabel('Measured Amplitude')
-    ax.set_xlim(ax.get_xlim())
-    ax.set_ylim(ax.get_ylim())
-    gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.89, 0.91]),
-                   transform_axis_to_data_coordinates(ax, [0.89, 0.61]), cmap=diode_colourmap, lw=5)
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.94]), r'Diode $\#$1', fontsize=15,
-            c=diode_colour(0))  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$64', fontsize=15,
-            c=diode_colour(63))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+        # ax.set_xlabel('Y-Position of Diode - Shifted for uniform center (mm)')
+        ax.set_xlabel('Y-Position of Diode - Not shifted; at y position from measurement file (mm)')
+        ax.set_ylabel('Measured Amplitude')
+        ax.set_xlim(ax.get_xlim())
+        ax.set_ylim(ax.get_ylim())
+        gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.89, 0.91]),
+                       transform_axis_to_data_coordinates(ax, [0.89, 0.61]), cmap=diode_colourmap, lw=5)
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.94]), r'Diode $\#$1', fontsize=15,
+                c=diode_colour(0))  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$64', fontsize=15,
+                c=diode_colour(63))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/'), crit+'_notshifted_',
-                legend=False)
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.05, 0.9]), str(round(shift_param, 2))+r'$\,$'+'mm', fontsize=15)
+
+        format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/FlatCalib/ParamCheck/'), crit+'shift'+str(round(shift_param, 2)),
+                    legend=False)

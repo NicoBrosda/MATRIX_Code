@@ -176,7 +176,7 @@ def normalization(paths_of_norm_files, excluded_channel=[]):
 
 def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_direction='y', method='leastsquares',
                       dark_path=None, diode_size=(0.5, 0.5), diode_space=0.08, cache_save=True, factor_limits=(0, 3),
-                      norm_factor=True):
+                      norm_factor=True, correction=-0.065):
     # Check if factor is already saved and is not needed to be recalculated:
     if cache_save and os.path.isfile(path_to_folder / 'normalization_factor.npy'):
         try:
@@ -265,7 +265,7 @@ def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_d
     positions = []
     for i in range(np.shape(signals)[1]):
         cache = deepcopy(position)
-        cache[:, sp] = cache[:, sp] + (int(np.shape(position)[0]/2) - i) * (diode_size[sp] + diode_space)
+        cache[:, sp] = cache[:, sp] + (int(np.shape(position)[0]/2) - i) * (diode_size[sp] + diode_space + correction)
         positions.append(cache)
     positions = np.array(positions)
 
