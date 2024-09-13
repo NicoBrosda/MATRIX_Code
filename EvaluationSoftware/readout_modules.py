@@ -3,15 +3,15 @@ import pandas as pd
 
 
 # This is the standard blueprint of a readout module (in terms of inputs and outputs)
-def readout_example(path_to_data_file, instance):
+def readout_example(path_to_data_file, instance, subtract_background=True):
     signal = np.zeros(instance.diodes_dimension)
     std = np.zeros(instance.diodes_dimension)
-    position = (0, 0)
     voltage = 0
-    return {'signal': signal, 'std': std, 'pos': position, 'voltage': voltage}
+    dict_for_other_params = dict()
+    return {'signal': signal, 'std': std, 'voltage': voltage, 'dict': dict_for_other_params}
 
 
-def ams_otsus_readout(path_to_data_file, instance):
+def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
     def threshold_otsu(x, *args, **kwargs) -> float or None:
         # hist, bins, range=None
         """Find the threshold value for a bimodal histogram using the Otsu method.
@@ -45,9 +45,17 @@ def ams_otsus_readout(path_to_data_file, instance):
         threshold = bin_centers[idx]
         return threshold
 
+    el = instance.diode_dimension[0] * instance.diode_dimension[1]
+    columns_used = el
+    if columns_used > 128:
+        columns_used = 128
+        if columns_used - (instance.excluded == True).sum() > 128:
+            print('The ams_readout module is not suitable for arrays with more than 128 diodes, because only 128 channels '
+                  'are existent. Check if the array structure was inserted correctly and if the correct readout module was '
+                  'picked')
     detect = len(pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None).columns)
     data1 = pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None, usecols=range(130, detect))
-    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(66))
+    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used+2))
     if len(data2.columns) - len(data1.columns) > 0:
         for i in range(len(data2.columns) - len(data1.columns)):
             data1['Add' + str(i)] = np.NaN
@@ -59,16 +67,23 @@ def ams_otsus_readout(path_to_data_file, instance):
     signal_std = []
     darks = []
     dark_std = []
+    voltage = 0
     for i, col in enumerate(data):
-        if instance.excluded[i]:
+        # Column 0 is voltage information
+        if i == 0:
+            voltage = np.mean(data[col])
+            continue
+        # Column 1 is sample number
+        if i == 1:
+            continue
+        # Column 3 = measurement channel 1 = array reference 0
+        j = i - 2
+        if instance.excluded.flatten()[j]:
             signals.append(0)
             darks.append(0)
             signal_std.append(0)
             dark_std.append(0)
-        if i == 0:
-            voltage = np.mean(data[col])
-        if i == 1:
-            continue
+            thresholds.append(None)
         try:
             threshold = threshold_otsu(data[col])
         except ValueError:
@@ -76,7 +91,7 @@ def ams_otsus_readout(path_to_data_file, instance):
         thresholds.append(threshold)
 
         if threshold is not None:
-            # dark_std.append(np.std(data[col][data[col] < threshold]))
+            dark_std.append(np.std(data[col][data[col] < threshold]))
             sig = np.mean(data[col][data[col] > threshold])
             dar = np.mean(data[col][data[col] < threshold])
             std = np.std(data[col][data[col] > threshold])
@@ -93,12 +108,92 @@ def ams_otsus_readout(path_to_data_file, instance):
             signals.append(0)
             darks.append(0)
             signal_std.append(0)
-    return None
-    if advanced_output:
-        return [np.array(signals)[:len(signals) - len(excluded_channel)],
-                np.array(signal_std)[:len(signal_std) - len(excluded_channel)],
-                np.array(darks)[:len(darks) - len(excluded_channel)],
-                np.array(dark_std)[:len(dark_std) - len(excluded_channel)],
-                np.array(thresholds)[:len(thresholds) - len(excluded_channel)]]
-    else:
-        return np.array(signals)[:len(signals) - len(excluded_channel)]
+            dark_std.append(0)
+    # Now the data needs to be filled in an array structure that resembles: instance.diode_dimension
+    # Check if there are enough values to fill the instance.diode_dimension array, and append 0 otherwise
+    if len(signals) < el:
+        while len(signals) < el:
+            signals.append(0)
+            darks.append(0)
+            signal_std.append(0)
+            dark_std.append(0)
+            thresholds.append(None)
+    signals, darks, signal_std, dark_std, thresholds = np.array(signals)[:el], np.array(darks)[:el], np.array(signal_std)[:el], \
+        np.array(dark_std)[:el], np.array(thresholds)[:el]
+    return {'signal': np.reshape(signals, instance.diode_dimension),
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'voltage': voltage,
+            'dict': {'thresholds': np.reshape(thresholds, instance.diode_dimension),
+                     'dark': np.reshape(darks, instance.diode_dimension),
+                     'dark_std': np.reshape(dark_std, instance.diode_dimension)}}
+
+
+def ams_constant_signal_readout(path_to_data_file, instance, subtract_background=True):
+    el = instance.diode_dimension[0] * instance.diode_dimension[1]
+    columns_used = el
+    if columns_used > 128:
+        columns_used = 128
+        if columns_used - (instance.excluded == True).sum() > 128:
+            print(
+                'The ams_readout module is not suitable for arrays with more than 128 diodes, because only 128 channels '
+                'are existent. Check if the array structure was inserted correctly and if the correct readout module was '
+                'picked')
+    detect = len(pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None).columns)
+    data1 = pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None, usecols=range(130, detect))
+    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used+2))
+    if len(data2.columns) - len(data1.columns) > 0:
+        for i in range(len(data2.columns) - len(data1.columns)):
+            data1['Add' + str(i)] = np.NaN
+    data1 = data1.set_axis(list(data2.columns), axis=1)
+    data = pd.concat([data1, data2])
+
+    signals = []
+    signal_std = []
+    voltage = 0
+
+    # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
+    dark = []
+    if subtract_background and np.shape(dark)[0] > 0:
+        for file2 in instance.dark_files:
+            dark.append(ams_constant_signal_readout(file2, instance, subtract_background=False)['signal'].flatten())
+        dark = np.mean(np.array(dark), axis=0)
+    if np.shape(dark)[0] < np.shape(data)[0]:
+        dark = np.zeros(columns_used)
+
+    for i, col in enumerate(data):
+        # Column 0 is voltage information
+        if i == 0:
+            voltage = np.mean(data[col])
+            continue
+        # Column 1 is sample number
+        if i == 1:
+            continue
+        # Column 3 = measurement channel 1 = array reference 0
+        j = i - 2
+        if instance.excluded.flatten()[j]:
+            signals.append(0)
+            signal_std.append(0)
+        try:
+            cache = np.mean(data[col]) - dark[j]
+            cache_std = np.std(data[col])
+            if not np.isnan(cache):
+                signals.append(cache)
+                signal_std.append(cache_std)
+            else:
+                signals.append(0)
+                signal_std.append(0)
+        except ValueError:
+            signals.append(0)
+            signal_std.append(0)
+    # Now the data needs to be filled in an array structure that resembles: instance.diode_dimension
+    # Check if there are enough values to fill the instance.diode_dimension array, and append 0 otherwise
+    if len(signals) < el:
+        while len(signals) < el:
+            signals.append(0)
+            signal_std.append(0)
+            dark = np.append(dark, 0)
+    signals, signal_std, dark = np.array(signals)[:el], np.array(signal_std)[:el], dark[:el]
+    return {'signal': np.reshape(signals, instance.diode_dimension),
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'voltage': voltage,
+            'dict': {'dark': np.reshape(dark, instance.diode_dimension)}}

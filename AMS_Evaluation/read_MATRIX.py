@@ -688,11 +688,16 @@ def interpret_2Dmap(folder, criteria, save_path='', plot=False, paths_of_norm_fi
                     Z = Z_conversion(Z)
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
+            print('-'*50)
+            print(np.shape(X))
+            print(np.shape(Y))
+            print(np.shape(Z))
+
             # intensity_limits = [0, np.abs(min(np.max(Z)*0.8, np.mean(Z)*2))]
             intensity_limits = [0, np.abs(np.max(Z) * 0.9)]
             # intensity_limits = [0, 6500]
             # intensity_limits = [0, 200]
-            print(Z)
+            # print(Z)
             for i, element in enumerate(Z.flatten()):
                 if np.isnan(element):
                     print(i, 'Nan 1', element)
