@@ -98,12 +98,15 @@ def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
             if not np.isnan(sig) and not np.isnan(dar):
                 signals.append(sig - dar)
                 signal_std.append(std)
+                darks.append(dar)
             elif sig is not np.nan and dar is np.nan:
                 signals.append(sig)
                 signal_std.append(std)
+                darks.append(0)
             else:
                 signals.append(0)
                 signal_std.append(0)
+                darks.append(0)
         else:
             signals.append(0)
             darks.append(0)
@@ -153,11 +156,12 @@ def ams_constant_signal_readout(path_to_data_file, instance, subtract_background
 
     # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
     dark = []
-    if subtract_background and np.shape(dark)[0] > 0:
+    if subtract_background and np.shape(instance.dark_files)[0] > 0:
         for file2 in instance.dark_files:
             dark.append(ams_constant_signal_readout(file2, instance, subtract_background=False)['signal'].flatten())
         dark = np.mean(np.array(dark), axis=0)
-    if np.shape(dark)[0] < np.shape(data)[0]:
+
+    if np.shape(dark)[0] == 0:
         dark = np.zeros(columns_used)
 
     for i, col in enumerate(data):

@@ -5,7 +5,29 @@ from copy import deepcopy
 from scipy.optimize import least_squares
 
 
-def normalization_from_translated_array(list_of_files, instance, method='leastsquares', correction=-0.065):
+def simple_normalization(list_of_files, instance):
+    cache = []
+    for i, file in enumerate(list_of_files):
+        signal = instance.readout(file, instance, subtract_background=True)['signal'].flatten()
+        cache.append(signal)
+
+    max_signal = np.amax(np.array(cache), axis=0)
+    mean = np.mean(max_signal)
+    factor = []
+    for signal in max_signal:
+        if signal/mean <= 0.1:
+            factor.append(0)
+        else:
+            factor.append(mean/signal)
+    factor = np.array(factor)
+    if len(factor) >= 64:
+        factor[-3:] = 1
+        factor[:2] = 1
+
+    return factor
+
+
+def normalization_from_translated_array(list_of_files, instance, method='least_squares', correction=0):
     # Little helper function to group the recalculated positions
     def group(input_list, group_range):
         class Group:

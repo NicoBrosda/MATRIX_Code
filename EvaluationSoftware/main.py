@@ -3,11 +3,11 @@ import pathlib
 from tqdm import tqdm
 import numpy as np
 from pathlib import Path
-from helper_modules import array_txt_file_search
-from readout_modules import *
-from position_parsing_modules import *
+from EvaluationSoftware.helper_modules import array_txt_file_search
+from EvaluationSoftware.readout_modules import *
+from EvaluationSoftware.position_parsing_modules import *
 from Plot_Methods.plot_standards import *
-from normalization_modules import *
+from EvaluationSoftware.normalization_modules import *
 
 
 class DiodeGeometry:
@@ -67,17 +67,19 @@ class Analyzer:
         self.dark_files = []
         self.norm_factor = np.ones(diode_dimension)
         self.name = ''
-        self.map = {'x': [], 'y': [], 'z': []}
+        self.map = {'x': np.array([]), 'y': np.array([]), 'z': np.array([])}
         self.excluded = np.full(self.diode_dimension, False)
 
     def set_measurement(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg']):
-        self.name = filter_criterion
+        self.name = str(filter_criterion)
         if blacklist is None:
             blacklist = []
         if not isinstance(path_to_folder, pathlib.PurePath):
             path_to_folder = Path(path_to_folder)
         files = os.listdir(path_to_folder)
-        measurement_files = array_txt_file_search(files, searchlist=[filter_criterion], blacklist=blacklist,
+        if not isinstance(filter_criterion, (tuple, list)):
+            filter_criterion = [filter_criterion]
+        measurement_files = array_txt_file_search(files, searchlist=filter_criterion, blacklist=blacklist,
                                                   file_suffix=file_format, txt_file=False)
         print(len(measurement_files), ' files found in the folder: ', path_to_folder, ' under the search criterion: ',
               filter_criterion)
@@ -89,7 +91,9 @@ class Analyzer:
         if not isinstance(path_to_folder, pathlib.PurePath):
             path_to_folder = Path(path_to_folder)
         files = os.listdir(path_to_folder)
-        dark_files = array_txt_file_search(files, searchlist=[filter_criterion], blacklist=blacklist,
+        if not isinstance(filter_criterion, (tuple, list)):
+            filter_criterion = [filter_criterion]
+        dark_files = array_txt_file_search(files, searchlist=filter_criterion, blacklist=blacklist,
                                                   file_suffix=file_format, txt_file=False)
         print(len(dark_files), ' files for background correction found in the folder: ', path_to_folder,
               ' under the search criterion: ', filter_criterion)
@@ -98,11 +102,11 @@ class Analyzer:
     def normalization(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg'],
                       normalization_module=None, cache_save=True, factor_limits=(0, 3), norm_factor=True):
         # Check if factor is already saved and is not needed to be recalculated:
-        # if cache_save and os.path.isfile(path_to_folder / (filter_criterion+'_normalization_factor.npy')):
-        if cache_save and os.path.isfile(path_to_folder / 'normalization_factor.npy'):
+        if not isinstance(filter_criterion, (tuple, list)):
+            filter_criterion = [filter_criterion]
+        if cache_save and os.path.isfile(path_to_folder / (str(filter_criterion)+'_normalization_factor.npy')):
             try:
-                # factor = np.load(path_to_folder / (filter_criterion+'_normalization_factor.npy'))
-                factor = np.load(path_to_folder / 'normalization_factor.npy')
+                factor = np.load(path_to_folder / (str(filter_criterion)+'_normalization_factor.npy'))
                 factor[((factor < factor_limits[0]) | (factor > factor_limits[1]))] = 0
                 if norm_factor:
                     factor = factor / np.mean(factor[factor != 0])
@@ -119,7 +123,7 @@ class Analyzer:
         if not isinstance(path_to_folder, pathlib.PurePath):
             path_to_folder = Path(path_to_folder)
         files = os.listdir(path_to_folder)
-        files = array_txt_file_search(files, searchlist=[filter_criterion], blacklist=blacklist,
+        files = array_txt_file_search(files, searchlist=filter_criterion, blacklist=blacklist,
                                                   file_suffix=file_format, txt_file=False)
         print(len(files), ' files for normalization found in the folder: ', path_to_folder,
               ' under the search criterion: ', filter_criterion)
@@ -128,7 +132,7 @@ class Analyzer:
         factor = normalization_module(files, self)
 
         if cache_save:
-            np.save(path_to_folder / (filter_criterion+'_normalization_factor.npy'), factor)
+            np.save(path_to_folder / (str(filter_criterion)+'_normalization_factor.npy'), factor)
 
         factor[((factor < factor_limits[0]) | (factor > factor_limits[1]))] = 0
 
@@ -155,13 +159,13 @@ class Analyzer:
             cache.update({'position': pos})
             self.measurement_data.append(cache)
 
-    def create_map(self, overlay='ignore'):
+    def create_map(self, overlay='ignore', inverse=[False, False]):
         x = []
         y = []
         z = []
         for data in self.measurement_data:
             pos = data['position']
-            if np.isnan(pos[0] or np.isnan(pos[1])):
+            if None in pos or np.isnan(pos[0]) or np.isnan(pos[1]):
                 continue
             signal = data['signal']
             for i, column in enumerate(signal):
@@ -188,9 +192,12 @@ class Analyzer:
                 image[i, distinct_y.index(y[i*np.shape(z)[1]+j])] = row
 
         z = image.T
-
+        if inverse[0]:
+            z = z[::-1]
+        if inverse[1]:
+            z = z[:, ::-1]
         if overlay == 'ignore':
-            self.map.update({'x': distinct_x, 'y': distinct_y, 'z': z})
+            self.map.update({'x': np.array(distinct_x), 'y': np.array(distinct_y), 'z': z})
         else:
             pass
 
@@ -202,8 +209,61 @@ class Analyzer:
         print(intensity_limits)
         levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
         if not contour:
+            # Auto-detect step width in x and y:
+            x_steps = np.array([self.map['x'][i+1] - self.map['x'][i] for i in range(np.shape(self.map['x'])[0]-1)])
+            y_steps = np.array([self.map['y'][i+1] - self.map['y'][i] for i in range(np.shape(self.map['y'])[0]-1)])
+            print(np.shape(self.map['x']), np.shape(self.map['y']), np.shape(self.map['z']))
+            print('-'*50)
+            print(x_steps)
+            print(x_steps.mean(), x_steps.std())
+            print(self.diode_dimension[0] > 1, x_steps.std() == 0, x_steps.mean() == self.diode_size[0]+self.diode_spacing[0])
+            print('-' * 50)
+            print(y_steps)
+            print(y_steps.mean(), y_steps.std())
+            print(self.diode_dimension[1] > 1, y_steps.std() == 0, y_steps.mean() == self.diode_size[1] + self.diode_spacing[1])
+            # Auto-detect if whitespaces should be inserted in one-direction (>1 diode and distances = diodes geometry)
+            if self.diode_dimension[0] > 1 and x_steps.std() == 0 and \
+                    x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
+                cache_x = np.array([self.map['x'][0]])
+                for i in range(np.shape(self.map['x'])[0]):
+                    if i == 0:
+                        cache_x = np.append(cache_x, cache_x[-1]+self.diode_spacing[0]/2)
+                        cache_x = np.append(cache_x, cache_x[-1] + self.diode_size[0])
+                    else:
+                        cache_x = np.append(cache_x, cache_x[-1] + self.diode_spacing[0])
+                        cache_x = np.append(cache_x, cache_x[-1]+self.diode_size[0])
+                cache_z = []
+                for row in self.map['z'].T:
+                    cache_z.append(np.zeros_like(row))
+                    cache_z.append(row)
+                cache_z = np.array(cache_z).T
+            # Else insert +1 step in the end of the measurement and do not add white spaces
+            else:
+                cache_x = np.append(self.map['x'], self.map['x'][-1]+x_steps.mean())
+                cache_z = self.map['z']
+
+            if self.diode_dimension[1] > 1 and y_steps.std() == 0 and \
+                    y_steps.mean() == self.diode_size[1]+self.diode_spacing[1]:
+                cache_y = np.array([self.map['y'][0]])
+                for i in range(np.shape(self.map['y'])[0]):
+                    if i == 0:
+                        cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1] / 2)
+                        cache_y = np.append(cache_y, cache_y[-1] + self.diode_size[1])
+                    else:
+                        cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1])
+                        cache_y = np.append(cache_y, cache_y[-1] + self.diode_size[1])
+                cache = []
+                for row in cache_z:
+                    cache.append(np.zeros_like(row))
+                    cache.append(row)
+                cache_z = np.array(cache)
+            else:
+                cache_y = np.append(self.map['y'], self.map['y'][-1] + y_steps.mean())
+                cache_z = cache_z
+
+            print(np.shape(cache_x), np.shape(cache_y), np.shape(cache_z))
             norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
-            color_map = ax.pcolormesh(self.map['x'], self.map['y'], self.map['z'], cmap=cmap, norm=norm, shading='flat')
+            color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
             norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
             sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
             sm.set_array([])
@@ -242,22 +302,30 @@ class Analyzer:
         pass
 
 
-A = Analyzer((1, 64), 0.5, 0.08)
+# '''
+A = Analyzer((1, 64), 0.42, 0.08)
 folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_19062024/')
-# A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
-A.set_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
-A.load_measurement()
-fig, ax = plt.subplots()
-signal = A.measurement_data[0]['signal'][0]
-signal[60] /= 2000
-ax.plot(signal)
-print(A.measurement_data)
-plt.show()
-'''
+A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
 A.normalization(folder_path, '5s_flat_calib_', normalization_module=normalization_from_translated_array)
 for crit in ['10s_iphcmatrixcrhea_', '5s_misc_shapes_']:
     A.set_measurement(folder_path, crit)
     A.load_measurement(ams_constant_signal_readout, standard_position)
     A.create_map()
-    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/')
-'''
+    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=True)
+    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=False)
+# '''
+A = Analyzer((1, 64), 0.42, 0.08)
+A.excluded[0, 36] = True
+A.readout = ams_otsus_readout
+A.pos_parser = first_measurements_position
+folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/')
+paths = ['e2_500p_bottom_nA_2.csv',
+         'e2_500p_nA_2.csv',
+         'e2_500p_top_nA_2.csv']
+A.normalization(folder_path, paths, normalization_module=simple_normalization, cache_save=False)
+for crit in ['noscrew', 'screwsmaller_horizontal']:
+    A.set_measurement(folder_path, crit)
+    A.load_measurement()
+    A.create_map(inverse=[True, False])
+    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=True)
+    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=False)

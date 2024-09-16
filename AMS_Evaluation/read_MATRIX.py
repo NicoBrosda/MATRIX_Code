@@ -174,7 +174,7 @@ def normalization(paths_of_norm_files, excluded_channel=[]):
     return factor
 
 
-def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_direction='y', method='leastsquares',
+def normalization_new(path_to_folder, list_of_files, excluded_channel=[], scan_direction='y', method='least_squares',
                       dark_path=None, diode_size=(0.5, 0.5), diode_space=0.08, cache_save=True, factor_limits=(0, 3),
                       norm_factor=True, correction=-0.065):
     # Check if factor is already saved and is not needed to be recalculated:
