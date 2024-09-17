@@ -16,7 +16,7 @@ def threshold_otsu(x, *args, **kwargs) -> float or None:
   From the SciKit Image threshold_otsu implementation:
   https://github.com/scikit-image/scikit-image/blob/70fa904eee9ef370c824427798302551df57afa1/skimage/filters/thresholding.py#L312
   """
-    if np.NaN in x or pd.NA in x:
+    if True in [np.isnan(i) for i in x]:
         return None
     counts, bin_edges = np.histogram(x, *args, **kwargs)
     bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2

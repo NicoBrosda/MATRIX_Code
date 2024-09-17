@@ -8,6 +8,7 @@ from EvaluationSoftware.readout_modules import *
 from EvaluationSoftware.position_parsing_modules import *
 from Plot_Methods.plot_standards import *
 from EvaluationSoftware.normalization_modules import *
+from EvaluationSoftware.filter_modules import *
 
 
 class DiodeGeometry:
@@ -182,14 +183,13 @@ class Analyzer:
         sorting = np.argsort(x)
         x = x[sorting]
         z = z[sorting]
-
         distinct_x = sorted(set(x))
         distinct_y = sorted(set(y))
         image = np.zeros((len(distinct_x), len(distinct_y)))
 
         for i, column in enumerate(z):
             for j, row in enumerate(column):
-                image[i, distinct_y.index(y[i*np.shape(z)[1]+j])] = row
+                image[distinct_x.index(x[i]), distinct_y.index(y[i*np.shape(z)[1]+j])] = row
 
         z = image.T
         if inverse[0]:
@@ -201,26 +201,17 @@ class Analyzer:
         else:
             pass
 
-    def plot_map(self, save_path=None, contour=True, *args, **kwargs):
+    def plot_map(self, save_path=None, contour=True, intensity_limits=None, *args, **kwargs):
         fig, ax = plt.subplots()
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
-        intensity_limits = [0, np.abs(np.max(self.map['z']) * 0.9)]
-        intensity_limits2 = intensity_limits
-        print(intensity_limits)
-        levels = np.linspace(intensity_limits2[0], intensity_limits2[1], 100)
+        if intensity_limits is None:
+            intensity_limits = [0, np.abs(np.max(self.map['z']) * 0.9)]
+        # print(intensity_limits)
+        levels = np.linspace(intensity_limits[0], intensity_limits[1], 100)
         if not contour:
             # Auto-detect step width in x and y:
             x_steps = np.array([self.map['x'][i+1] - self.map['x'][i] for i in range(np.shape(self.map['x'])[0]-1)])
             y_steps = np.array([self.map['y'][i+1] - self.map['y'][i] for i in range(np.shape(self.map['y'])[0]-1)])
-            print(np.shape(self.map['x']), np.shape(self.map['y']), np.shape(self.map['z']))
-            print('-'*50)
-            print(x_steps)
-            print(x_steps.mean(), x_steps.std())
-            print(self.diode_dimension[0] > 1, x_steps.std() == 0, x_steps.mean() == self.diode_size[0]+self.diode_spacing[0])
-            print('-' * 50)
-            print(y_steps)
-            print(y_steps.mean(), y_steps.std())
-            print(self.diode_dimension[1] > 1, y_steps.std() == 0, y_steps.mean() == self.diode_size[1] + self.diode_spacing[1])
             # Auto-detect if whitespaces should be inserted in one-direction (>1 diode and distances = diodes geometry)
             if self.diode_dimension[0] > 1 and x_steps.std() == 0 and \
                     x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
@@ -261,10 +252,10 @@ class Analyzer:
                 cache_y = np.append(self.map['y'], self.map['y'][-1] + y_steps.mean())
                 cache_z = cache_z
 
-            print(np.shape(cache_x), np.shape(cache_y), np.shape(cache_z))
+            # print(np.shape(cache_x), np.shape(cache_y), np.shape(cache_z))
             norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
             color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
-            norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+            norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
             sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
             sm.set_array([])
             bar = fig.colorbar(sm, ax=ax, extend='max')
@@ -279,7 +270,7 @@ class Analyzer:
             else:
                 color_map = ax.contourf(self.map['x'], self.map['y'], self.map['z'], cmap=cmap, extend='neither', levels=levels)
             # '''
-            norm = matplotlib.colors.Normalize(vmin=intensity_limits2[0], vmax=intensity_limits2[1])
+            norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
             sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
             sm.set_array([])
             bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
@@ -292,40 +283,9 @@ class Analyzer:
             save_name += '_contour'
         if save_path is not None:
             format_save(save_path=save_path, save_name=save_name)
-        else:
-            plt.show()
 
     def overview(self):
         pass
 
     def plot_parameter(self, parameter):
         pass
-
-
-# '''
-A = Analyzer((1, 64), 0.42, 0.08)
-folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_19062024/')
-A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
-A.normalization(folder_path, '5s_flat_calib_', normalization_module=normalization_from_translated_array)
-for crit in ['10s_iphcmatrixcrhea_', '5s_misc_shapes_']:
-    A.set_measurement(folder_path, crit)
-    A.load_measurement(ams_constant_signal_readout, standard_position)
-    A.create_map()
-    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=True)
-    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=False)
-# '''
-A = Analyzer((1, 64), 0.42, 0.08)
-A.excluded[0, 36] = True
-A.readout = ams_otsus_readout
-A.pos_parser = first_measurements_position
-folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/')
-paths = ['e2_500p_bottom_nA_2.csv',
-         'e2_500p_nA_2.csv',
-         'e2_500p_top_nA_2.csv']
-A.normalization(folder_path, paths, normalization_module=simple_normalization, cache_save=False)
-for crit in ['noscrew', 'screwsmaller_horizontal']:
-    A.set_measurement(folder_path, crit)
-    A.load_measurement()
-    A.create_map(inverse=[True, False])
-    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=True)
-    A.plot_map('/Users/nico_brosda/Desktop/NewMaps/', contour=False)
