@@ -1,4 +1,7 @@
 import pathlib
+from pathlib import Path
+import os
+import codecs
 
 
 def list_check(name, list_):
@@ -39,3 +42,32 @@ def array_txt_file_search(array, blacklist=[], searchlist=None, txt_file=True, f
                         txt_files.append(i)
     return txt_files
 
+
+def path_check(path):
+    # Abfangen eines Problems, wenn Pfad nicht mit "/" beendet:
+    back = False
+    if isinstance(path, pathlib.PosixPath):
+        path = str(path)
+        back = True
+    '''
+    if not path[-1] == '/':
+        path = path + '/'
+    '''
+    path = str(Path(path) / ' ')[:-1]
+    if back:
+        return Path(path)
+    else:
+        return path
+
+
+def save_text(txt, save_path, save_name, newline=False):
+    save_path = path_check(save_path)
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    path = Path(save_path) / save_name
+    with codecs.open(path, 'w', 'utf-8', 'strict') as fh:
+        for i in txt:
+            if newline:
+                fh.write(i+'\n')
+            else:
+                fh.write(i)

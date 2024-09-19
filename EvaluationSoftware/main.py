@@ -201,8 +201,10 @@ class Analyzer:
         else:
             pass
 
-    def plot_map(self, save_path=None, contour=True, intensity_limits=None, *args, **kwargs):
-        fig, ax = plt.subplots()
+    def plot_map(self, save_path=None, contour=True, intensity_limits=None, ax=None, fig=None, colorbar=True,
+                 *args, **kwargs):
+        if ax is None or fig is None:
+            fig, ax = plt.subplots()
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
         if intensity_limits is None:
             intensity_limits = [0, np.abs(np.max(self.map['z']) * 0.9)]
@@ -258,7 +260,8 @@ class Analyzer:
             norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
             sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
             sm.set_array([])
-            bar = fig.colorbar(sm, ax=ax, extend='max')
+            if colorbar:
+                bar = fig.colorbar(sm, ax=ax, extend='max')
         else:
             # color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
             if np.min(self.map['z']) < intensity_limits[0] and np.max(self.map['z']) > intensity_limits[1]:
@@ -273,10 +276,12 @@ class Analyzer:
             norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
             sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
             sm.set_array([])
-            bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
+            if colorbar:
+                bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
         ax.set_xlabel(r'Position x (mm)')
         ax.set_ylabel(r'Position y (mm)')
-        bar.set_label('Measured Signal (a.u.)')
+        if colorbar:
+            bar.set_label('Measured Signal (a.u.)')
 
         save_name = self.name + '_map'
         if contour:
