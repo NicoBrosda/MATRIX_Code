@@ -3,6 +3,50 @@
 ## Purpose
 This is a MATRIX project repository intended for easier sharing of code connected to evaluation and measurement routines.
 
+## General Information
+The code is partially commented, below are some information that might help in using the code. The code might refer to
+local paths, because the measurement data is not part of this project. Thus, when using the code, it is necessary to 
+modify paths to the suited path on the User's PC.
+This project needs to be executed from the MATRIX_code folder level, otherwise referencing inbetween different code building blocks might not work.
+
+#### General Troubleshooting: 
+- There might occur a problem if there is not a viable LaTeX distribution on the computer. If such an Error follows any attempts to plot data after importing the file Plot_Methods.plot_standards, move to this file and set on the top the parameter use_LaTeX to False. Note that without LaTeX rendering formula are not correctly displayed in any plot.
+- Check if any Error is connected to paths not adapted to your computer system.
+- If any imports in this project are not working, note the info from above: The project needs to be executed from the MATRIX_code folder level, otherwise referencing inbetween different code building blocks might not work.
+
+## Overview
+On project level only folders, the README and the license should be stored.
+#### AMS_Evaluation
+Contains the code for the readout and plotting of the first two measurement sets. The code is barely commented and its 
+functionality has been replaced by EvaluationSoftware. read_MATRIX.py includes the relevant readout functions, different 
+parts of the analysis have a separate file beginning with Console (first measurement set) or Console2 (second set).
+
+#### Evaluation Software
+Newer version of the readout, written to adapt to new array geometries (also 2D) and other readout circuits (meaning 
+different file formats). Central piece is the class Analyzer containing the functionality for add measurement files and 
+construct a map out of them. The readout of files, parsing of a position in the file name, possible filtering or 
+correcting, etc. are all separate modules. Idea is that choosing the fitting set of modules allows to adapt the 
+image generation routine to future changes.
+
+#### Live View
+Script and test for a simple LiveView window during the measurements. Using the functionality from EvaluationSoftware 
+allows for creating a live updated (~5-10s for generating the first image, < 1-2s for image updating) image from a 
+measurement. Requirement is, that the measurement files are stored in the folder under a unique save name (both to be 
+specified in LiveView) - and that the suited array geometry with fitting modules are selected.
+The file MeasurementSimulation can be used for testing purposes. It creates (under specified parameters) measurement 
+files in a specified folder ('./TestMap/'). Note that the code clears all files in the folder before adding a new set, 
+be careful if you change the folder.
+
+#### Meeting_June_2024 
+Should contain all presentations from the project meeting in Lacassagne June 2024.
+
+#### Plot_Methods
+Code with some matplotlib plotting functionality. Note the parameters save_format = '.png', use_LaTeX = True from 
+plot_standards and language_english = True from label standard.
+
+#### Results_Cyrcé 
+Includes presentations about results of Cyrcé measurements from June 2024. 
+
 ## Maintainer
 This repo was initialized by Nico Brosda, Ruhr Universität Bochum. For any questions, remarks, etc. contact nico.brosda@rub.de. Developers with permission to edit the code must be named by the project's maintainer.
 
