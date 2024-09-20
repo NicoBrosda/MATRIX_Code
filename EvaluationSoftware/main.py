@@ -1,8 +1,4 @@
-import os
-import pathlib
 from tqdm import tqdm
-import numpy as np
-from pathlib import Path
 from EvaluationSoftware.helper_modules import array_txt_file_search
 from EvaluationSoftware.readout_modules import *
 from EvaluationSoftware.position_parsing_modules import *
@@ -288,6 +284,10 @@ class Analyzer:
             save_name += '_contour'
         if save_path is not None:
             format_save(save_path=save_path, save_name=save_name)
+        if colorbar:
+            return color_map, bar
+        else:
+            return color_map, None
 
     def overview(self):
         pass

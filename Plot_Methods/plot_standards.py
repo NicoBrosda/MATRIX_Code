@@ -1,21 +1,15 @@
 # Some imports of necessary packages and definitions of standard name spaces
-import numpy as np  # v. 1.25.1
 import matplotlib.pyplot as plt  # Used in this script is matplotlib 3.7.2 - newer versions should also be no problem
-import matplotlib as mpl
-from cycler import cycler
 import locale
-from matplotlib import ticker, cm
-import os
+from matplotlib import ticker
 import time
 from matplotlib.patches import Rectangle
 import warnings
 import seaborn as sns  # v. 0.12.2 (seaborn isn't necessarily required, but offers nice colour schemes)
-from pathlib import Path
 from Plot_Methods.helper_functions import *
 from Plot_Methods.label_standard import *
 import matplotlib
 from matplotlib.collections import LineCollection
-from matplotlib.colors import BoundaryNorm
 
 # Standard save format for plots
 save_format = '.png'

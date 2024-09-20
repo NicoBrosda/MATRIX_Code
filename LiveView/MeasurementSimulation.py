@@ -2,11 +2,12 @@ import os
 import time
 from pathlib import Path
 import numpy as np
-from EvaluationSoftware.helper_modules import path_check, save_text
+from EvaluationSoftware.helper_modules import save_text
+from EvaluationSoftware.helper_modules import array_txt_file_search
 
-measurement_time = 0.5
+measurement_time = 1
 step_width = 0.5
-measurements = 200
+measurements = 10
 
 start_x = 0.0
 start_y = 0.0
@@ -15,11 +16,13 @@ channels = 128
 signal_level = 1000
 noise_level = 100
 
-folder_path = Path('/Users/nico_brosda/Desktop/NewMaps/')
+folder_path = Path('./TestMap/')
 save_name = 'Test'
 
-for file in os.listdir(folder_path):
+for file in array_txt_file_search(os.listdir(folder_path), searchlist=[save_name], file_suffix='.csv', txt_file=False):
     os.remove(folder_path/file)
+
+time.sleep(5)
 
 for i in range(measurements):
     print('Measurement: ', i)
