@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.signal
 
-from read_MATRIX import *
+from AMS_Evaluation.read_MATRIX import *
 
 
 class LineShape:

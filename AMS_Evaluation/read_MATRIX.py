@@ -5,7 +5,7 @@ from AMS_Evaluation.DataAnalysis import threshold_otsu
 from Plot_Methods.plot_standards import *
 import matplotlib
 from mpl_toolkits.mplot3d import axes3d
-from FitFuncs import apply_super_resolution
+from AMS_Evaluation.FitFuncs import apply_super_resolution
 from matplotlib.colors import BoundaryNorm
 from scipy.optimize import least_squares
 

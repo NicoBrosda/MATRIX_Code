@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
-from read_MATRIX import *
-from FitFuncs import current_conversion
+from AMS_Evaluation.read_MATRIX import *
+from AMS_Evaluation.FitFuncs import current_conversion
 
 save_path = Path('/Users/nico_brosda/Desktop/iphc_python_misc/Results/concept/')
 example = '/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e2_5000p_nA_2.csv'

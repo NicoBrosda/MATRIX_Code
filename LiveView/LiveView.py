@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
 from EvaluationSoftware.main import Analyzer
-from EvaluationSoftware.readout_modules import design_readout
+from EvaluationSoftware.readout_modules import design_readout, ams_channel_assignment_readout
 from EvaluationSoftware.position_parsing_modules import standard_position
 from pathlib import Path
 from copy import deepcopy
@@ -13,8 +13,24 @@ from matplotlib import ticker
 import numpy as np
 
 
-readout, position_parser = design_readout, standard_position
-analyzer = Analyzer((1, 128), 0.42, 0.08, readout=design_readout)
+channel_assignment = {}
+j = 0
+for i in range(1, 129):
+    if i <= 32:
+        channel_assignment[str(i)] = 2*j+1
+    elif i <= 64:
+        channel_assignment[str(i)] = 64 - 2*j
+    elif i <= 96:
+        channel_assignment[str(i)] = 65 + 2*j
+    elif i <= 128:
+        channel_assignment[str(i)] = 128 - 2*j
+    j += 1
+    if i == 32 or i == 64 or i == 96:
+        j = 0
+    channel_assignment[str(i+1)] = i+1
+
+readout, position_parser = lambda x, y, z: ams_channel_assignment_readout(x, y, z, channel_assignment=channel_assignment), standard_position
+analyzer = Analyzer((1, 128), 0.42, 0.08, readout=readout)
 
 folder_path = Path('./TestMap/')
 save_name = 'Test'

@@ -1,4 +1,4 @@
-from read_MATRIX import *
+from AMS_Evaluation.read_MATRIX import *
 
 folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_19062024/')
 dark_path = folder_path / 'd2_1n_3s_beam_all_without_diffuser_dark.csv'

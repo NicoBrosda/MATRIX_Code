@@ -1,4 +1,4 @@
-from read_MATRIX import *
+from AMS_Evaluation.read_MATRIX import *
 
 save_path = Path('/Users/nico_brosda/Desktop/iphc_python_misc/Results/noise/')
 # ---------------------------------------------------------------------------------------------------------------------

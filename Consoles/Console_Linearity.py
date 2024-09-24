@@ -2,8 +2,8 @@ import os
 import numpy as np
 from scipy.optimize import curve_fit
 
-from FitFuncs import linear_function
-from read_MATRIX import *
+from AMS_Evaluation.FitFuncs import linear_function
+from AMS_Evaluation.read_MATRIX import *
 
 save_path = Path('/Users/nico_brosda/Desktop/iphc_python_misc/Results/linearity/')
 # ---------------------------------------------------------------------------------------------------------------------

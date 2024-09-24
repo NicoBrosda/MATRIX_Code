@@ -10,6 +10,7 @@ from Plot_Methods.helper_functions import *
 from Plot_Methods.label_standard import *
 import matplotlib
 from matplotlib.collections import LineCollection
+from matplotlib.colors import BoundaryNorm
 
 # Standard save format for plots
 save_format = '.png'

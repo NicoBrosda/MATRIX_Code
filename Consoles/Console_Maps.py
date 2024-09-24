@@ -1,4 +1,4 @@
-from read_MATRIX import *
+from AMS_Evaluation.read_MATRIX import *
 from tqdm import tqdm
 
 # Add the path to the save directory here
