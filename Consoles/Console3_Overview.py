@@ -4,7 +4,7 @@ import scipy.signal
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 
-mapping = Path('/Users/nico_brosda/Desktop/mapping.xlsx')
+mapping = Path('../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 
