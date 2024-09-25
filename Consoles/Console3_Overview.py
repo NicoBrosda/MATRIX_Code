@@ -3,48 +3,66 @@ import scipy.signal
 
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
+from EvaluationSoftware.normalization_modules import normalization_from_translated_array
 
 mapping = Path('../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 
-'''
-channel_assignment = {}
-j = 0
-for i in range(1, 129):
-    if i <= 32:
-        channel_assignment[str(i)] = 63 - 2*j
-    elif i <= 64:
-        channel_assignment[str(i)] = 64 - 2*j
-    elif i <= 96:
-        channel_assignment[str(i)] = 65 + j
-    elif i <= 128:
-        channel_assignment[str(i)] = 127 - 2*j
-    j += 1
-    if i == 32 or i == 64 or i == 96:
-        j = 0
-# '''
-
-# channel_assignment = [i*2+64 for i in range(32)]
-print(channel_assignment)
-
-readout, position_parser = lambda x, y, z=True: ams_channel_assignment_readout(x, y, z, channel_assignment=channel_assignment), standard_position
+readout, position_parser = lambda x, y, subtract_background=True: ams_channel_assignment_readout(x, y, subtract_background, channel_assignment=channel_assignment), standard_position
 
 A = Analyzer((1, 128), 0.5, 0.0, readout=readout)
 
 
 folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_230924/')
-new_measurements = ['round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um']
+# new_measurements = ['round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um']
+# new_measurements = ['Array3_Logo', 'Array3_BeamShape', 'BraggPeak', 'MiscShape', 'round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um', 'BeamScan']
+new_measurements = ['BeamScan']
 
+dark_paths_array1 = ['voltage_scan_no_beam_nA_1.8000000000000005_x_20.0_y_70.0.csv',
+                     'd2_1n_5s_flat_calib_nA_1.8000000000000007_x_20.0_y_70.0.csv']
+
+dark_paths_array3_1V = ['Array3_VoltageScan_dark_nA_1.0_x_0.0_y_40.0.csv']
+
+dark_paths_array3 = ['Array3_VoltageScan_dark_nA_1.8_x_0.0_y_40.0.csv']
+
+norm_array1 = ['Normalization2']
+
+norm_array3 = ['Array3_DiffuserYScan']
 
 for k, crit in enumerate(new_measurements):
-    # A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
-    # A.normalization(folder_path, '5s_flat_calib_', normalization_module=normalization_from_translated_array)
-    A.set_measurement(folder_path, crit)
-    # continue
+    print('-'*50)
+    print(crit)
+    print('-'*50)
+
+    # Filtering for correct files - Logo would be found in Array3_Logo...
+    if crit == 'Logo':
+        A.set_measurement(folder_path, crit, blacklist=['png', 'Array3'])
+    else:
+        A.set_measurement(folder_path, crit)
+
+    # Dark Subtraction - correct file assignment
+    if crit == 'Array3_Logo':
+        dark = dark_paths_array3
+    elif 'Array3' in crit:
+        dark = dark_paths_array3_1V
+    else:
+        dark = dark_paths_array1
+
+    A.set_dark_measurement(folder_path, dark)
+
+    # Normalization - correct assignment
+    if 'Array3' in crit:
+        norm = norm_array3
+    else:
+        norm = norm_array1
+
+    A.normalization(folder_path, norm, normalization_module=normalization_from_translated_array)
+
     A.load_measurement(readout_module=readout)
 
-    A.create_map(inverse=[False, False])
+    A.create_map(inverse=[True, False])
+
     intensity_limits = None
 
     A.plot_map('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_230924/',
