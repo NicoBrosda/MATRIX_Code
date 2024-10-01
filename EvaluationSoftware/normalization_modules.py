@@ -6,6 +6,7 @@ from scipy.optimize import least_squares
 import matplotlib.pyplot as plt
 from Plot_Methods.plot_standards import *
 from tqdm import tqdm
+from skimage.filters import threshold_otsu as ski_threshold_otsu
 
 
 def simple_normalization(list_of_files, instance):

@@ -1,6 +1,3 @@
-import numpy as np
-import scipy.signal
-
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from EvaluationSoftware.normalization_modules import normalization_from_translated_array
