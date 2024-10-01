@@ -29,7 +29,7 @@ for i in range(1, 129):
         j = 0
     channel_assignment[str(i+1)] = i+1
 
-readout, position_parser = lambda x, y, z: ams_channel_assignment_readout(x, y, z, channel_assignment=channel_assignment), standard_position
+readout, position_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position
 analyzer = Analyzer((1, 128), 0.42, 0.08, readout=readout)
 
 folder_path = Path('./TestMap/')
@@ -67,7 +67,7 @@ def update(frame):
                 if file not in files_before_update:
                     pos = position_parser(file)
                     cache = readout(file, analyzer)
-                    cache['signal'] = cache['signal'] * analyzer.norm_factor
+                    cache['signal'] = (cache['signal'] - analyzer.dark) * analyzer.norm_factor
                     cache.update({'position': pos})
                     analyzer.measurement_data.append(cache)
         analyzer.create_map()
@@ -75,7 +75,7 @@ def update(frame):
             analyzer.plot_map(ax=ax, fig=fig, colorbar=False)
         else:
             analyzer.plot_map(ax=ax, fig=fig, colorbar=True)
-        intensity_limits = [0, np.abs(np.max(analyzer.map['z']) * 0.9)]
+        intensity_limits = [0, np.abs(np.max(analyzer.maps[0]['z']) * 0.9)]
         ticklabels = np.linspace(intensity_limits[0], intensity_limits[1], 7)
         ticks = np.linspace(*fig.axes[1].get_ylim(), 7)
 

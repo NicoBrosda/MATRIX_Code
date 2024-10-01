@@ -9,7 +9,7 @@ mapping = Path('../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 
-readout, position_parser = lambda x, y, subtract_background=True: ams_channel_assignment_readout(x, y, subtract_background, channel_assignment=channel_assignment), standard_position
+readout, position_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position
 
 A = Analyzer((1, 128), 0.5, 0.0, readout=readout)
 
@@ -34,6 +34,18 @@ for k, crit in enumerate(new_measurements):
     print('-'*50)
     print(crit)
     print('-'*50)
+
+    # Correct sizing of the arrays
+    if 'Array3' in crit:
+        A.diode_size = (0.25, 0.5)
+        A.diode_size = (0.17, 0.4)
+        A.diode_spacing = (0.08, 0.1)
+
+    else:
+        A.diode_size = (0.5, 0.5)
+        A.diode_size = (0.4, 0.4)
+        A.diode_spacing = (0.1, 0.1)
+
 
     # Filtering for correct files - Logo would be found in Array3_Logo...
     if crit == 'Logo':

@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # This is the standard blueprint of a readout module (in terms of inputs and outputs)
-def readout_example(path_to_data_file, instance, subtract_background=True):
+def readout_example(path_to_data_file, instance):
     signal = np.zeros(instance.diodes_dimension)
     std = np.zeros(instance.diodes_dimension)
     voltage = 0
@@ -131,7 +131,7 @@ def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
                      'dark_std': np.reshape(dark_std, instance.diode_dimension)}}
 
 
-def ams_constant_signal_readout(path_to_data_file, instance, subtract_background=True):
+def ams_constant_signal_readout(path_to_data_file, instance):
     el = instance.diode_dimension[0] * instance.diode_dimension[1]
     columns_used = el
     if columns_used > 128:
@@ -154,15 +154,18 @@ def ams_constant_signal_readout(path_to_data_file, instance, subtract_background
     signal_std = []
     voltage = 0
 
+    '''
     # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
     dark = []
     if subtract_background and np.shape(instance.dark_files)[0] > 0:
         for file2 in instance.dark_files:
             dark.append(ams_constant_signal_readout(file2, instance, subtract_background=False)['signal'].flatten())
         dark = np.mean(np.array(dark), axis=0)
+    
 
     if np.shape(dark)[0] == 0:
         dark = np.zeros(columns_used)
+    '''
 
     for i, col in enumerate(data):
         # Column 0 is voltage information
@@ -178,7 +181,7 @@ def ams_constant_signal_readout(path_to_data_file, instance, subtract_background
             signals.append(0)
             signal_std.append(0)
         try:
-            cache = np.mean(data[col]) - dark[j]
+            cache = np.mean(data[col])  # - dark[j]
             cache_std = np.std(data[col])
             if not np.isnan(cache):
                 signals.append(cache)
@@ -195,15 +198,17 @@ def ams_constant_signal_readout(path_to_data_file, instance, subtract_background
         while len(signals) < el:
             signals.append(0)
             signal_std.append(0)
-            dark = np.append(dark, 0)
-    signals, signal_std, dark = np.array(signals)[:el], np.array(signal_std)[:el], dark[:el]
+            # dark = np.append(dark, 0)
+    signals, signal_std = np.array(signals)[:el], np.array(signal_std)[:el]
+    # dark = dark[:el]
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
             'voltage': voltage,
-            'dict': {'dark': np.reshape(dark, instance.diode_dimension)}}
+            'dict': {}}
+            # 'dict': {'dark': np.reshape(dark, instance.diode_dimension)}}
 
 
-def design_readout(path_to_data_file, instance, subtract_background=True):
+def design_readout(path_to_data_file, instance):
     el = instance.diode_dimension[0] * instance.diode_dimension[1]
     columns_used = el
     if columns_used > 128:
@@ -219,16 +224,6 @@ def design_readout(path_to_data_file, instance, subtract_background=True):
     signal_std = []
     voltage = 0
 
-    # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
-    dark = []
-    if subtract_background and np.shape(instance.dark_files)[0] > 0:
-        for file2 in instance.dark_files:
-            dark.append(ams_constant_signal_readout(file2, instance, subtract_background=False)['signal'].flatten())
-        dark = np.mean(np.array(dark), axis=0)
-
-    if np.shape(dark)[0] == 0:
-        dark = np.zeros(columns_used)
-
     for i, col in enumerate(data):
         # Column 0 is voltage information
         if i == 0:
@@ -240,7 +235,7 @@ def design_readout(path_to_data_file, instance, subtract_background=True):
             signals.append(0)
             signal_std.append(0)
         try:
-            cache = np.mean(data[col]) - dark[j]
+            cache = np.mean(data[col])
             cache_std = np.std(data[col])
             if not np.isnan(cache):
                 signals.append(cache)
@@ -257,15 +252,14 @@ def design_readout(path_to_data_file, instance, subtract_background=True):
         while len(signals) < el:
             signals.append(0)
             signal_std.append(0)
-            dark = np.append(dark, 0)
-    signals, signal_std, dark = np.array(signals)[:el], np.array(signal_std)[:el], dark[:el]
+    signals, signal_std = np.array(signals)[:el], np.array(signal_std)[:el]
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
             'voltage': voltage,
-            'dict': {'dark': np.reshape(dark, instance.diode_dimension)}}
+            'dict': {}}
 
 
-def ams_channel_assignment_readout(path_to_data_file, instance, subtract_background=True, channel_assignment=None):
+def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignment=None):
     el = instance.diode_dimension[0] * instance.diode_dimension[1]
     columns_used = el
     # '''
@@ -293,6 +287,7 @@ def ams_channel_assignment_readout(path_to_data_file, instance, subtract_backgro
     signal_std = []
     voltage = 0
 
+    '''
     # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
     dark = []
     if subtract_background and np.shape(instance.dark_files)[0] > 0:
@@ -302,6 +297,7 @@ def ams_channel_assignment_readout(path_to_data_file, instance, subtract_backgro
 
     if np.shape(dark)[0] == 0:
         dark = np.zeros(columns_used)
+    '''
 
     for i, col in enumerate(data):
         # Column 0 is voltage information
@@ -317,7 +313,7 @@ def ams_channel_assignment_readout(path_to_data_file, instance, subtract_backgro
             signals.append(0)
             signal_std.append(0)
         try:
-            cache = np.mean(data[col]) - dark[j]
+            cache = np.mean(data[col])  # - dark[j]
             cache_std = np.std(data[col])
             if not np.isnan(cache):
                 signals.append(cache)
@@ -334,12 +330,10 @@ def ams_channel_assignment_readout(path_to_data_file, instance, subtract_backgro
         while len(signals) < el:
             signals.append(0)
             signal_std.append(0)
-            dark = np.append(dark, 0)
-    signals, signal_std, dark = np.array(signals)[:el][channel_assignment], \
-        np.array(signal_std)[:el][channel_assignment], \
-        dark[:el]
+            # dark = np.append(dark, 0)
+    signals, signal_std = np.array(signals)[:el][channel_assignment], np.array(signal_std)[:el][channel_assignment]
 
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
             'voltage': voltage,
-            'dict': {'dark': np.reshape(dark, instance.diode_dimension)}}
+            'dict': {}}

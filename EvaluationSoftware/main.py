@@ -1,3 +1,4 @@
+import numpy as np
 from tqdm import tqdm
 from EvaluationSoftware.helper_modules import array_txt_file_search
 from EvaluationSoftware.readout_modules import *
@@ -33,7 +34,7 @@ class Analyzer:
     diode_size = DiodeGeometry()
     diode_spacing = DiodeGeometry()
 
-    def __init__(self, diode_dimension, diode_size, diode_spacing, readout='AMS_evaluation'):
+    def __init__(self, diode_dimension, diode_size, diode_spacing, readout=ams_constant_signal_readout, position_parser=standard_position):
         """
         This is an analyzer class for the readout and data analysis from measurements with diode arrays in the MATRIX
         project. This class aims to be as general as possible to adapt easily to changing diode geometries,
@@ -57,11 +58,12 @@ class Analyzer:
         self.diode_size = diode_size
         self.diode_spacing = diode_spacing
 
-        self.readout = ams_constant_signal_readout
-        self.pos_parser = standard_position
+        self.readout = readout
+        self.pos_parser = position_parser
         self.measurement_files = []
         self.measurement_data = []
         self.dark_files = []
+        self.dark = np.zeros(self.diode_dimension)
         self.norm_factor = np.ones(diode_dimension)
         self.name = ''
         self.maps = [{'x': np.array([]), 'y': np.array([]), 'z': np.array([]), 'position': ''}]
@@ -82,7 +84,10 @@ class Analyzer:
               filter_criterion)
         self.measurement_files = [Path(path_to_folder) / i for i in measurement_files]
 
-    def set_dark_measurement(self, path_to_folder, filter_criterion='dark', file_format='.csv', blacklist=['.png', '.pdf', '.jpg']):
+    def set_dark_measurement(self, path_to_folder, filter_criterion: list = ['dark'], file_format: str = '.csv',
+                             blacklist: list = ['.png', '.pdf', '.jpg'], readout_module: any = None):
+        if readout_module is None:
+            readout_module = self.readout
         if blacklist is None:
             blacklist = []
         if not isinstance(path_to_folder, pathlib.PurePath):
@@ -95,6 +100,11 @@ class Analyzer:
         print(len(dark_files), ' files for background correction found in the folder: ', path_to_folder,
               ' under the search criterion: ', filter_criterion)
         self.dark_files = [Path(path_to_folder) / i for i in dark_files]
+
+        cache = []
+        for file in self.dark_files:
+            cache.append(readout_module(path_to_folder / file, self)['signal'])
+        self.dark = np.mean(np.array(cache), axis=0)
 
     def normalization(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg'],
                       normalization_module=None, cache_save=True, factor_limits=(0, 3), norm_factor=True):
@@ -152,7 +162,7 @@ class Analyzer:
         for file in tqdm(self.measurement_files):
             pos = position_parser(file)
             cache = readout_module(file, self)
-            cache['signal'] = cache['signal']*self.norm_factor
+            cache['signal'] = (cache['signal']-self.dark)*self.norm_factor
             cache.update({'position': pos})
             self.measurement_data.append(cache)
 
@@ -223,6 +233,7 @@ class Analyzer:
             mapping('')
 
     def plot_map(self, save_path=None, contour=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
+                 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
                  *args, **kwargs):
         print(len(self.maps))
         print([i['position'] for i in self.maps])
@@ -231,7 +242,6 @@ class Analyzer:
                 fig, ax = plt.subplots()
             else:
                 fig, ax = fig_in, ax_in
-            cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
             if intensity_limits is None:
                 intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
             # print(intensity_limits)
@@ -334,3 +344,133 @@ class Analyzer:
 
     def plot_parameter(self, parameter):
         pass
+
+    def get_signal_xline(self, y_position=None, x_start=None, x_end=None, map_select=None):
+        if map_select is None:
+            map_select = self.maps[0]
+        elif isinstance(map_select, (float, int)):
+            map_select = self.maps[map_select]
+
+        # Find the indices to get the signal data - in y, closest to given y_position or middle of y range
+        if y_position is None:
+            y_position = np.argmin(np.abs(map_select['y'] - map_select['y'].mean()))
+        else:
+            y_position = np.argmin(np.abs(map_select['y'] - y_position))
+
+        # Index 0 if no value given for x_start, otherwise closest value in map['x'] to x_start
+        if x_start is None:
+            x_start = 0
+        else:
+            x_start = np.argmin(np.abs(map_select['x'] - x_start))
+
+        # Index of last value in x if no value given for x_start, otherwise closest value in map['x'] to x_start
+        if x_end is None:
+            x_end = np.argmax(map_select['x'])
+        else:
+            x_end = np.argmin(np.abs(map_select['x'] - x_end))
+
+        # Get the signal with the indices
+        signal = map_select['z'][y_position, x_start:x_end]
+        return signal
+
+    def get_signal_yline(self, x_position=None, y_start=None, y_end=None, map_select=None):
+        if map_select is None:
+            map_select = self.maps[0]
+        elif isinstance(map_select, (float, int)):
+            map_select = self.maps[map_select]
+
+            # Find the indices to get the signal data - in x, closest to given x_position or middle of x range
+            if x_position is None:
+                x_position = np.argmin(np.abs(map_select['x'] - map_select['x'].mean()))
+            else:
+                x_position = np.argmin(np.abs(map_select['x'] - x_position))
+
+            # Index 0 if no value given for y_start, otherwise closest value in map['y'] to y_start
+            if y_start is None:
+                y_start = 0
+            else:
+                y_start = np.argmin(np.abs(map_select['y'] - y_start))
+
+            # Index of last value in y if no value given for y_start, otherwise closest value in map['y'] to y_start
+            if y_end is None:
+                y_end = np.argmax(map_select['y'])
+            else:
+                y_end = np.argmin(np.abs(map_select['y'] - y_end))
+
+            # Get the signal with the indices
+            signal = map_select['z'][y_start:y_end, x_position]
+            return signal
+
+    def plot_diodes(self, save_path=None, direction=None, plotting_range=None, diode_line=None,
+                    diode_cmap=sns.color_palette("coolwarm", as_cmap=True)):
+        """
+        Takes a direction and plots diodes signal in this direction in a range given. Meaning the arguments x_position
+        and y_position change their meaning depending on the direction given. The parameter aligning with the specified
+        direction gives the plotted range in calculated real diode positions, the other parameter is used to specify the
+        diode line which is considered. Note that for a line array this parameter has no influence.
+        :param direction:
+        :param plotting_range:
+        :param diode_line:
+        :param diode_cmap:
+        :return:
+        """
+        if direction == 'x' or direction == 0:
+            switch = 1
+            direction = 0
+            set_positions = set([i['position'][1] for i in self.measurement_data])
+        else:
+            switch = 0
+            direction = 1
+            set_positions = set([i['position'][0] for i in self.measurement_data])
+
+        if diode_line is None or not isinstance(diode_line, int) or 0 > diode_line or diode_line > self.diode_dimension[switch] - 1:
+            diode_line = int(self.diode_dimension[switch]/2)
+
+        # Loop over set_positions and create a plot at each unique measurement position not in direction
+        for set_position in set_positions:
+            filter_data = [i for i in self.measurement_data if set_position == i['position'][switch]]
+            pos_var = [[] for i in range(self.diode_dimension[direction])]
+            signal_var = [[] for i in range(self.diode_dimension[direction])]
+            for data in filter_data:
+                pos = data['position']
+                if None in pos or np.isnan(pos[0]) or np.isnan(pos[1]):
+                    continue
+                signal = data['signal']
+                if direction == 0:
+                    signal = signal[:, diode_line]
+                else:
+                    signal = signal[diode_line]
+                for i, column in enumerate(signal):
+                    pos_var[i].append(pos[direction] + i * (self.diode_size[direction] + self.diode_spacing[direction]))
+                    signal_var[i].append(column)
+
+            # Sort the signals in to an array with sorted and distinct position values
+            for diode in range(self.diode_dimension[direction]):
+                ordering = np.argsort(pos_var[diode])
+                pos_var[diode], signal_var[diode] = np.array(pos_var[diode])[ordering], np.array(signal_var[diode])[ordering]
+
+            diode_colormapper = lambda diode: color_mapper(diode, 0, self.diode_dimension[direction])
+            diode_color = lambda diode: diode_cmap(diode_colormapper(diode))
+
+            fig, ax = plt.subplots()
+            if range is not None and isinstance(plotting_range, (tuple, list, np.ndarray)):
+                ax.set_xlim(*plotting_range)
+            for diode in range(self.diode_dimension[direction]):
+                ax.plot(pos_var[diode], signal_var[diode], color=diode_color(diode), alpha=0.5)
+
+            ax.set_xlabel('Real measurement position of diode (mm)')
+            ax.set_ylabel('Measured Signal (a.u.)')
+            ax.set_xlim(ax.get_xlim())
+            ax.set_ylim(ax.get_ylim())
+            gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.89, 0.91]),
+                           transform_axis_to_data_coordinates(ax, [0.89, 0.61]), cmap=diode_cmap, lw=5)
+            ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.94]), r'Diode $\#$1', fontsize=15,
+                    c=diode_color(0))  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+            ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$'+str(self.diode_dimension[direction]), fontsize=15,
+                    c=diode_color(self.diode_dimension[direction]))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+            if direction == 0:
+                save_name = 'DiodeScan_XDirection_YMeasurement' + str(set_position)
+            else:
+                save_name = self.name + 'DiodeScan_YDirection_XMeasurement' + str(set_position)
+            if save_path is not None:
+                format_save(save_path=save_path, save_name=save_name)

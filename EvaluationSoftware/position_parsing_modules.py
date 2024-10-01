@@ -3,9 +3,9 @@ def standard_position(path_to_data_file):
         path_to_data_file = str(path_to_data_file)
     # The parsing of the position out of the name and save it
     try:
-        index3 = path_to_data_file.index('.csv')
-        index2 = path_to_data_file.index('_y_')
-        index1 = path_to_data_file.index('_x_')
+        index3 = path_to_data_file.rindex('.csv')
+        index2 = path_to_data_file.rindex('_y_')
+        index1 = path_to_data_file.rindex('_x_')
         pos_x = float(path_to_data_file[index1 + 3:index2])
         pos_y = float(path_to_data_file[index2 + 3:index3])
     except ValueError:
