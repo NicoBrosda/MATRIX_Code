@@ -231,7 +231,7 @@ def gradient_arrow(ax, start, end, cmap="viridis", n=50, lw=3, *args, **kwargs):
 def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, legend_separator=None, x_after=0,
                 y_after=0, x_fmt=format_func, y_fmt=format_func, second_axis=False, minor_xticks=True,
                 minor_yticks=True, english=language_english, legend_position=0, plot_size=fullsize_plot, x_rotation=0,
-                plot_variant='PL_spectrum', format=save_format, *args) -> None:
+                plot_variant='PL_spectrum', format=save_format, dpi=300, *args) -> None:
     """
     :param save_path: The path where the plot is saved. The standard path just uses (or creates) a folder in the folder
     of this python script ("./Plots/")
@@ -345,8 +345,8 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
     # standard layout of the plot
     standard_layout(np.array(axes)[no_colorbar])  # Here the above defined standard layout is applied.
 
-    plt.draw()  # If we want to save the figure we first need to draw it (without showing it)
-    plt.pause(0.0001)  # This is an easy bug-fix, where matplotlib is not updating the current figure after drawing
+    fig.canvas.draw()  # If we want to save the figure we first need to draw it (without showing it)
+    # plt.pause(0.0001)  # This is an easy bug-fix, where matplotlib is not updating the current figure after drawing
 
     # Here post-processing is possible, like adding in a legend - position dependent text etc. The plot positions are
     # now fixed. A relative positioning would shift else.
@@ -356,9 +356,9 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
         os.makedirs(save_path)
     if save:
         if save_name == '':
-            fig.savefig(Path(save_path) / (str(time.asctime()) + format), dpi=300, bbox_inches="tight", *args)
+            fig.savefig(Path(save_path) / (str(time.asctime()) + format), dpi=dpi, bbox_inches="tight", *args)
         else:
-            fig.savefig(Path(save_path) / (save_name + format), dpi=300, bbox_inches="tight", *args)
+            fig.savefig(Path(save_path) / (save_name + format), dpi=dpi, bbox_inches="tight", *args)
 
         plt.close()
 
@@ -395,6 +395,7 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
     :param args: Further args we want to hand to the .savefig function that finally saves the plot.
     :return: None (The plot is saved and closed afterward - not doing this will eventually clog your RAM.
     """
+
     # get current plot
     axes = plt.gcf().get_axes()
     ax = plt.gca()
@@ -478,8 +479,8 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
     # standard layout of the plot
     standard_layout(np.array(axes)[no_colorbar])  # Here the above defined standard layout is applied.
 
-    plt.draw()  # If we want to save the figure we first need to draw it (without showing it)
-    plt.pause(0.0001)  # This is an easy bug-fix, where matplotlib is not updating the current figure after drawing
+    fig.canvas.draw()  # If we want to save the figure we first need to draw it (without showing it)
+    # plt.pause(0.0001)  # This is an easy bug-fix, where matplotlib is not updating the current figure after drawing
 
     # Here post-processing is possible, like adding in a legend - position dependent text etc. The plot positions are
     # now fixed. A relative positioning would shift else.
@@ -489,8 +490,8 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
         os.makedirs(save_path)
     if save:
         if save_name == '':
-            fig.savefig(Path(save_path) / (str(time.asctime()) + format), dpi=300, bbox_inches="tight", *args)
+            fig.savefig(Path(save_path) / (str(time.asctime()) + format), *args, dpi=300, bbox_inches="tight")
         else:
-            fig.savefig(Path(save_path) / (save_name + format), dpi=300, bbox_inches="tight", *args)
+            fig.savefig(Path(save_path) / (save_name + format), *args, dpi=300, bbox_inches="tight")
 
-        plt.close()
+        # plt.close()

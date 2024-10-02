@@ -158,7 +158,7 @@ def normalization_from_translated_array(list_of_files, instance, method='least_s
     return factor.reshape(instance.diode_dimension)
 
 
-def normalization_from_translated_array(list_of_files, instance, method='least_squares', correction=0):
+def normalization_from_translated_array_v2(list_of_files, instance, method='least_squares', correction=0):
     # Little helper function to group the recalculated positions
     def group(input_list, group_range):
         class Group:
@@ -168,11 +168,11 @@ def normalization_from_translated_array(list_of_files, instance, method='least_s
                 self.members = 1
 
             def add(self, value):
-                self.mean = (self.mean * self.members + value)/(self.members + 1)
+                self.mean = (self.mean * self.members + value) / (self.members + 1)
                 self.members += 1
 
             def check_add(self, value):
-                return (self.mean * self.members + value)/(self.members + 1)
+                return (self.mean * self.members + value) / (self.members + 1)
 
         if not isinstance(input_list, (np.ndarray, pd.DataFrame)):
             input_list = np.array(input_list)
@@ -210,8 +210,8 @@ def normalization_from_translated_array(list_of_files, instance, method='least_s
     for file in tqdm(list_of_files):
         # The parsing of the position out of the name and save it
         position.append(instance.pos_parser(file))
-        signal = instance.readout(file, instance, subtract_background=True)['signal']
-        signals.append((np.array(signal)-instance.dark).flatten())
+        signal = instance.readout(file, instance)['signal']
+        signals.append((np.array(signal) - instance.dark).flatten())
 
     # Sort the arrays by the position
     indices = np.argsort(np.array(position)[:, sp])
@@ -226,12 +226,17 @@ def normalization_from_translated_array(list_of_files, instance, method='least_s
         positions.append(cache)
     positions = np.array(positions)
 
+    # Try to detect the signal level
+    threshold = ski_threshold_otsu(signals)
+    print(threshold)
+
     # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
     group_distance = instance.diode_size[sp]
     groups = group(positions[:, :, sp].flatten(), group_distance)
 
     # Calculate the mean for each grouped position, consider only the diode signals that were close to this position
-    mean_result = []
+    mean_new = []
+    mean_x_new = []
     groups = np.sort(groups)
     for mean in groups:
         indices = []
@@ -241,45 +246,44 @@ def normalization_from_translated_array(list_of_files, instance, method='least_s
                 indices.append(index_min)
             else:
                 indices.append(None)
-        cache = 0
-        j = 0
+        cache_new = 0
+        j_new = 0
         for i in range(len(indices)):
-            if indices[i] is not None and signals[indices[i]][i] != 0:
-                cache += signals[indices[i]][i]
-                j += 1
-        if j > 0:
-            mean_result.append(cache / j)
-        else:
-            mean_result.append(cache)
-    mean_result = np.array(mean_result)
+            if indices[i] is not None and signals[indices[i]][i] >= threshold:
+                cache_new += signals[indices[i]][i]
+                j_new += 1
+        if j_new > 0:
+            mean_new.append(cache_new / j_new)
+            mean_x_new.append(mean)
+
     mean_x = np.array(groups)
+    mean_x_new, mean_new = np.array(mean_x_new), np.array(mean_new)
 
     # Interpolation
-    factor = np.array([])
+    factor_new = np.array([])
     for channel in range(np.shape(signals)[1]):
-        mean_interp = np.interp(positions[channel, :, sp], mean_x, mean_result)
+        restrained_position = (np.min(mean_x_new) <= positions[channel, :, sp]) & (
+                    positions[channel, :, sp] <= np.max(mean_x_new))
+        mean_interp_new = np.interp(positions[channel, :, sp][restrained_position], mean_x_new, mean_new)
         if isinstance(method, (float, int, np.float64)):
             # Method 1: Threshold for range consideration, for each diode channel mean of the factor between points
-            factor2 = mean_interp[signals[:, channel] > method] / signals[:, channel][signals[:, channel] > method]
-            factor2 = np.mean(factor2)
-            if np.isnan(factor2):
-                factor2 = 0
+            factor_new_cache = mean_interp_new[signals[:, channel] > method] / signals[:, channel][signals[:, channel] > method]
+            factor_new_cache = np.mean(factor_new_cache)
+            if np.isnan(factor_new_cache):
+                factor_new_cache = 0
         elif method == 'least_squares':
             # Method 2: Optimization with least squares method, recommended
-            func_opt = lambda a: mean_interp - signals[:, channel] * a
-            factor2 = least_squares(func_opt, 1)
-            if factor2.nfev == 1 and factor2.optimality == 0.0:
-                factor2 = 0
+            func_opt_new = lambda a: mean_interp_new - signals[:, channel][restrained_position] * a
+            factor_new_cache = least_squares(func_opt_new, 1)
+            if factor_new_cache.nfev == 1 and factor_new_cache.optimality == 0.0:
+                factor_new_cache = 0
             else:
-                factor2 = factor2.x
+                factor_new_cache = factor_new_cache.x
         else:
             # Standard method: For the moment method 1 with automatic threshold
-            factor2 = mean_interp[signals[:, channel] > np.mean(signals[:, channel])] / \
-                      signals[:, channel][signals[:, channel] > np.mean(signals[:, channel])]
-            factor2 = np.mean(factor2)
-            if np.isnan(factor2):
-                factor2 = 0
-        factor = np.append(factor, factor2)
-    # Save a raw factor to allow later changes on the factor's parameters
-
-    return factor.reshape(instance.diode_dimension)
+            factor_new_cache = mean_interp_new / signals[:, channel][signals[:, channel] > threshold]
+            factor_new_cache = np.mean(factor_new_cache)
+            if np.isnan(factor_new_cache):
+                factor_new_cache = 0
+        factor_new = np.append(factor_new, factor_new_cache)
+    return factor_new.reshape(instance.diode_dimension)

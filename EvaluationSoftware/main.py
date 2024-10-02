@@ -166,6 +166,17 @@ class Analyzer:
             cache.update({'position': pos})
             self.measurement_data.append(cache)
 
+    def update_measurement(self, dark=True, factor=True):
+        if dark and factor:
+            for i in tqdm(range(len(self.measurement_data))):
+                self.measurement_data[i]['signal'] = (self.measurement_data[i]['signal']-self.dark)*self.norm_factor
+        elif dark:
+            for i in tqdm(range(len(self.measurement_data))):
+                self.measurement_data[i]['signal'] = self.measurement_data[i]['signal']-self.dark
+        elif factor:
+            for i in tqdm(range(len(self.measurement_data))):
+                self.measurement_data[i]['signal'] = self.measurement_data[i]['signal']*self.norm_factor
+
     def create_map(self, overlay='ignore', inverse=[False, False]):
         self.maps = []
 
@@ -232,11 +243,12 @@ class Analyzer:
         else:
             mapping('')
 
-    def plot_map(self, save_path=None, contour=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
+    def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 *args, **kwargs):
-        print(len(self.maps))
-        print([i['position'] for i in self.maps])
+                 plot_size=fullsize_plot, *args, **kwargs):
+        if isinstance(pixel, str):
+            pixel = pixel.lower()
+        print(len(self.maps), ' map created at positions ', [i['position'] for i in self.maps])
         for map_el in self.maps:
             if ax_in is None or fig_in is None:
                 fig, ax = plt.subplots()
@@ -244,13 +256,16 @@ class Analyzer:
                 fig, ax = fig_in, ax_in
             if intensity_limits is None:
                 intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
+                intensity_limits = [0, np.abs(np.max(map_el['z']))]
+
             # print(intensity_limits)
             levels = np.linspace(intensity_limits[0], intensity_limits[1], 100)
-            if not contour:
+            if pixel:
                 # Auto-detect step width in x and y:
                 x_steps = np.array([map_el['x'][i + 1] - map_el['x'][i] for i in range(np.shape(map_el['x'])[0] - 1)])
                 y_steps = np.array([map_el['y'][i + 1] - map_el['y'][i] for i in range(np.shape(map_el['y'])[0] - 1)])
-                # Auto-detect if whitespaces should be inserted in one-direction (>1 diode and distances = diodes geometry)
+
+                # Auto-detect if spaces should be inserted in one-direction (>1 diode and distances = diodes geometry)
                 if self.diode_dimension[0] > 1 and x_steps.std() == 0 and \
                         x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
                     cache_x = np.array([map_el['x'][0]])
@@ -261,9 +276,18 @@ class Analyzer:
                         else:
                             cache_x = np.append(cache_x, cache_x[-1] + self.diode_spacing[0])
                             cache_x = np.append(cache_x, cache_x[-1]+self.diode_size[0])
+                    print(cache_x)
+                    print([cache_x[i] - cache_x[i-1] for i in range(len(cache_x)) if i != 0])
+                    print(set([cache_x[i] - cache_x[i-1] for i in range(len(cache_x)) if i != 0]))
                     cache_z = []
-                    for row in map_el['z'].T:
-                        cache_z.append(np.zeros_like(row))
+                    for i, row in enumerate(map_el['z'].T):
+                        if pixel == 'fill':
+                            if i == 0:
+                                cache_z.append(map_el['z'].T[i])
+                            else:
+                                cache_z.append((map_el['z'].T[i]+map_el['z'].T[i-1])/2)
+                        else:
+                            cache_z.append(np.zeros_like(row))
                         cache_z.append(row)
                     cache_z = np.array(cache_z).T
                 # Else insert +1 step in the end of the measurement and do not add white spaces
@@ -281,9 +305,16 @@ class Analyzer:
                         else:
                             cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1])
                             cache_y = np.append(cache_y, cache_y[-1] + self.diode_size[1])
+
                     cache = []
-                    for row in cache_z:
-                        cache.append(np.zeros_like(row))
+                    for i, row in enumerate(cache_z):
+                        if pixel == 'fill':
+                            if i == 0:
+                                cache.append(cache_z[i])
+                            else:
+                                cache.append((cache_z[i]+cache_z[i-1])/2)
+                        else:
+                            cache.append(np.zeros_like(row))
                         cache.append(row)
                     cache_z = np.array(cache)
                 else:
@@ -334,10 +365,18 @@ class Analyzer:
                 bar.set_label('Measured Signal (a.u.)')
 
             save_name = self.name + '_map' + map_el['position']
-            if contour:
+            if not pixel:
                 save_name += '_contour'
+            if pixel == 'fill':
+                save_name += '_fill'
             if save_path is not None:
-                format_save(save_path=save_path, save_name=save_name)
+                if pixel:
+                    save_format = '.pdf'
+                    dpi = 300
+                else:
+                    save_format = '.png'
+                    dpi = 300
+                format_save(save_path=save_path, save_name=save_name, dpi=dpi, format=save_format)
 
     def overview(self):
         pass

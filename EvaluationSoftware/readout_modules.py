@@ -6,9 +6,8 @@ import pandas as pd
 def readout_example(path_to_data_file, instance):
     signal = np.zeros(instance.diodes_dimension)
     std = np.zeros(instance.diodes_dimension)
-    voltage = 0
     dict_for_other_params = dict()
-    return {'signal': signal, 'std': std, 'voltage': voltage, 'dict': dict_for_other_params}
+    return {'signal': signal, 'std': std, 'dict': dict_for_other_params}
 
 
 def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
@@ -67,11 +66,9 @@ def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
     signal_std = []
     darks = []
     dark_std = []
-    voltage = 0
     for i, col in enumerate(data):
         # Column 0 is voltage information
         if i == 0:
-            voltage = np.mean(data[col])
             continue
         # Column 1 is sample number
         if i == 1:
@@ -125,7 +122,6 @@ def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
         np.array(dark_std)[:el], np.array(thresholds)[:el]
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
-            'voltage': voltage,
             'dict': {'thresholds': np.reshape(thresholds, instance.diode_dimension),
                      'dark': np.reshape(darks, instance.diode_dimension),
                      'dark_std': np.reshape(dark_std, instance.diode_dimension)}}
@@ -152,7 +148,6 @@ def ams_constant_signal_readout(path_to_data_file, instance):
 
     signals = []
     signal_std = []
-    voltage = 0
 
     '''
     # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
@@ -170,7 +165,6 @@ def ams_constant_signal_readout(path_to_data_file, instance):
     for i, col in enumerate(data):
         # Column 0 is voltage information
         if i == 0:
-            voltage = np.mean(data[col])
             continue
         # Column 1 is sample number
         if i == 1:
@@ -203,7 +197,6 @@ def ams_constant_signal_readout(path_to_data_file, instance):
     # dark = dark[:el]
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
-            'voltage': voltage,
             'dict': {}}
             # 'dict': {'dark': np.reshape(dark, instance.diode_dimension)}}
 
@@ -222,12 +215,10 @@ def design_readout(path_to_data_file, instance):
 
     signals = []
     signal_std = []
-    voltage = 0
 
     for i, col in enumerate(data):
         # Column 0 is voltage information
         if i == 0:
-            voltage = np.mean(data[col])
             continue
         # Column 2 = measurement channel 1 = array reference 0
         j = i - 1
@@ -255,7 +246,6 @@ def design_readout(path_to_data_file, instance):
     signals, signal_std = np.array(signals)[:el], np.array(signal_std)[:el]
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
-            'voltage': voltage,
             'dict': {}}
 
 
@@ -285,7 +275,6 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
 
     signals = []
     signal_std = []
-    voltage = 0
 
     '''
     # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
@@ -302,7 +291,6 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
     for i, col in enumerate(data):
         # Column 0 is voltage information
         if i == 0:
-            voltage = np.mean(data[col])
             continue
         # Column 1 is sample number
         if i == 1:
@@ -335,5 +323,4 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
 
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
-            'voltage': voltage,
             'dict': {}}
