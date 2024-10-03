@@ -276,9 +276,6 @@ class Analyzer:
                         else:
                             cache_x = np.append(cache_x, cache_x[-1] + self.diode_spacing[0])
                             cache_x = np.append(cache_x, cache_x[-1]+self.diode_size[0])
-                    print(cache_x)
-                    print([cache_x[i] - cache_x[i-1] for i in range(len(cache_x)) if i != 0])
-                    print(set([cache_x[i] - cache_x[i-1] for i in range(len(cache_x)) if i != 0]))
                     cache_z = []
                     for i, row in enumerate(map_el['z'].T):
                         if pixel == 'fill':
@@ -404,7 +401,7 @@ class Analyzer:
 
         # Index of last value in x if no value given for x_start, otherwise closest value in map['x'] to x_start
         if x_end is None:
-            x_end = np.argmax(map_select['x'])
+            x_end = np.argmax(map_select['x']) + 1
         else:
             x_end = np.argmin(np.abs(map_select['x'] - x_end))
 
@@ -418,27 +415,27 @@ class Analyzer:
         elif isinstance(map_select, (float, int)):
             map_select = self.maps[map_select]
 
-            # Find the indices to get the signal data - in x, closest to given x_position or middle of x range
-            if x_position is None:
-                x_position = np.argmin(np.abs(map_select['x'] - map_select['x'].mean()))
-            else:
-                x_position = np.argmin(np.abs(map_select['x'] - x_position))
+        # Find the indices to get the signal data - in x, closest to given x_position or middle of x range
+        if x_position is None:
+            x_position = np.argmin(np.abs(map_select['x'] - map_select['x'].mean()))
+        else:
+            x_position = np.argmin(np.abs(map_select['x'] - x_position))
 
-            # Index 0 if no value given for y_start, otherwise closest value in map['y'] to y_start
-            if y_start is None:
-                y_start = 0
-            else:
-                y_start = np.argmin(np.abs(map_select['y'] - y_start))
+        # Index 0 if no value given for y_start, otherwise closest value in map['y'] to y_start
+        if y_start is None:
+            y_start = 0
+        else:
+            y_start = np.argmin(np.abs(map_select['y'] - y_start))
 
-            # Index of last value in y if no value given for y_start, otherwise closest value in map['y'] to y_start
-            if y_end is None:
-                y_end = np.argmax(map_select['y'])
-            else:
-                y_end = np.argmin(np.abs(map_select['y'] - y_end))
+        # Index of last value in y if no value given for y_start, otherwise closest value in map['y'] to y_start
+        if y_end is None:
+            y_end = np.argmax(map_select['y']) + 1
+        else:
+            y_end = np.argmin(np.abs(map_select['y'] - y_end))
 
-            # Get the signal with the indices
-            signal = map_select['z'][y_start:y_end, x_position]
-            return signal
+        # Get the signal with the indices
+        signal = map_select['z'][y_start:y_end, x_position]
+        return signal
 
     def plot_diodes(self, save_path=None, direction=None, plotting_range=None, diode_line=None,
                     diode_cmap=sns.color_palette("coolwarm", as_cmap=True)):
