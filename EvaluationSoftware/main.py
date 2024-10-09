@@ -437,7 +437,51 @@ class Analyzer:
         signal = map_select['z'][y_start:y_end, x_position]
         return signal
 
-    def plot_diodes(self, save_path=None, direction=None, plotting_range=None, diode_line=None,
+    def get_diodes_signal(self, direction=None, diode_line=None, pos_select=None, inverse=[False, False],):
+        if direction == 'x' or direction == 0:
+            switch = 1
+            direction = 0
+            set_positions = set([i['position'][1] for i in self.measurement_data])
+        else:
+            switch = 0
+            direction = 1
+            set_positions = set([i['position'][0] for i in self.measurement_data])
+
+        if diode_line is None or not isinstance(diode_line, int) or 0 > diode_line or diode_line > self.diode_dimension[switch] - 1:
+            diode_line = int(self.diode_dimension[switch]/2)
+
+        # Loop over set_positions and create a plot at each unique measurement position not in direction
+        if pos_select is None:
+            pos_select = 0
+        print(set_positions)
+        set_position = list(set_positions)[pos_select]
+
+        filter_data = [i for i in self.measurement_data if set_position == i['position'][switch]]
+        pos_var = [[] for i in range(self.diode_dimension[direction])]
+        signal_var = [[] for i in range(self.diode_dimension[direction])]
+        for data in filter_data:
+            pos = data['position']
+            if None in pos or np.isnan(pos[0]) or np.isnan(pos[1]):
+                continue
+            signal = data['signal']
+            if direction == 0:
+                signal = signal[:, diode_line]
+            else:
+                signal = signal[diode_line]
+
+            for i, column in enumerate(signal):
+                pos_var[i].append(pos[direction] + i * (self.diode_size[direction] + self.diode_spacing[direction]))
+                signal_var[i].append(column)
+
+        # Sort the signals in to an array with sorted and distinct position values
+        for diode in range(self.diode_dimension[direction]):
+            ordering = np.argsort(pos_var[diode])
+            pos_var[diode], signal_var[diode] = np.array(pos_var[diode])[ordering], np.array(signal_var[diode])[ordering]
+        if inverse[direction]:
+            signal_var = np.array(signal_var)[::-1, ::-1]
+        return np.array(pos_var), np.array(signal_var)
+
+    def plot_diodes(self, save_path=None, direction=None, plotting_range=None, diode_line=None, inverse=[False, False],
                     diode_cmap=sns.color_palette("coolwarm", as_cmap=True)):
         """
         Takes a direction and plots diodes signal in this direction in a range given. Meaning the arguments x_position
@@ -447,6 +491,7 @@ class Analyzer:
         :param direction:
         :param plotting_range:
         :param diode_line:
+        :param inverse:
         :param diode_cmap:
         :return:
         """
@@ -476,6 +521,7 @@ class Analyzer:
                     signal = signal[:, diode_line]
                 else:
                     signal = signal[diode_line]
+
                 for i, column in enumerate(signal):
                     pos_var[i].append(pos[direction] + i * (self.diode_size[direction] + self.diode_spacing[direction]))
                     signal_var[i].append(column)
@@ -484,7 +530,8 @@ class Analyzer:
             for diode in range(self.diode_dimension[direction]):
                 ordering = np.argsort(pos_var[diode])
                 pos_var[diode], signal_var[diode] = np.array(pos_var[diode])[ordering], np.array(signal_var[diode])[ordering]
-
+            if inverse[direction]:
+                signal_var = np.array(signal_var)[::-1, ::-1]
             diode_colormapper = lambda diode: color_mapper(diode, 0, self.diode_dimension[direction])
             diode_color = lambda diode: diode_cmap(diode_colormapper(diode))
 
@@ -498,12 +545,14 @@ class Analyzer:
             ax.set_ylabel('Measured Signal (a.u.)')
             ax.set_xlim(ax.get_xlim())
             ax.set_ylim(ax.get_ylim())
-            gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.89, 0.91]),
-                           transform_axis_to_data_coordinates(ax, [0.89, 0.61]), cmap=diode_cmap, lw=5)
-            ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.94]), r'Diode $\#$1', fontsize=15,
-                    c=diode_color(0))  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
-            ax.text(*transform_axis_to_data_coordinates(ax, [0.78, 0.55]), r'Diode $\#$'+str(self.diode_dimension[direction]), fontsize=15,
-                    c=diode_color(self.diode_dimension[direction]))  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+            gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.11, 0.92]),
+                           transform_axis_to_data_coordinates(ax, [0.11, 0.79]), cmap=diode_cmap, lw=10, zorder=5)
+            ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]), r'Diode $\#$1', fontsize=13,
+                    c=diode_color(0), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+            ax.text(*transform_axis_to_data_coordinates(ax, [0.02, 0.71]),
+                    r'Diode $\#$' + str(self.diode_dimension[direction]),
+                    fontsize=13, c=diode_color(self.diode_dimension[direction]),
+                    zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
             if direction == 0:
                 save_name = 'DiodeScan_XDirection_YMeasurement' + str(set_position)
             else:

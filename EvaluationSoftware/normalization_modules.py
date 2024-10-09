@@ -159,44 +159,6 @@ def normalization_from_translated_array(list_of_files, instance, method='least_s
 
 
 def normalization_from_translated_array_v2(list_of_files, instance, method='least_squares', correction=0):
-    # Little helper function to group the recalculated positions
-    def group(input_list, group_range):
-        class Group:
-            def __init__(self, value):
-                self.mean = value
-                self.start_value = value
-                self.members = 1
-
-            def add(self, value):
-                self.mean = (self.mean * self.members + value) / (self.members + 1)
-                self.members += 1
-
-            def check_add(self, value):
-                return (self.mean * self.members + value) / (self.members + 1)
-
-        if not isinstance(input_list, (np.ndarray, pd.DataFrame)):
-            input_list = np.array(input_list)
-        input_list = input_list.flatten()
-
-        groups = []
-        for j in input_list:
-            if len(groups) == 0:
-                groups.append(Group(j))
-                continue
-            in_group = False
-            for group in groups:
-                if group.mean - group_range <= j <= group.mean + group_range:
-                    # check for drift of the group:
-                    if group.start_value - group_range < group.check_add(j) < group.start_value + group_range:
-                        group.add(j)
-                        in_group = True
-                        break
-
-            if not in_group:
-                groups.append(Group(j))
-
-        return [g.mean for g in groups if g.members != 0]
-
     # Direction of the measurement: x or y
     if instance.diode_dimension[0] > instance.diode_dimension[1]:
         sp = 0
