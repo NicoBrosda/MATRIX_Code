@@ -368,8 +368,8 @@ class Analyzer:
                 save_name += '_fill'
             if save_path is not None:
                 if pixel:
-                    save_format = '.pdf'
-                    dpi = 300
+                    save_format = '.png'
+                    dpi = 1200
                 else:
                     save_format = '.png'
                     dpi = 300

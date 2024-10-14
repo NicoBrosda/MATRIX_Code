@@ -1,3 +1,5 @@
+import pandas as pd
+
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from EvaluationSoftware.normalization_modules import normalization_from_translated_array
@@ -108,3 +110,34 @@ for k, crit in enumerate(new_measurements):
     format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_230924/BeamProps/', 'CrossSections',
                 legend=True)
 
+
+    def norm_to_one(array):
+        return (array - np.min(array)) / np.max(array - np.min(array))
+
+
+    def align_x_axes(array, center_ref=0):
+        return array + (-np.mean(array)+center_ref)
+
+    fig, ax = plt.subplots()
+    cs1_data = pd.read_csv(Path("../Files/CS1.csv"), header=0, names=["x", "y"])
+    cs2_data = pd.read_csv(Path("../Files/CS2.csv"), header=0, names=["x", "y"])
+    cs1y, cs2y = cs1_data["y"] - np.max(cs1_data["y"]), cs2_data["y"] - np.max(cs2_data["y"])
+    cs1y, cs2y = cs1y / np.min(cs1y), cs2y / np.min(cs2y)
+    order1, order2 = np.argsort(cs1_data["x"]), np.argsort(cs2_data["x"])
+    cs1x, cs2x, cs1y, cs2y = cs1_data["x"][order1], cs2_data["x"][order2], cs1y[order1], cs2y[order2]
+    ax.plot(A.maps[0]['x'] - A.maps[0]['x'].min(), norm_to_one(x_line), color='r', label='cross section x-direction')
+    new_x = A.maps[0]['x'] - A.maps[0]['x'].min()
+    new_y = A.maps[0]['y'] - A.maps[0]['y'].min()
+    len_x = new_x.max()
+    y1 = np.argmin(np.abs(new_y - (new_y.mean() - new_x.max() / 2)))
+    y2 = np.argmin(np.abs(new_y - (new_y.mean() + new_x.max() / 2)))
+
+    ax.plot(new_y[y1:y2] - new_y[y1:y2].min(), norm_to_one(y_line[y1:y2]), color='b', label='cross section y-direction')
+    ax.plot(align_x_axes(cs1x*25.4, new_x.mean()), cs1y, ls="--", c="k", label='Gafchromic Direction 1')
+    ax.plot(align_x_axes(cs2x*25.4, new_x.mean()), cs2y, ls=":", c="k", label='Gafchromic Direction 2')
+
+    ax.plot()
+    ax.set_xlabel('Position Overlay (mm)')
+    ax.set_ylabel('Response normed to 1')
+    format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_230924/BeamProps/', 'QuantitativeComparison',
+                legend=True)

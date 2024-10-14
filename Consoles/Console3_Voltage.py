@@ -431,7 +431,7 @@ for k, measurement_data in enumerate(new_arrays_cache):
 
 ratios = [i[1]/j[1] for i, j in zip(cache[0], cache[1])]
 ax.plot([i[0] for i in cache[0]], ratios, ls='', marker='*', c='k')
-ax.axhline(2, c='grey', zorder=-1)
+ax.axhline(2.352941176470588, c='grey', zorder=-1)
 
 ax.set_xlabel('Voltage AMS circuit (V)')
 ax.set_ylabel('Signal ratio Array1 / Array3')
