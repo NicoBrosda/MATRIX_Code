@@ -51,7 +51,7 @@ def array_txt_file_search(array, blacklist=[], searchlist=None, txt_file=True, f
 def path_check(path):
     # Abfangen eines Problems, wenn Pfad nicht mit "/" beendet:
     back = False
-    if isinstance(path, pathlib.PosixPath):
+    if not isinstance(path, str):
         path = str(path)
         back = True
     '''
@@ -231,3 +231,11 @@ def mean_diodes(position_arrays, signal_arrays, instance, direction_switch=0, th
             mean_x_new.append(mean)
     mean_x_new, mean_new = np.array(mean_x_new), np.array(mean_new)
     return mean_x_new, mean_new
+
+
+def rename_files(file_path, crit, rename='_{file_name}', file_suffix=None):
+    if not isinstance(file_path, pathlib.Path):
+        file_path = Path(file_path)
+    for file_name in array_txt_file_search(os.listdir(file_path), searchlist=[crit], txt_file=False,
+                                           file_suffix=file_suffix):
+        os.rename(file_path / file_name, file_path / rename.format(file_name=file_name))
