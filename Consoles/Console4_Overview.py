@@ -8,22 +8,22 @@ channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 
 readout, position_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position
 
-folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_111024/')
-results_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_111024/')
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_111024/')
 
 new_measurements_array1 = ['Start_QuickScan_', 'BeamScan1_', 'BeamScan02_', 'DiffBeamScan03_', 'DiffBeamScan04_', 'DiffBeamScan05_']
 live_scan_array1 = [str(round(i+1, 0))+'_live1_' for i in range(9)]
 # new_measurements_array_matrix = ['']
 
-dark_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_230924/')
-dark_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_111024/')
+dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
+dark_path = Path('/Users/nico_brosda//Cyrce_Messungen/matrix_111024/')
 
 dark_paths_array1 = ['Dark_QuickYScan_0_um_2_nA_.csv']
 # dark_paths_array1 = ['voltage_scan_no_beam_nA_1.9000000000000006_x_20.0_y_70.0.csv']
 
 dark_paths_array_matrix = ['Array3_VoltageScan_dark_nA_1.8_x_0.0_y_40.0.csv']
 
-norm_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_230924/')
+norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
 norm_array1 = ['Normalization2']
 norm_array1 = ['uniformity_scan_']
 

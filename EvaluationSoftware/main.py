@@ -352,8 +352,8 @@ class Analyzer:
                 ax.set_xlim(x_scale[0] - (y_scale[1] - y_scale[0] - x_scale[1] + x_scale[0])/2,
                             x_scale[1] + (y_scale[1] - y_scale[0] - x_scale[1] + x_scale[0])/2)
             elif x_scale[1] - x_scale[0] > y_scale[1] - y_scale[0]:
-                ax.set_ylim(x_scale[0] - (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0])/2,
-                            x_scale[1] + (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0])/2)
+                ax.set_ylim(y_scale[0] - (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0])/2,
+                            y_scale[1] + (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0])/2)
 
             # x_scale = ax.get_xlim()
             # ax.set_xlim(x_scale[0]-(x_scale[1]-x_scale[0])*0.15, x_scale[1]+(x_scale[1]-x_scale[0])*0.15)
@@ -369,7 +369,7 @@ class Analyzer:
             if save_path is not None:
                 if pixel:
                     save_format = '.png'
-                    dpi = 1200
+                    dpi = 300
                 else:
                     save_format = '.png'
                     dpi = 300

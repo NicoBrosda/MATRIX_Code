@@ -82,7 +82,7 @@ class LineShape:
     def __init__(self, list_of_points, distance_mode=False):
         print('A shape with connection lines between the given points will be initiated! Note that for positioning of '
               'the shape the x-positions can be scaled by setting a reference point later on.')
-        self.points = np.array(list_of_points)
+        self.points = np.array(list_of_points, dtype=np.float64)
         self.distance_mode = distance_mode
         if distance_mode:
             cache = deepcopy(self.points)
