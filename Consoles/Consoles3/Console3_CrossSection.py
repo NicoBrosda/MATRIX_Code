@@ -4,7 +4,7 @@ from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from EvaluationSoftware.normalization_modules import normalization_from_translated_array
 
-mapping = Path('../Files/mapping.xlsx')
+mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 
@@ -119,8 +119,8 @@ for k, crit in enumerate(new_measurements):
         return array + (-np.mean(array)+center_ref)
 
     fig, ax = plt.subplots()
-    cs1_data = pd.read_csv(Path("../Files/CS1.csv"), header=0, names=["x", "y"])
-    cs2_data = pd.read_csv(Path("../Files/CS2.csv"), header=0, names=["x", "y"])
+    cs1_data = pd.read_csv(Path("../../Files/CS1.csv"), header=0, names=["x", "y"])
+    cs2_data = pd.read_csv(Path("../../Files/CS2.csv"), header=0, names=["x", "y"])
     cs1y, cs2y = cs1_data["y"] - np.max(cs1_data["y"]), cs2_data["y"] - np.max(cs2_data["y"])
     cs1y, cs2y = cs1y / np.min(cs1y), cs2y / np.min(cs2y)
     order1, order2 = np.argsort(cs1_data["x"]), np.argsort(cs2_data["x"])

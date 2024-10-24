@@ -59,8 +59,8 @@ biggerboxes_plot = (20.99701*cm*0.45, 20.99701*cm*0.45/1.3)
 
 # Now one can also define standard text sizes for the plots and assign where to use which size. The standards below are
 # reasonable choices for a DIN A4 document - you should nevertheless check if these values really fit your document
-SMALL_SIZE = 8
-MEDIUM_SIZE = 9
+SMALL_SIZE = 10  # 8
+MEDIUM_SIZE = 11  # 9
 BIGGER_SIZE = 11
 
 plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
@@ -70,6 +70,7 @@ plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
 if use_LaTeX:
     plt.rcParams.update({'mathtext.default':  'regular'})  # No cursive text in math environment!
 

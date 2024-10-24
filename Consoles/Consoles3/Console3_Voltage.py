@@ -3,7 +3,7 @@ from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from EvaluationSoftware.normalization_modules import normalization_from_translated_array
 from EvaluationSoftware.parameter_parsing_modules import standard_voltage, first_measurement_voltage
 
-mapping = Path('../Files/mapping.xlsx')
+mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 
@@ -12,13 +12,13 @@ readout, position_parser = lambda x, y: ams_channel_assignment_readout(x, y, cha
 A = Analyzer((1, 128), 0.5, 0.0, readout=readout)
 voltage_parser = standard_voltage
 
-folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_230924/')
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
 
 voltage_array1 = ['d2_1n_5s_flat_calib_nA_', 'voltage_scan_no_beam_nA_', 'voltage_scan_beam_2nA_nA_']
 voltage_array3 = ['Array3_VoltageScan_dark_nA_', 'Array3_VoltageScan_200um_2nA_nA_']
 
-folder_path_old_d2 = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/d2/')
-folder_path_old_e1 = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/e1/')
+folder_path_old_d2 = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/d2/')
+folder_path_old_e1 = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/e1/')
 voltage_old_d2 = ['0_nA_']
 voltage_old_e1 = ['e1_300p_nA_', 'e1_2000p_lin_nA_']
 

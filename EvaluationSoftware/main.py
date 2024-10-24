@@ -6,6 +6,7 @@ from EvaluationSoftware.position_parsing_modules import *
 from Plot_Methods.plot_standards import *
 from EvaluationSoftware.normalization_modules import *
 from EvaluationSoftware.filter_modules import *
+from EvaluationSoftware.parameter_parsing_modules import *
 
 
 class DiodeGeometry:
@@ -34,7 +35,8 @@ class Analyzer:
     diode_size = DiodeGeometry()
     diode_spacing = DiodeGeometry()
 
-    def __init__(self, diode_dimension, diode_size, diode_spacing, readout=ams_constant_signal_readout, position_parser=standard_position):
+    def __init__(self, diode_dimension, diode_size, diode_spacing, readout=ams_constant_signal_readout,
+                 position_parser=standard_position, voltage_parser=None):
         """
         This is an analyzer class for the readout and data analysis from measurements with diode arrays in the MATRIX
         project. This class aims to be as general as possible to adapt easily to changing diode geometries,
@@ -60,6 +62,7 @@ class Analyzer:
 
         self.readout = readout
         self.pos_parser = position_parser
+        self.voltage_parser = voltage_parser
         self.measurement_files = []
         self.measurement_data = []
         self.dark_files = []
@@ -70,6 +73,7 @@ class Analyzer:
         self.excluded = np.full(self.diode_dimension, False)
 
     def set_measurement(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg']):
+        self.measurement_files = []
         self.name = str(filter_criterion)
         if blacklist is None:
             blacklist = []
@@ -164,6 +168,8 @@ class Analyzer:
             cache = readout_module(file, self)
             cache['signal'] = (cache['signal']-self.dark)*self.norm_factor
             cache.update({'position': pos})
+            if self.voltage_parser is not None:
+                cache.update({'voltage': self.voltage_parser(file)})
             self.measurement_data.append(cache)
 
     def update_measurement(self, dark=True, factor=True):

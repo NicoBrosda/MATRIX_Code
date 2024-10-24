@@ -5,7 +5,7 @@ from scipy.signal import find_peaks
 from EvaluationSoftware.main import *
 from EvaluationSoftware.helper_modules import LineShape, mean_diodes
 
-mapping = Path('../Files/mapping.xlsx')
+mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 

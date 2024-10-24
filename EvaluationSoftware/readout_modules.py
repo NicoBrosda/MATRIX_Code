@@ -249,7 +249,7 @@ def design_readout(path_to_data_file, instance):
             'dict': {}}
 
 
-def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignment=None):
+def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignment=None, sample_size=None):
     el = instance.diode_dimension[0] * instance.diode_dimension[1]
     columns_used = el
     # '''
@@ -301,8 +301,14 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
             signals.append(0)
             signal_std.append(0)
         try:
-            cache = np.mean(data[col])  # - dark[j]
-            cache_std = np.std(data[col])
+            if sample_size is None:
+                cache = np.mean(data[col])  # - dark[j]
+                cache_std = np.std(data[col])
+            else:
+                if sample_size > len(data[col]):
+                    sample_size = len(data[col])
+                cache = np.mean(data[col][0:sample_size])  # - dark[j]
+                cache_std = np.std(data[col][0:sample_size])
             if not np.isnan(cache):
                 signals.append(cache)
                 signal_std.append(cache_std)
@@ -326,7 +332,7 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
             'dict': {}}
 
 
-def ams_2D_assignment_readout(path_to_data_file, instance, channel_assignment=None):
+def ams_2D_assignment_readout(path_to_data_file, instance, channel_assignment=None, sample_size=None):
     el = instance.diode_dimension[0] * instance.diode_dimension[1]
     columns_used = el
     # '''
@@ -391,8 +397,14 @@ def ams_2D_assignment_readout(path_to_data_file, instance, channel_assignment=No
             signals.append(0)
             signal_std.append(0)
         try:
-            cache = np.mean(data[col])  # - dark[j]
-            cache_std = np.std(data[col])
+            if sample_size is None:
+                cache = np.mean(data[col])  # - dark[j]
+                cache_std = np.std(data[col])
+            else:
+                if sample_size > len(data[col]):
+                    sample_size = len(data[col])
+                cache = np.mean(data[col][0:sample_size])  # - dark[j]
+                cache_std = np.std(data[col][0:sample_size])
             if not np.isnan(cache):
                 signals.append(cache)
                 signal_std.append(cache_std)
@@ -414,3 +426,4 @@ def ams_2D_assignment_readout(path_to_data_file, instance, channel_assignment=No
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
             'dict': {}}
+

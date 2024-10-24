@@ -1,5 +1,3 @@
-import numpy as np
-
 from EvaluationSoftware.main import *
 
 # To get the mapping of the 2d array correct I have to translate the mapping of the contacts
