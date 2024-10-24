@@ -139,7 +139,7 @@ for i, st in enumerate(store):
         continue
     if (st[5][0]-st[6][0]).all() == 0 and (st[6][0]-store[1][6][0]).all() == 0:
         if i == 2:
-            ax.plot(st[5][0], (st[6][1] - st[5][1]) / 0.86 / (store[1][6][1]-store[1][5][1]), ls='-', marker='+', label=st[0][0], color=c2[i])
+            ax.plot(st[5][0], (st[6][1] - st[5][1]) / (store[1][6][1]-store[1][5][1]), ls='-', marker='+', label=st[0][0], color=c2[i])
         else:
             ax.plot(st[5][0], (st[6][1] - st[5][1]) / (store[1][6][1]-store[1][5][1]), ls='-', marker='+', label=st[0][0], color=c2[i])
         ax.axhline(np.multiply(*st[4][1])/np.multiply(*store[1][4][1]), zorder=-2, ls='--', color=c2[i], alpha=0.5)
