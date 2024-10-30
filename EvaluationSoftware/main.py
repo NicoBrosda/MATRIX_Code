@@ -36,7 +36,7 @@ class Analyzer:
     diode_spacing = DiodeGeometry()
 
     def __init__(self, diode_dimension, diode_size, diode_spacing, readout=ams_constant_signal_readout,
-                 position_parser=standard_position, voltage_parser=None):
+                 position_parser=standard_position, voltage_parser=None, current_parser=None, diode_offset=None):
         """
         This is an analyzer class for the readout and data analysis from measurements with diode arrays in the MATRIX
         project. This class aims to be as general as possible to adapt easily to changing diode geometries,
@@ -59,10 +59,16 @@ class Analyzer:
         self.diode_dimension = diode_dimension
         self.diode_size = diode_size
         self.diode_spacing = diode_spacing
+        if diode_offset is None or np.shape(diode_offset[0])[0] != self.diode_dimension[0] or \
+                np.shape(diode_offset[1])[0] != self.diode_dimension[1]:
+            self.diode_offset = [np.zeros(self.diode_dimension[0]), np.zeros(self.diode_dimension[1])]
+        else:
+            self.diode_offset = diode_offset
 
         self.readout = readout
         self.pos_parser = position_parser
         self.voltage_parser = voltage_parser
+        self.current_parser = current_parser
         self.measurement_files = []
         self.measurement_data = []
         self.dark_files = []
@@ -170,6 +176,8 @@ class Analyzer:
             cache.update({'position': pos})
             if self.voltage_parser is not None:
                 cache.update({'voltage': self.voltage_parser(file)})
+            if self.current_parser is not None:
+                cache.update({'current': self.current_parser(file)})
             self.measurement_data.append(cache)
 
     def update_measurement(self, dark=True, factor=True):
@@ -208,10 +216,10 @@ class Analyzer:
                     continue
                 signal = data['signal']
                 for i, column in enumerate(signal):
-                    x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]))
+                    x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]) + self.diode_offset[0][i])
                     cache_column = []
                     for j, row in enumerate(column):
-                        y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]))
+                        y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[1][j])
                         cache_column.append(row)
                     z.append(cache_column)
 
@@ -476,7 +484,8 @@ class Analyzer:
                 signal = signal[diode_line]
 
             for i, column in enumerate(signal):
-                pos_var[i].append(pos[direction] + i * (self.diode_size[direction] + self.diode_spacing[direction]))
+                pos_var[i].append(pos[direction] + i * (self.diode_size[direction] + self.diode_spacing[direction]) +
+                                  self.diode_offset[direction][i])
                 signal_var[i].append(column)
 
         # Sort the signals in to an array with sorted and distinct position values
@@ -529,7 +538,8 @@ class Analyzer:
                     signal = signal[diode_line]
 
                 for i, column in enumerate(signal):
-                    pos_var[i].append(pos[direction] + i * (self.diode_size[direction] + self.diode_spacing[direction]))
+                    pos_var[i].append(pos[direction] + i * (self.diode_size[direction]+self.diode_spacing[direction]) +
+                                      self.diode_offset[direction][i])
                     signal_var[i].append(column)
 
             # Sort the signals in to an array with sorted and distinct position values

@@ -239,3 +239,9 @@ def rename_files(file_path, crit, rename='_{file_name}', file_suffix=None):
     for file_name in array_txt_file_search(os.listdir(file_path), searchlist=[crit], txt_file=False,
                                            file_suffix=file_suffix):
         os.rename(file_path / file_name, file_path / rename.format(file_name=file_name))
+
+
+def comma_replace(string):
+    return string.replace(',', '.')
+
+
