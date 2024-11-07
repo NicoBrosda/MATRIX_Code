@@ -335,12 +335,12 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
 def ams_2line_readout(path_to_data_file, instance, channel_assignment=None, sample_size=None):
     values = ams_channel_assignment_readout(path_to_data_file, instance, channel_assignment, sample_size)
     signal, std = values['signal'].flatten(), values['std'].flatten()
-    # signal, std = np.concatenate((signal[1::2], signal[0::2])), np.concatenate((std[1::2], std[0::2]))
-    signal, std = signal[0::2], std[0::2]
-    return {'signal': np.reshape(signal, (instance.diode_dimension[0], instance.diode_dimension[1]//2)),
-            'std': np.reshape(std, (instance.diode_dimension[0], instance.diode_dimension[1]//2)),
+    signal, std = np.concatenate((signal[1::2], signal[0::2])), np.concatenate((std[1::2], std[0::2]))
+    # signal, std = signal[0::2], std[0::2]
+    # return {'signal': np.reshape(signal, (instance.diode_dimension[0], instance.diode_dimension[1]//2)), 'std': np.reshape(std, (instance.diode_dimension[0], instance.diode_dimension[1]//2)), 'dict': values['dict']}
+    return {'signal': np.reshape(signal, (instance.diode_dimension[0], instance.diode_dimension[1])),
+            'std': np.reshape(std, (instance.diode_dimension[0], instance.diode_dimension[1])),
             'dict': values['dict']}
-
 
 
 def ams_2D_assignment_readout(path_to_data_file, instance, channel_assignment=None, sample_size=None):

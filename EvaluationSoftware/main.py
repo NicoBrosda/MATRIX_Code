@@ -59,8 +59,11 @@ class Analyzer:
         self.diode_dimension = diode_dimension
         self.diode_size = diode_size
         self.diode_spacing = diode_spacing
-        if diode_offset is None or np.shape(diode_offset[0])[0] != self.diode_dimension[0] or \
+        if diode_offset is None:
+            self.diode_offset = [np.zeros(self.diode_dimension[0]), np.zeros(self.diode_dimension[1])]
+        elif np.shape(diode_offset[0])[0] != self.diode_dimension[0] or \
                 np.shape(diode_offset[1])[0] != self.diode_dimension[1]:
+            print('Diode offset was inserted in the wrong dimensions - recheck your input!')
             self.diode_offset = [np.zeros(self.diode_dimension[0]), np.zeros(self.diode_dimension[1])]
         else:
             self.diode_offset = diode_offset
@@ -191,7 +194,10 @@ class Analyzer:
             for i in tqdm(range(len(self.measurement_data))):
                 self.measurement_data[i]['signal'] = self.measurement_data[i]['signal']*self.norm_factor
 
-    def create_map(self, overlay='ignore', inverse=[False, False]):
+    def create_map(self, overlay='interpolate', inverse=[False, False]):
+        faster_loop: bool = (self.diode_offset[1].all() == 0)
+        faster_loop: bool = False
+
         self.maps = []
 
         def mapping(position):
@@ -212,40 +218,63 @@ class Analyzer:
             z = []
             for data in filter_data:
                 pos = data['position']
+                # print(pos, '#'*50)
                 if None in pos or np.isnan(pos[0]) or np.isnan(pos[1]):
                     continue
                 signal = data['signal']
-                for i, column in enumerate(signal):
-                    x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]) + self.diode_offset[0][i])
-                    cache_column = []
-                    for j, row in enumerate(column):
-                        y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[1][j])
-                        cache_column.append(row)
-                    z.append(cache_column)
+                if faster_loop:
+                    for i, column in enumerate(signal):
+                        # print('column', i, '-' * 50)
+                        # print(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]))
+                        x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]))
+                        cache_column = []
+                        for j, row in enumerate(column):
+                            # if j == 0:
+                                # print('row', i, '.' * 50)
+                                # print(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
+                            y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
+                            cache_column.append(row)
+                        z.append(cache_column)
+                else:
+                    for i, column in enumerate(signal):
+                        for j, row in enumerate(column):
+                            x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]) + self.diode_offset[1][j])
+                            y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
+                            z.append(row)
 
             # Sort the signals in to an array with sorted and distinct position values
             x, y, z = np.array(x), np.array(y), np.array(z)
 
             sorting = np.argsort(x)
+            if not faster_loop:
+                y = y[sorting]
             x = x[sorting]
             z = z[sorting]
             distinct_x = sorted(set(x))
             distinct_y = sorted(set(y))
-            image = np.zeros((len(distinct_x), len(distinct_y)))
+            image = np.full((len(distinct_x), len(distinct_y)), -1)
 
-            for i, column in enumerate(z):
-                for j, row in enumerate(column):
-                    image[distinct_x.index(x[i]), distinct_y.index(y[i * np.shape(z)[1] + j])] = row
+            if faster_loop:
+                for i, column in enumerate(z):
+                    for j, row in enumerate(column):
+                        image[distinct_x.index(x[i]), distinct_y.index(y[i * np.shape(z)[1] + j])] = row
+            else:
+                for i, row in enumerate(z):
+                    x_index = distinct_x.index(x[i])
+                    y_index = distinct_y.index(y[i])
+                    if image[x_index, y_index] == -1:
+                        image[x_index, y_index] = row
+                    elif overlay == 'ignore':
+                        image[x_index, y_index] = row
+                    elif overlay == 'interpolate':
+                        image[x_index, y_index] = (row + image[x_index, y_index]) / 2
 
             z = image.T
             if inverse[0]:
                 z = z[::-1]
             if inverse[1]:
                 z = z[:, ::-1]
-            if overlay == 'ignore':
-                self.maps.append({'x': np.array(distinct_x), 'y': np.array(distinct_y), 'z': z, 'position': str(position)})
-            else:
-                pass
+            self.maps.append({'x': np.array(distinct_x), 'y': np.array(distinct_y), 'z': z, 'position': str(position)})
 
         # Create loop to automatize plotting of multiple maps from 1 array (x or y shifted)
         if self.diode_dimension[1] == 1 and len(set([i['position'][0] for i in self.measurement_data])) > 1:
@@ -280,7 +309,7 @@ class Analyzer:
                 y_steps = np.array([map_el['y'][i + 1] - map_el['y'][i] for i in range(np.shape(map_el['y'])[0] - 1)])
 
                 # Auto-detect if spaces should be inserted in one-direction (>1 diode and distances = diodes geometry)
-                if self.diode_dimension[0] > 1 and x_steps.std() == 0 and \
+                if self.diode_dimension[0] > 2 and x_steps.std() == 0 and \
                         x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
                     cache_x = np.array([map_el['x'][0]])
                     for i in range(np.shape(map_el['x'])[0]):
@@ -306,7 +335,7 @@ class Analyzer:
                     cache_x = np.append(map_el['x'], map_el['x'][-1] + x_steps.mean())
                     cache_z = map_el['z']
 
-                if self.diode_dimension[1] > 1 and y_steps.std() == 0 and \
+                if self.diode_dimension[1] > 2 and y_steps.std() == 0 and \
                         y_steps.mean() == self.diode_size[1]+self.diode_spacing[1]:
                     cache_y = np.array([map_el['y'][0]])
                     for i in range(np.shape(map_el['y'])[0]):
