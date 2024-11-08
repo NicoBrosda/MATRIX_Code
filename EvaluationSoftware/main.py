@@ -267,7 +267,12 @@ class Analyzer:
                     elif overlay == 'ignore':
                         image[x_index, y_index] = row
                     elif overlay == 'interpolate':
-                        image[x_index, y_index] = (row + image[x_index, y_index]) / 2
+                        if image[x_index, y_index] == 0:
+                            image[x_index, y_index] = row
+                        elif row == 0:
+                            pass
+                        else:
+                            image[x_index, y_index] = (row + image[x_index, y_index]) / 2
 
             z = image.T
             if inverse[0]:

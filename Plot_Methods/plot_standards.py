@@ -232,7 +232,7 @@ def gradient_arrow(ax, start, end, cmap="viridis", n=50, lw=3, *args, **kwargs):
 def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, legend_separator=None, x_after=0,
                 y_after=0, x_fmt=format_func, y_fmt=format_func, second_axis=False, minor_xticks=True,
                 minor_yticks=True, english=language_english, legend_position=0, plot_size=fullsize_plot, x_rotation=0,
-                plot_variant='PL_spectrum', format=save_format, dpi=300, *args) -> None:
+                plot_variant='PL_spectrum', format=save_format, dpi=300, fig=None, axes=None, *args) -> None:
     """
     :param save_path: The path where the plot is saved. The standard path just uses (or creates) a folder in the folder
     of this python script ("./Plots/")
@@ -262,9 +262,12 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
     :return: None (The plot is saved and closed afterward - not doing this will eventually clog your RAM.
     """
     # get current plot
-    axes = plt.gcf().get_axes()
-    ax = plt.gca()
-    fig = plt.gcf()
+    if axes is None:
+        axes = plt.gcf().get_axes()
+        ax = plt.gca()
+    if fig is None:
+        fig = plt.gcf()
+
     # If x_after is not a list, make it one -> This allows x formatting of every axis alone
     if not isinstance(x_after, (list, tuple, np.ndarray)):
         x_after = np.zeros_like(axes) + x_after
@@ -361,7 +364,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
         else:
             fig.savefig(Path(save_path) / (save_name + format), dpi=dpi, bbox_inches="tight", *args)
 
-        plt.close()
+        plt.close(fig=fig)
 
 
 def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, legend_separator=None, x_after=0,
@@ -495,4 +498,4 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
         else:
             fig.savefig(Path(save_path) / (save_name + format), *args, dpi=300, bbox_inches="tight")
 
-        # plt.close()
+        plt.close(fig=fig)

@@ -59,7 +59,8 @@ for k, crit in enumerate(new_measurements[0:]):
                intensity_limits=intensity_limits)
 
     norm = norm_array1
-    A.normalization(norm_path, norm, normalization_module=normalization_from_translated_array_v3)
+    norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(list_of_files, instance, method, align_lines=True)
+    A.normalization(norm_path, norm, normalization_module=norm_func)
     A.update_measurement(dark=False)
     A.create_map(inverse=[True, False])
     intensity_limits = None
@@ -68,4 +69,13 @@ for k, crit in enumerate(new_measurements[0:]):
     A.plot_map(results_path / 'maps/', pixel='fill',
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'maps/', pixel=False,
+               intensity_limits=intensity_limits)
+
+    for i, image_map in enumerate(A.maps):
+        A.maps[i]['z'] = simple_zero_replace(image_map['z'])
+    A.plot_map(results_path / 'maps_plus/', pixel=True,
+               intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'maps_plus/', pixel='fill',
+               intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'maps_plus/', pixel=False,
                intensity_limits=intensity_limits)

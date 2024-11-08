@@ -251,7 +251,7 @@ def normalization_from_translated_array_v2(list_of_files, instance, method='leas
     return factor_new.reshape(instance.diode_dimension)
 
 
-def normalization_from_translated_array_v3(list_of_files, instance, method='least_squares'):
+def normalization_from_translated_array_v3(list_of_files, instance, method='least_squares', align_lines=True):
     # Load in the data from a list of files in a folder; save position and signal
     position = []
     signals = []
@@ -305,17 +305,17 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
               'thus, no factor can be calculated!')
         return None
 
-    print('Normalization is calculated from translation direction ', ['x', 'y'][sp], ' with ', steps,
-          'at a mean step width of ', step_width, ' mm for a diode periodicity of ', diode_periodicity, ' mm.')
+    print('Normalization is calculated from translation direction', ['x', 'y'][sp], 'with', steps,
+          'at a mean step width of', step_width, 'mm for a diode periodicity of', diode_periodicity, 'mm.')
 
     # Sort the arrays by the position
     indices = np.argsort(np.array(position)[:, sp])
     signals = np.array(signals)[indices]
     position = np.array(position)[indices]
 
-    # ------------------------------------------------------------------------------------------------------------------
     # Main loop: For each diode line orthogonal to translation region calculate a factor
     factor_new = np.zeros(instance.diode_dimension)
+    mean_cache = []
     for line in range(instance.diode_dimension[1-sp]):
         # Recalculate the positions considering the geometry of the diode array
         positions = []
@@ -327,6 +327,7 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
 
         # Try to detect the signal level
         threshold = ski_threshold_otsu(signals[:, line])
+        mean_over = np.mean(signals[(signals > threshold)])
 
         # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
         group_distance = instance.diode_size[sp]
@@ -347,16 +348,17 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
             cache_new = 0
             j_new = 0
             for i in range(len(indices)):
-                if indices[i] is not None and signals[indices[i], line, i] >= threshold:
+                if indices[i] is not None and threshold <= signals[indices[i], line, i] <= 1.5 * mean_over:
                     cache_new += signals[indices[i], line, i]
                     j_new += 1
             if j_new > 0:
                 mean_new.append(cache_new / j_new)
                 mean_x_new.append(mean)
 
-        mean_x = np.array(groups)
         mean_x_new, mean_new = np.array(mean_x_new), np.array(mean_new)
 
+        if align_lines:
+            mean_cache.append([mean_x_new, mean_new])
         # Interpolation
         factor_cache = []
         for channel in range(instance.diode_dimension[sp]):
@@ -386,4 +388,18 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
 
             factor_cache.append(factor_new_cache)
         factor_new[line] = np.array(factor_cache).flatten()
+
+    if align_lines:
+        # Calculate the mean of the mean from the different lines
+        x_mean = mean_cache[0][0]
+        mean_cache = [np.interp(x_mean, mean_cache[i][0], mean_cache[i][1]) for i in range(len(mean_cache))]
+        overall_mean = np.mean(mean_cache)
+        for line, m in enumerate(mean_cache):
+            func_opt_new = lambda a: overall_mean - m * a
+            factor_new_cache = least_squares(func_opt_new, 1)
+            if factor_new_cache.nfev == 1 and factor_new_cache.optimality == 0.0:
+                factor_new_cache = 1
+            else:
+                factor_new_cache = factor_new_cache.x[0]
+            factor_new[line] = factor_new[line] * factor_new_cache
     return factor_new

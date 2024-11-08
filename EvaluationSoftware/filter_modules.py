@@ -21,3 +21,16 @@ def simple_artefact_filter(signal_array_2dim, threshold=None):
                 filtered_array[i][j] = (signal_array_2dim[i - 1][j] + signal_array_2dim[i + 1][j] +
                                         signal_array_2dim[i][j - 1] + signal_array_2dim[i][j + 1]) / 4
     return filtered_array
+
+
+def simple_zero_replace(image_map, direction=0):
+    for i in range(np.shape(image_map)[0]):
+        for j in range(np.shape(image_map)[1]):
+            if image_map[i, j] == 0:
+                if direction == 0 and i != 0 and i != np.shape(image_map)[0]-1:
+                    if image_map[i-1, j] != 0 and image_map[i+1, j] != 0:
+                        image_map[i, j] = (image_map[i-1, j] + image_map[i+1, j])/2
+                if direction == 1 and j != 0 and j != np.shape(image_map)[1]-1:
+                    if image_map[i, j-1] != 0 and image_map[i, j+1] != 0:
+                        image_map[i, j] = (image_map[i, j-1] + image_map[i, j+1])/2
+    return image_map
