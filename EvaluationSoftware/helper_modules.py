@@ -245,3 +245,148 @@ def comma_replace(string):
     return string.replace(',', '.')
 
 
+def super_resolution_matrix(size):
+    matrix = []
+    for i in range(size):
+        line = np.zeros(size)
+        if i < size - 1:
+            line[[i, i + 1]] = 1
+        else:
+            line[i] = 1
+        matrix.append(line)
+
+    return np.linalg.inv(matrix)
+
+
+def super_resolution_matrix2(size):
+    matrix = []
+    for i in range(size):
+        line = np.zeros(size)
+        if i == 0:
+            line[[i]] = 1
+        else:
+            line[[i-1, i]] = 1
+        matrix.append(line)
+
+    return np.linalg.inv(matrix)
+
+
+def apply_super_resolution(input_array, m1=None, m2=None):
+    super_resolved_array1 = np.zeros_like(input_array)
+    super_resolved_array2 = np.zeros_like(input_array)
+    super_resolved_array = np.zeros_like(input_array)
+    print(np.shape(input_array))
+    print(np.shape(m1))
+    print(m1)
+    if m1 is None:
+        super_resolved_array1 = np.dot(super_resolution_matrix(np.shape(input_array)[1]), input_array)
+    else:
+        super_resolved_array1 = np.dot(m1, input_array)
+    if m2 is None:
+        super_resolved_array2 = np.dot(super_resolution_matrix2(np.shape(input_array)[1]), input_array)
+    else:
+        super_resolved_array2 = np.dot(m2, input_array)
+    for j, k in enumerate(input_array):
+        super_resolved_array[j] = (j-1)/(np.shape(input_array)[0]-1) * super_resolved_array1[j] \
+                        + (np.shape(input_array)[0]-j)/(np.shape(input_array)[0]-1) * super_resolved_array2[j]
+    return super_resolved_array
+
+
+def apply_super_resolution(input_array, m1=None, m2=None):
+    super_resolved_array = np.zeros_like(input_array)
+
+    for i, el in enumerate(input_array):
+        if i == 0:
+            super_resolved_array[i] = input_array[i]
+        else:
+            super_resolved_array[i] = (input_array[i] + input_array[i-1])/2
+    return super_resolved_array
+
+
+def overlap_treatment(map_el, instance, pixelize=True, super_res=False):
+    # What the pixeling of the map should do
+    # 1. Recognize for overlap:
+    x_steps = np.array([map_el['x'][i + 1] - map_el['x'][i] for i in range(np.shape(map_el['x'])[0] - 1)])
+    y_steps = np.array([map_el['y'][i + 1] - map_el['y'][i] for i in range(np.shape(map_el['y'])[0] - 1)])
+    # Check if the steps are varying for the measurements (needs a special treatment)
+    if x_steps.std() != 0:
+        x_overlap = False
+    else:
+        x_overlap = False
+        if x_steps.mean() < instance.diode_size[0]:
+            x_overlap = True
+
+    if y_steps.std() != 0:
+        y_overlap = False
+    else:
+        y_overlap = False
+        if y_steps.mean() < instance.diode_size[1]:
+            y_overlap = True
+
+    if not x_overlap and not y_overlap:
+        pass
+    elif x_overlap and not y_overlap:
+        if super_res:
+            x_m1, x_m2 = super_resolution_matrix(np.shape(map_el['z'])[1]), super_resolution_matrix2(
+                np.shape(map_el['z'])[1])
+            for j, row in enumerate(map_el['z']):
+                map_el['z'][j] = apply_super_resolution(row, x_m1, x_m2)
+        else:
+            pass
+    elif not x_overlap and y_overlap:
+        if super_res:
+            y_m1, y_m2 = super_resolution_matrix(np.shape(map_el['z'])[0]), super_resolution_matrix2(
+                np.shape(map_el['z'])[0])
+            print(np.shape(y_m1), np.shape(y_m2))
+            for i, col in enumerate(map_el['z'].T):
+                map_el['z'][:, i] = apply_super_resolution(col, y_m1, y_m2)
+        else:
+            pass
+    else:
+        if super_res:
+            x_m1, x_m2 = super_resolution_matrix(np.shape(map_el['z'])[1]), super_resolution_matrix2(np.shape(map_el['z'])[1])
+            y_m1, y_m2 = super_resolution_matrix(np.shape(map_el['z'])[0]), super_resolution_matrix2(np.shape(map_el['z'])[0])
+            for i, col in enumerate(map_el['z'].T):
+                map_el['z'][:, i] = apply_super_resolution(col, y_m1, y_m2)
+            for j, row in enumerate(map_el['z']):
+                map_el['z'][j] = apply_super_resolution(row, x_m1, x_m2)
+        else:
+            pass
+
+    if pixelize:
+        pass
+
+    return map_el
+
+
+def homogenize_pixel_size(input_map):
+    # x-direction:
+    if np.shape(input_map['x'])[0] == np.shape(input_map['x'])[1]:
+        x_steps = np.array([input_map['x'][i + 1] - input_map['x'][i] for i in range(np.shape(input_map['x'])[0] - 1)])
+        x_steps = np.append(x_steps, x_steps.mean())
+        x_pos = input_map['x']
+    elif np.shape(input_map['x'])[0] == np.shape(input_map['x'])[1] + 1:
+        x_steps = np.array([input_map['x'][i + 1] - input_map['x'][i] for i in range(np.shape(input_map['x'])[0] - 1)])
+        x_pos = [el + x_steps[i]/2 for i,el in enumerate(input_map['x'])]
+
+    else:
+        print('The input map format is not supported - check how the map is generated.')
+
+    x_pixel_size = np.gcd.reduce([int(round(i*10**9, 0)) for i in set(x_steps)])/10**9
+    y_steps = np.array([input_map['y'][i + 1] - input_map['y'][i] for i in range(np.shape(input_map['y'])[0] - 1)])
+    y_pixel_size = np.gcd.reduce([int(round(i * 10 ** 9, 0)) for i in set(y_steps)]) / 10 ** 9
+    pixel_size = min(x_pixel_size, y_pixel_size)
+    for i, row in enumerate(input_map['z']):
+        if i == 0:
+            pass
+        elif i == np.shape(input_map['z'][1]):
+            pass
+        else:
+            if x_steps[i] > pixel_size:
+                pass
+
+    # y-direction:
+    y_steps = np.array([input_map['y'][i + 1] - input_map['y'][i] for i in range(np.shape(input_map['y'])[0] - 1)])
+    y_pixel_size = np.gcd.reduce([int(round(i*10**9, 0)) for i in set(y_steps)])/10**9
+
+    print(x_pixel_size, y_pixel_size)

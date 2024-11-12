@@ -226,20 +226,20 @@ class Analyzer:
                     for i, column in enumerate(signal):
                         # print('column', i, '-' * 50)
                         # print(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]))
-                        x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]))
+                        x.append(pos[0] + (i - (self.diode_dimension[0]-1)/2) * (self.diode_size[0] + self.diode_spacing[0]))
                         cache_column = []
                         for j, row in enumerate(column):
                             # if j == 0:
                                 # print('row', i, '.' * 50)
                                 # print(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
-                            y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
+                            y.append(pos[1] + (j - self.diode_dimension[1]/2) * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
                             cache_column.append(row)
                         z.append(cache_column)
                 else:
                     for i, column in enumerate(signal):
                         for j, row in enumerate(column):
-                            x.append(pos[0] + i * (self.diode_size[0] + self.diode_spacing[0]) + self.diode_offset[1][j])
-                            y.append(pos[1] + j * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
+                            x.append(pos[0] + (i - (self.diode_dimension[0]-1)/2) * (self.diode_size[0] + self.diode_spacing[0]) + self.diode_offset[1][j])
+                            y.append(pos[1] + (j - (self.diode_dimension[1]-1)/2) * (self.diode_size[1] + self.diode_spacing[1]) + self.diode_offset[0][i])
                             z.append(row)
 
             # Sort the signals in to an array with sorted and distinct position values
@@ -296,27 +296,31 @@ class Analyzer:
                  plot_size=fullsize_plot, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()
-        print(len(self.maps), ' map created at positions ', [i['position'] for i in self.maps])
+        if len(self.maps) == 1:
+            print(len(self.maps), ' map will be plotted.')
+        else:
+            print(len(self.maps), ' maps will be plotted at the positions ', [i['position'] for i in self.maps])
         for map_el in self.maps:
+
             if ax_in is None or fig_in is None:
                 fig, ax = plt.subplots()
             else:
                 fig, ax = fig_in, ax_in
-            if intensity_limits is None:
-                intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
-                intensity_limits = [0, np.abs(np.max(map_el['z']))]
 
-            # print(intensity_limits)
+            if intensity_limits is None:
+                # intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
+                intensity_limits = [0, np.abs(np.max(map_el['z']))]
             levels = np.linspace(intensity_limits[0], intensity_limits[1], 100)
+
             if pixel:
                 # Auto-detect step width in x and y:
                 x_steps = np.array([map_el['x'][i + 1] - map_el['x'][i] for i in range(np.shape(map_el['x'])[0] - 1)])
                 y_steps = np.array([map_el['y'][i + 1] - map_el['y'][i] for i in range(np.shape(map_el['y'])[0] - 1)])
 
-                # Auto-detect if spaces should be inserted in one-direction (>1 diode and distances = diodes geometry)
-                if self.diode_dimension[0] > 2 and x_steps.std() == 0 and \
+                # Auto-detect if spaces should be inserted in one-direction (> 2 diodes and distances = diodes geometry)
+                if self.diode_dimension[0] <= 2 and x_steps.std() == 0 and \
                         x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
-                    cache_x = np.array([map_el['x'][0]])
+                    cache_x = np.array([map_el['x'][0]-(self.diode_spacing[0]+self.diode_size[0])/2])
                     for i in range(np.shape(map_el['x'])[0]):
                         if i == 0:
                             cache_x = np.append(cache_x, cache_x[-1]+self.diode_spacing[0]/2)
@@ -337,12 +341,12 @@ class Analyzer:
                     cache_z = np.array(cache_z).T
                 # Else insert +1 step in the end of the measurement and do not add white spaces
                 else:
-                    cache_x = np.append(map_el['x'], map_el['x'][-1] + x_steps.mean())
+                    cache_x = np.append(map_el['x'], map_el['x'][-1] + x_steps.mean()) - x_steps.mean()/2
                     cache_z = map_el['z']
 
-                if self.diode_dimension[1] > 2 and y_steps.std() == 0 and \
+                if self.diode_dimension[1] <= 2 and y_steps.std() == 0 and \
                         y_steps.mean() == self.diode_size[1]+self.diode_spacing[1]:
-                    cache_y = np.array([map_el['y'][0]])
+                    cache_y = np.array([map_el['y'][0]-(self.diode_spacing[1]+self.diode_size[1])/2])
                     for i in range(np.shape(map_el['y'])[0]):
                         if i == 0:
                             cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1] / 2)
@@ -363,9 +367,10 @@ class Analyzer:
                         cache.append(row)
                     cache_z = np.array(cache)
                 else:
-                    cache_y = np.append(map_el['y'], map_el['y'][-1] + y_steps.mean())
+                    cache_y = np.append(map_el['y'], map_el['y'][-1] + y_steps.mean()) - y_steps.mean()/2
                     cache_z = cache_z
 
+                # homogenize_pixel_size({'x': cache_x, 'y': cache_y, 'z': cache_z})
                 # print(np.shape(cache_x), np.shape(cache_y), np.shape(cache_z))
                 norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
                 color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
@@ -375,7 +380,6 @@ class Analyzer:
                 if colorbar:
                     bar = fig.colorbar(sm, ax=ax, extend='max')
             else:
-                # color_map = ax.contourf(X, Y, Z, cmap=cmap, extend='neither', levels=levels, *args, **kwargs)
                 if np.min(map_el['z']) < intensity_limits[0] and np.max(map_el['z']) > intensity_limits[1]:
                     color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='both', levels=levels)
                 elif np.min(map_el['z']) < intensity_limits[0]:
@@ -384,7 +388,6 @@ class Analyzer:
                     color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='max', levels=levels)
                 else:
                     color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='neither', levels=levels)
-                # '''
                 norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
                 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
                 sm.set_array([])
@@ -421,7 +424,7 @@ class Analyzer:
                 else:
                     save_format = '.png'
                     dpi = 300
-                format_save(save_path=save_path, save_name=save_name, dpi=dpi, format=save_format)
+                format_save(save_path=save_path, save_name=save_name, dpi=dpi, format=save_format, fig=fig)
 
     def overview(self):
         pass

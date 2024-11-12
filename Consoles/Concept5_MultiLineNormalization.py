@@ -94,7 +94,6 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
 
     # ------------------------------------------------------------------------------------------------------------------
     fig2, ax2 = plt.subplots()
-    fig_ch, ax_ch = plt.subplots()
     diode_cmap = sns.color_palette("coolwarm", as_cmap=True)
     diode_colormapper = lambda diode: color_mapper(diode, 0, instance.diode_dimension[sp])
     diode_color = lambda diode: diode_cmap(diode_colormapper(diode))
@@ -203,12 +202,29 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
     ax2.set_ylabel('Diode signal (a.u.)')
     ax2.set_xlim(ax2.get_xlim())
     ax2.set_ylim(ax2.get_ylim())
-    format_save(results_path / 'NormMethod/', name + 'DiodesAndMean', legend=False, fig=fig2,
+    format_save(results_path / 'NormMethod/', name + 'DiodesAndMean', legend=True, fig=fig2,
                 axes=[ax2])
     ax2.set_ylim(mean_over*0.9, mean_over*1.1)
     ax2.set_xlim(min(mean_x_new)*0.97, max(mean_x_new)*1.03)
-    format_save(results_path / 'NormMethod/', name + 'DiodesAndMeanZoom', legend=False, fig=fig2,
+    format_save(results_path / 'NormMethod/', name + 'DiodesAndMeanZoom', legend=True, fig=fig2,
                 axes=[ax2])
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Plots of factors
+    fig, ax = plt.subplots()
+    for line in range(np.shape(factor_new)[0]):
+        ax.plot(factor_new[line], c=c_cyc[line], label='Line '+str(line))
+    ax.set_xlabel(r'$\#$ Diode of each line')
+    ax.set_ylabel('Normalization factor (aligned to mean of line)')
+    ax.set_xlim(ax.get_xlim())
+    ax.set_ylim(ax.get_ylim())
+    format_save(results_path / 'NormMethod/', name + 'FactorLine', legend=True, fig=fig,
+                axes=[ax])
+    ax.set_ylim(0.92, 1.08)
+    format_save(results_path / 'NormMethod/', name + 'FactorLine_Zoom', legend=True, fig=fig,
+                axes=[ax])
+    factor_line = deepcopy(factor_new)
+    # ------------------------------------------------------------------------------------------------------------------
 
     if align_lines:
         # Calculate the mean of the mean from the different lines
@@ -226,12 +242,37 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
             line_factor.append(factor_new_cache)
             factor_new[line]= factor_new[line] * factor_new_cache
 
+        # --------------------------------------------------------------------------------------------------------------
+        fig, ax = plt.subplots()
+        for line in range(np.shape(factor_new)[0]):
+            ax.plot(factor_new[line], c=c_cyc[line], label='Line ' + str(line))
+        ax.set_xlabel(r'$\#$ Diode of each line')
+        ax.set_ylabel('Normalization factor (aligned to global mean)')
+        ax.set_xlim(ax.get_xlim())
+        ax.set_ylim(ax.get_ylim())
+        format_save(results_path / 'NormMethod/', name + 'FactorGlobal', legend=True, fig=fig,
+                    axes=[ax])
+        ax.set_ylim(0.92, 1.08)
+        format_save(results_path / 'NormMethod/', name + 'FactorGlobal_Zoom', legend=True, fig=fig,
+                    axes=[ax])
+
+        fig, ax = plt.subplots()
+        for line in range(np.shape(factor_new)[0]):
+            ax.plot(factor_new[line], c=c_cyc[line], label='Global Line ' + str(line))
+        for line in range(np.shape(factor_line)[0]):
+            ax.plot(factor_line[line], ls='--', c=c_cyc[line], label='Individual Line ' + str(line))
+        ax.set_xlabel(r'$\#$ Diode of each line')
+        ax.set_ylabel('Normalization factor')
+        ax.set_xlim(ax.get_xlim())
+        ax.set_ylim(ax.get_ylim())
+        format_save(results_path / 'NormMethod/', name + 'FactorComp', legend=True, fig=fig,
+                    axes=[ax])
+        ax.set_ylim(0.92, 1.08)
+        format_save(results_path / 'NormMethod/', name + 'FactorComp_Zoom', legend=True, fig=fig,
+                    axes=[ax])
+        # --------------------------------------------------------------------------------------------------------------
+
     return factor_new
 
 
 factor = normalization_from_translated_array_v3(A.measurement_files, A, align_lines=True)
-
-fig, ax = plt.subplots()
-for line in range(np.shape(factor)[0]):
-    ax.plot(factor[line])
-plt.show()
