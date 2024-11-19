@@ -24,6 +24,37 @@ else:
 
 A = Analyzer((1, 64), 0.42, 0.08)
 for k, crit in enumerate(first_measurements+new_measurements):
+    # -------------------------------------------------------------------------------------------------------
+    A = Analyzer((1, 64), 0.42, 0.08)
+    A.excluded[0, 36] = True
+    A.readout = ams_otsus_readout
+    A.pos_parser = first_measurements_position
+    folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/')
+
+    A.set_measurement(folder_path, crit)
+    A.load_measurement()
+    if k < len(first_measurements):
+        A.create_map(inverse=[True, False])
+        intensity_limits = (0, 1200)
+    else:
+        A.create_map(inverse=[False, False])
+        intensity_limits = None
+
+    A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps_raw/',
+               contour=True, intensity_limits=intensity_limits)
+    A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps_raw/',
+               contour=False, intensity_limits=intensity_limits)
+
+    A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
+    A.update_measurement(dark=True, factor=False)
+    A.create_map(inverse=[True, False])
+    A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_no_norm/',
+               contour=True, intensity_limits=intensity_limits)
+    A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_no_norm/',
+               contour=False, intensity_limits=intensity_limits)
+    continue
+    # -------------------------------------------------------------------------------------------------------
+
     if k == 0:
         A.excluded[0, 36] = True
         A.readout = ams_otsus_readout
@@ -35,9 +66,10 @@ for k, crit in enumerate(first_measurements+new_measurements):
         A.normalization(folder_path, paths, normalization_module=simple_normalization, cache_save=False)
     if k == len(first_measurements):
         A = Analyzer((1, 64), 0.42, 0.08)
-        folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/matrix_19062024/')
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_19062024/')
         A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
         A.normalization(folder_path, '5s_flat_calib_', normalization_module=normalization_from_translated_array)
+
     A.set_measurement(folder_path, crit)
     A.load_measurement()
     if k < len(first_measurements):
@@ -47,9 +79,9 @@ for k, crit in enumerate(first_measurements+new_measurements):
         A.create_map(inverse=[False, False])
         intensity_limits = None
 
-    A.plot_map('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/new_maps/',
+    A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/',
                contour=True, intensity_limits=intensity_limits)
-    A.plot_map('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/new_maps/',
+    A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/',
                contour=False, intensity_limits=intensity_limits)
 
     # Detect the signal and no signal values in signal array
@@ -67,7 +99,7 @@ for k, crit in enumerate(first_measurements+new_measurements):
     ax.axvline(threshold1, c='b', label='Previous implementation')
     ax.axvline(threshold2, c='r', label='Scikit Image Otsus')
     ax.set_xlabel('Signal')
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/methods/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
                 'New_thresholding_'+crit, legend=True)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -88,7 +120,7 @@ for k, crit in enumerate(first_measurements+new_measurements):
     ax.set_ylim(ax.get_ylim())
     ax.plot(0, 0, ls='', marker='^', c='lime', label='Signal in next cell is above threshold', zorder=-5)
     ax.plot(0, 0, ls='', marker='^', c='gold', label='Signal in next cell is below threshold', zorder=-5)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/methods/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
                 'edge_detection_'+crit, legend=True)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -117,7 +149,7 @@ for k, crit in enumerate(first_measurements+new_measurements):
     ax.set_ylim(ax.get_ylim())
     ax.plot(0, 0, ls='', marker='x', c='lime', label='Signature edge no signal to signal', zorder=-5)
     ax.plot(0, 0, ls='', marker='x', c='gold', label='Signature edge signal to no signal', zorder=-5)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/methods'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods'),
                 'edge_signature_'+crit, legend=True)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -147,7 +179,7 @@ for k, crit in enumerate(first_measurements+new_measurements):
     ax.set_ylim(ax.get_ylim())
     ax.plot(0, 0, ls='', marker='x', c='lime', label='Signature edge no signal to signal', zorder=-5)
     ax.plot(0, 0, ls='', marker='x', c='gold', label='Signature edge signal to no signal', zorder=-5)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/methods/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
                 'edge_signature_filtered_'+crit, legend=True)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -185,7 +217,7 @@ for k, crit in enumerate(first_measurements+new_measurements):
     ax.set_ylim(ax.get_ylim())
     ax.plot(0, 0, ls='', marker='x', c='lime', label='Signature edge no signal to signal', zorder=-5)
     ax.plot(0, 0, ls='', marker='x', c='gold', label='Signature edge signal to no signal', zorder=-5)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/methods/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
                 'edge_signature_enhanced_' + crit, legend=True)
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -230,12 +262,12 @@ for k, crit in enumerate(first_measurements+new_measurements):
     print(np.mean(delta_list), np.std(delta_list))
     A.maps[0]['z'] = corrected_image
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/new_maps/'), crit+'_simple_')
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'), crit+'_simple_')
     A.plot_map(None, contour=True, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/new_maps/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'),
                 crit + '_simple_'+'contour')
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/corrected/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/corrected/'),
                 crit + '_simple_')
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -326,11 +358,11 @@ for k, crit in enumerate(first_measurements+new_measurements):
 
     A.maps[0]['z'] = corrected_image
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/new_maps/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'),
                 crit + '_edge_')
     A.plot_map(None, contour=True, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/new_maps/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'),
                 crit + '_edge_' + 'contour')
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_19062024/ProtoEmission/corrected/'),
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/corrected/'),
                 crit + '_edge_')

@@ -34,3 +34,53 @@ def simple_zero_replace(image_map, direction=0):
                     if image_map[i, j-1] != 0 and image_map[i, j+1] != 0:
                         image_map[i, j] = (image_map[i, j-1] + image_map[i, j+1])/2
     return image_map
+
+
+def zero_pixel_replace(image_map):
+    for i in range(np.shape(image_map)[0]):
+        for j in range(np.shape(image_map)[1]):
+            try:
+                if image_map[i, j] == 0:
+                    cache = []
+                    if i == 0:
+                        if image_map[i+1, j] != 0:
+                            cache.append(image_map[i+1, j])
+                        if image_map[i, j+1] != 0:
+                            cache.append(image_map[i, j+1])
+                        if image_map[i, j-1] != 0:
+                            cache.append(image_map[i, j-1])
+                    elif j == 0:
+                        if image_map[i+1, j] != 0:
+                            cache.append(image_map[i+1, j])
+                        if image_map[i, j+1] != 0:
+                            cache.append(image_map[i, j+1])
+                        if image_map[i-1, j] != 0:
+                            cache.append(image_map[i-1, j])
+                    elif i == np.shape(image_map)[0] - 1:
+                        if image_map[i-1, j] != 0:
+                            cache.append(image_map[i - 1, j])
+                        if image_map[i, j + 1] != 0:
+                            cache.append(image_map[i, j + 1])
+                        if image_map[i, j - 1] != 0:
+                            cache.append(image_map[i, j - 1])
+                    elif j == np.shape(image_map)[1] - 1:
+                        if image_map[i + 1, j] != 0:
+                            cache.append(image_map[i + 1, j])
+                        if image_map[i-1, j] != 0:
+                            cache.append(image_map[i-1, j])
+                        if image_map[i, j - 1] != 0:
+                            cache.append(image_map[i, j - 1])
+                    else:
+                        if image_map[i + 1, j] != 0:
+                            cache.append(image_map[i + 1, j])
+                        if image_map[i - 1, j] != 0:
+                            cache.append(image_map[i - 1, j])
+                        if image_map[i, j + 1] != 0:
+                            cache.append(image_map[i, j + 1])
+                        if image_map[i, j - 1] != 0:
+                            cache.append(image_map[i, j - 1])
+                    if len(cache) > 0:
+                        image_map[i, j] = np.mean(cache) / len(cache)
+            except IndexError:
+                continue
+    return image_map

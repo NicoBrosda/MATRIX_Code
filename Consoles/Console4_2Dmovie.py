@@ -15,16 +15,16 @@ direction2 = np.array([int(k[-3:]) for k in direction2['direction_2']])
 mapping = Path('../Files/Mapping_MatrixArray.xlsx')
 data2 = pd.read_excel(mapping, header=None)
 mapping_map = data2.to_numpy().flatten()
-print(mapping_map)
+# print(mapping_map)
 translated_mapping = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
-print(translated_mapping)
+# print(translated_mapping)
 
 readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=translated_mapping), standard_position
 
 A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_111024/MatrixArray/movie/')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_111024/MatrixArray/movie_normed/')
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
 matrix_dark = ['2DLarge_dark_200_um_0_nA__nA_1.9_x_21.0_y_70.35.csv']
@@ -37,21 +37,24 @@ names = []
 for i in tqdm(range(len(array_txt_file_search(files, searchlist=[crit], txt_file=False, file_suffix='.csv')))):
     A.set_measurement(folder_path, '_'+str(i+1)+'_'+crit)
     A.set_dark_measurement(dark_path, matrix_dark)
-
+    norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
+        list_of_files, instance, method, align_lines=True)
+    A.normalization(folder_path, ['2DLarge_YScan_'], normalization_module=norm_func)
     A.load_measurement()
     A.create_map(inverse=[True, False])
     map_storage.append(A.maps)
     names.append(A.name)
 
-intensity_limits = [0, np.max([np.max(i[0]['z']) for i in map_storage])]
+intensity_limits = [0, np.max([np.max(i[0]['z']) for i in map_storage])*0.8]
 for i, image_map in tqdm(enumerate(map_storage)):
     A.name = names[i]
     A.maps = map_storage[i]
+    A.maps[0]['z'] = zero_pixel_replace(A.maps[0]['z'])
     A.plot_map(results_path / 'pixel/', pixel='fill',
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'contour/', pixel=False,
                intensity_limits=intensity_limits)
-'''
+# '''
 import cv2
 import os
 
@@ -72,13 +75,13 @@ frame = cv2.imread(os.path.join(image_folder_pixel, images[0]))
 height, width, layers = frame.shape
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Be sure to use lower case
-'''
+
 video = cv2.VideoWriter(video_name_pixel_original, fourcc, 0.7, (width, height))
 for image in images:
     video.write(cv2.imread(os.path.join(image_folder_pixel, image)))
 cv2.destroyAllWindows()
 video.release()
-'''
+
 video = cv2.VideoWriter(video_name_pixel_increased, fourcc, 0.7*50, (width, height))
 for image in images:
     video.write(cv2.imread(os.path.join(image_folder_pixel, image)))
@@ -92,16 +95,17 @@ frame = cv2.imread(os.path.join(image_folder_contour, images[0]))
 height, width, layers = frame.shape
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Be sure to use lower case
-'''
+
 video = cv2.VideoWriter(video_name_contour_original, fourcc, 0.7, (width, height))
 for image in images:
     video.write(cv2.imread(os.path.join(image_folder_contour, image)))
 cv2.destroyAllWindows()
 video.release()
-'''
+
 
 video = cv2.VideoWriter(video_name_contour_increased, fourcc, 0.7*50, (width, height))
 for image in images:
     video.write(cv2.imread(os.path.join(image_folder_contour, image)))
 cv2.destroyAllWindows()
 video.release()
+# '''

@@ -360,33 +360,67 @@ def overlap_treatment(map_el, instance, pixelize=True, super_res=False):
 
 
 def homogenize_pixel_size(input_map):
-    # x-direction:
-    if np.shape(input_map['x'])[0] == np.shape(input_map['x'])[1]:
-        x_steps = np.array([input_map['x'][i + 1] - input_map['x'][i] for i in range(np.shape(input_map['x'])[0] - 1)])
-        x_steps = np.append(x_steps, x_steps.mean())
-        x_pos = input_map['x']
-    elif np.shape(input_map['x'])[0] == np.shape(input_map['x'])[1] + 1:
-        x_steps = np.array([input_map['x'][i + 1] - input_map['x'][i] for i in range(np.shape(input_map['x'])[0] - 1)])
-        x_pos = [el + x_steps[i]/2 for i,el in enumerate(input_map['x'])]
+    if isinstance(input_map, dict):
+        input_x, input_y, input_z = input_map['x'], input_map['y'], input_map['z']
+    else:
+        input_x, input_y, input_z = input_map[0], input_map[1], input_map[2]
 
+    # Estimation of the minimum pixel size (contains a workaround to use a gcd algorithm from numpy...)
+    if np.shape(input_x)[0] == np.shape(input_z)[1]:
+        x_steps = np.array([input_x[i + 1] - input_x[i] for i in range(np.shape(input_x)[0] - 1)])
+        x_steps = np.append(x_steps, x_steps.mean())
+        x_pos = input_x
+    elif np.shape(input_x)[0] == np.shape(input_z)[1] + 1:
+        x_steps = np.array([input_x[i + 1] - input_x[i] for i in range(np.shape(input_x)[0] - 1)])
+        x_pos = [input_x[i] + x_steps[i]/2 for i in range(np.shape(input_x)[0]-1)]
     else:
         print('The input map format is not supported - check how the map is generated.')
-
+        return input_map
     x_pixel_size = np.gcd.reduce([int(round(i*10**9, 0)) for i in set(x_steps)])/10**9
-    y_steps = np.array([input_map['y'][i + 1] - input_map['y'][i] for i in range(np.shape(input_map['y'])[0] - 1)])
+
+    if np.shape(input_y)[0] == np.shape(input_z)[0]:
+        y_steps = np.array([input_y[i + 1] - input_y[i] for i in range(np.shape(input_y)[0] - 1)])
+        y_steps = np.append(y_steps, y_steps.mean())
+        y_pos = input_y
+    elif np.shape(input_y)[0] == np.shape(input_z)[0] + 1:
+        y_steps = np.array([input_y[i + 1] - input_y[i] for i in range(np.shape(input_y)[0] - 1)])
+        y_pos = [input_y[i] + y_steps[i]/2 for i in range(np.shape(input_y)[0]-1)]
+    else:
+        print('The input map format is not supported - check how the map is generated.')
+        return input_map
     y_pixel_size = np.gcd.reduce([int(round(i * 10 ** 9, 0)) for i in set(y_steps)]) / 10 ** 9
+
     pixel_size = min(x_pixel_size, y_pixel_size)
-    for i, row in enumerate(input_map['z']):
-        if i == 0:
-            pass
-        elif i == np.shape(input_map['z'][1]):
-            pass
+
+    # x-direction:
+    new_x = []
+    new_z = []
+    for i, col in enumerate(input_z.T):
+        if x_steps[i] > pixel_size:
+            for j in range(int(x_steps[i]/pixel_size)):
+                new_x.append(x_pos[i]+(-x_steps[i]+pixel_size)/2+j*pixel_size)
+                new_z.append(col)
         else:
-            if x_steps[i] > pixel_size:
-                pass
+            new_x.append(x_pos[i])
+            new_z.append(col)
 
+    new_x, new_z = np.array(new_x), np.array(new_z).T
     # y-direction:
-    y_steps = np.array([input_map['y'][i + 1] - input_map['y'][i] for i in range(np.shape(input_map['y'])[0] - 1)])
-    y_pixel_size = np.gcd.reduce([int(round(i*10**9, 0)) for i in set(y_steps)])/10**9
+    new_y = []
+    new_image = []
+    for i, row in enumerate(new_z):
+        if y_steps[i] > pixel_size:
+            for j in range(int(y_steps[i] / pixel_size)):
+                new_y.append(y_pos[i]+(-y_steps[i]+pixel_size)/2 + j * pixel_size)
+                new_image.append(row)
+        else:
+            new_y.append(y_pos[i])
+            new_image.append(row)
+    return new_x, new_y, np.array(new_image)
 
-    print(x_pixel_size, y_pixel_size)
+
+def norm_to_one(array, invert=False):
+    if invert:
+        return (array - np.max(array)) / np.min(array - np.max(array))
+    else:
+        return (array - np.min(array)) / np.max(array - np.min(array))

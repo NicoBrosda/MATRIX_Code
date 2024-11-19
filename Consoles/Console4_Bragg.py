@@ -82,6 +82,7 @@ for i in range(20):
     signal = A.get_signal_yline()
     pos_y = A.maps[0]['y']
 
+    '''
     fig, ax = plt.subplots()
     ax.plot(pos_y, signal, c=energy_color(data_wheel['energie'][i]), marker='x', lw=1.5,
             label=r'Wheel position {pos} - Al thickness {thick:.3f}$\,$mm - proton energy {energy: .3f}$\,$MeV'
@@ -93,7 +94,7 @@ for i in range(20):
     shape = LineShape([[0, 10], [40, 0]], distance_mode=True)
     shape.print_shape()
     # shape.mirror()
-    shape.position(110.05150214592274, 40)
+    shape.position(110.05150214592274-32, 40)
     shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.7, zorder=-1, edgecolor='k')
     ax.set_title(r'Wheel position {pos} - Al thickness {thick:.3f}$\,$mm - proton energy {energy: .3f}$\,$MeV'
                  .format(pos=data_wheel['position'][i], thick=data_wheel['thickness'][i], energy=data_wheel['energie'][i]))
@@ -101,14 +102,12 @@ for i in range(20):
     ax.set_ylabel(r'Signal Amplitude')
     format_save(results_path / 'Bragg/', crit, legend=False)
     plt.close('all')
-
+    '''
     data_list.append([crit, pos_y, signal])
 
     # Find peak in the signal and select the highest
     peak = np.argmax(signal)
 
-    fig, ax = plt.subplots()
-    ax.plot(pos_y, signal, c=energy_color(data_wheel['energie'][i]), marker='x', lw=1.5)
     # Parameter to define the middle of the geometry (in data coordinates)
     middle = 20
     print('PEEK material wedge from ', middle - 20, ' mm until ', middle + 20, ' mm')
@@ -116,7 +115,12 @@ for i in range(20):
     shape = LineShape([[0, 10], [40, 0]], distance_mode=True)
     shape.print_shape()
     # shape.mirror()
-    shape.position(110.05150214592274, 40)
+    shape.position(110.05150214592274 - 32, 40)
+
+    '''
+    fig, ax = plt.subplots()
+    ax.plot(pos_y, signal, c=energy_color(data_wheel['energie'][i]), marker='x', lw=1.5)
+    
     shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.7, zorder=-1, edgecolor='k')
     ax.axvline(pos_y[peak], label='Material thickness = {thickness:.3f}$\,$mm'.format(thickness=shape.calculate_value(pos_y[peak])))
     ax.set_title(r'Wheel position {pos} - Al thickness {thick:.3f}$\,$mm - proton energy {energy: .3f}$\,$MeV'
@@ -126,6 +130,7 @@ for i in range(20):
     ax.set_ylabel(r'Signal Amplitude')
     format_save(results_path / 'Bragg/', crit+'_thickness_', legend=True)
     plt.close('all')
+    '''
     thickness_list.append([data_wheel['energie'][i], shape.calculate_value(pos_y[peak])])
 
 fig, ax = plt.subplots()
@@ -143,11 +148,47 @@ shape = LineShape([[0, 10], [40, 0]], distance_mode=True)
 shape.print_shape()
 # shape.mirror()
 # 0 of Bragg shape at 114 - 3.9484978540772535 = 110.05150214592274 mm
-shape.position(110.05150214592274, 40)
+shape.position(110.05150214592274-32, 40)
 shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.7, zorder=-1, edgecolor='k')
 ax.set_xlabel(r'Calculated real position of diodes (mm)')
 ax.set_ylabel(r'Signal Amplitude')
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]), transform_axis_to_data_coordinates(ax, [0.1, 0.795]), cmap=energy_cmap, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]), str(round(min(data_wheel['energie']), 2))+r'$\,$MeV', fontsize=13,
+        c=energy_color(min(data_wheel['energie'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.025, 0.71]),
+        str(round(max(data_wheel['energie']), 2))+r'$\,$MeV',
+        fontsize=13, c=energy_color(max(data_wheel['energie'])),
+        zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path / 'Bragg/', 'All', legend=False)
+plt.close('all')
+
+fig, ax = plt.subplots()
+for i, point in enumerate(data_list):
+    pos_y = point[1]
+    signal = point[2]
+    ax.plot(pos_y, signal, c=energy_color(data_wheel['energie'][i]), marker='', lw=1.5,
+            label=r'Wheel position {pos} - Al thickness {thick:.3f}$\,$mm - proton energy {energy: .3f}$\,$MeV'
+            .format(pos=data_wheel['position'][i], thick=data_wheel['thickness'][i], energy=data_wheel['energie'][i]))
+# Parameter to define the middle of the geometry (in data coordinates)
+middle = 20
+print('PEEK material wedge from ', middle - 20, ' mm until ', middle + 20, ' mm')
+shape = LineShape([[0, 10], [40, 0]], distance_mode=True)
+shape.print_shape()
+# shape.mirror()
+# 0 of Bragg shape at 114 - 3.9484978540772535 = 110.05150214592274 mm
+shape.position(110.05150214592274-32, 40)
+shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.7, zorder=-1, edgecolor='k')
+ax.set_xlabel(r'Calculated real position of diodes (mm)')
+ax.set_ylabel(r'Signal Amplitude')
+ax.invert_xaxis()
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]), transform_axis_to_data_coordinates(ax, [0.1, 0.795]), cmap=energy_cmap, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]), str(round(min(data_wheel['energie']), 2))+r'$\,$MeV', fontsize=13,
+        c=energy_color(min(data_wheel['energie'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.025, 0.71]),
+        str(round(max(data_wheel['energie']), 2))+r'$\,$MeV',
+        fontsize=13, c=energy_color(max(data_wheel['energie'])),
+        zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+format_save(results_path / 'Bragg/', 'All_inverted', legend=False)
 plt.close('all')
 
 fig, ax = plt.subplots()

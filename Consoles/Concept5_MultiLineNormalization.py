@@ -3,32 +3,6 @@ import numpy as np
 
 from EvaluationSoftware.main import *
 
-mapping = Path('../Files/mapping.xlsx')
-data = pd.read_excel(mapping, header=1)
-channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
-readout, position_parser = lambda x, y: ams_2line_readout(x, y, channel_assignment=channel_assignment), standard_position
-
-folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/')
-
-new_measurements = ['_GafComp200_', '_GafComp400_', '_GafComp40_', '_GafCompLogo_', '_GafCompMisc_', '_GafCompPEEK_',
-                    '_MouseFoot_', '_MouseFoot2_', '2Line_Beam_']
-live_scan_array1 = [str(round(i+1, 0))+'_live1_' for i in range(9)]
-# new_measurements_array_matrix = ['']
-
-dark_path = Path('/Users/nico_brosda//Cyrce_Messungen/matrix_221024/')
-
-dark = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.csv']
-
-norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
-norm_array1 = ['2Line_YScan_']
-name = norm_array1[0]
-
-
-A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout, diode_offset=[[0, - 0.25], np.zeros(64)], position_parser=standard_position)
-A.set_dark_measurement(dark_path, dark)
-A.set_measurement(norm_path, norm_array1)
-
 
 def normalization_from_translated_array_v3(list_of_files, instance, method='least_squares', align_lines=True):
     # Load in the data from a list of files in a folder; save position and signal
@@ -85,7 +59,7 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
         return None
 
     print('Normalization is calculated from translation direction', ['x', 'y'][sp], 'with', steps,
-          'at a mean step width of', step_width, 'mm for a diode periodicity of', diode_periodicity, 'mm.')
+          ' steps at a mean step width of', step_width, 'mm for a diode periodicity of', diode_periodicity, 'mm.')
 
     # Sort the arrays by the position
     indices = np.argsort(np.array(position)[:, sp])
@@ -97,8 +71,18 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
     diode_cmap = sns.color_palette("coolwarm", as_cmap=True)
     diode_colormapper = lambda diode: color_mapper(diode, 0, instance.diode_dimension[sp])
     diode_color = lambda diode: diode_cmap(diode_colormapper(diode))
-    c_cyc = sns.color_palette("tab10")
-    c2_cyc = sns.color_palette("dark")
+    if instance.diode_dimension[1-sp] > 5:
+        line_cmap = sns.color_palette("crest", as_cmap=True)
+        line_colormapper = lambda line: color_mapper(line, 0, instance.diode_dimension[1-sp])
+        c_cyc = lambda line: line_cmap(line_colormapper(line))
+        c_cyc = [c_cyc(line) for line in range(instance.diode_dimension[1-sp])]
+        csc = 1.2
+        c2_cyc = [(color[0]/csc, color[1]/csc, color[2]/csc) for color in c_cyc]
+        legend = False
+    else:
+        c_cyc = sns.color_palette("tab10")
+        c2_cyc = sns.color_palette("dark")
+        legend = True
     # ------------------------------------------------------------------------------------------------------------------
 
     # Main loop: For each diode line orthogonal to translation region calculate a factor
@@ -107,9 +91,15 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
     for line in range(instance.diode_dimension[1-sp]):
         # Recalculate the positions considering the geometry of the diode array
         positions = []
-        for i in range(instance.diode_dimension[sp]):
+        if sp == 0:
+            # iteration = range(instance.diode_dimension[sp])[::-1]
+            iteration = range(instance.diode_dimension[sp])
+        else:
+            iteration = range(instance.diode_dimension[sp])
+        for i in iteration:
             cache = deepcopy(position)
-            cache[:, sp] = cache[:, sp] + i * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line]
+            cache[:, sp] = cache[:, sp] + (i - (instance.diode_dimension[sp]-1)/2) * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line]
+            print((i - (instance.diode_dimension[sp]-1)/2) * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line])
             positions.append(cache)
         positions = np.array(positions)
 
@@ -193,7 +183,7 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
         ax.text(*transform_axis_to_data_coordinates(ax, [0.02, 0.71]), r'Diode $\#$' + str(instance.diode_dimension[sp]),
                 fontsize=13, c=diode_color(instance.diode_dimension[sp]),
                 zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
-        format_save(results_path / 'NormMethod/', name+'DiodesAndMean_'+'line'+str(line), legend=False, fig=fig, axes=[ax])
+        format_save(results_path, name+'DiodesAndMean_'+'line'+str(line), legend=False, fig=fig, axes=[ax])
         # ------------------------------------------------------------------------------------------------------------------
         for i in range(instance.diode_dimension[sp]):
             ax2.plot(positions[i, :, sp], signals[:, line, i], ls='-', c=c2_cyc[line], zorder=1, alpha=0.2)
@@ -202,11 +192,11 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
     ax2.set_ylabel('Diode signal (a.u.)')
     ax2.set_xlim(ax2.get_xlim())
     ax2.set_ylim(ax2.get_ylim())
-    format_save(results_path / 'NormMethod/', name + 'DiodesAndMean', legend=True, fig=fig2,
+    format_save(results_path, name + 'DiodesAndMean', legend=legend, fig=fig2,
                 axes=[ax2])
     ax2.set_ylim(mean_over*0.9, mean_over*1.1)
     ax2.set_xlim(min(mean_x_new)*0.97, max(mean_x_new)*1.03)
-    format_save(results_path / 'NormMethod/', name + 'DiodesAndMeanZoom', legend=True, fig=fig2,
+    format_save(results_path, name + 'DiodesAndMeanZoom', legend=legend, fig=fig2,
                 axes=[ax2])
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -218,10 +208,10 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
     ax.set_ylabel('Normalization factor (aligned to mean of line)')
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
-    format_save(results_path / 'NormMethod/', name + 'FactorLine', legend=True, fig=fig,
+    format_save(results_path, name + 'FactorLine', legend=legend, fig=fig,
                 axes=[ax])
     ax.set_ylim(0.92, 1.08)
-    format_save(results_path / 'NormMethod/', name + 'FactorLine_Zoom', legend=True, fig=fig,
+    format_save(results_path, name + 'FactorLine_Zoom', legend=legend, fig=fig,
                 axes=[ax])
     factor_line = deepcopy(factor_new)
     # ------------------------------------------------------------------------------------------------------------------
@@ -250,10 +240,10 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
         ax.set_ylabel('Normalization factor (aligned to global mean)')
         ax.set_xlim(ax.get_xlim())
         ax.set_ylim(ax.get_ylim())
-        format_save(results_path / 'NormMethod/', name + 'FactorGlobal', legend=True, fig=fig,
+        format_save(results_path, name + 'FactorGlobal', legend=legend, fig=fig,
                     axes=[ax])
         ax.set_ylim(0.92, 1.08)
-        format_save(results_path / 'NormMethod/', name + 'FactorGlobal_Zoom', legend=True, fig=fig,
+        format_save(results_path, name + 'FactorGlobal_Zoom', legend=legend, fig=fig,
                     axes=[ax])
 
         fig, ax = plt.subplots()
@@ -265,14 +255,85 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
         ax.set_ylabel('Normalization factor')
         ax.set_xlim(ax.get_xlim())
         ax.set_ylim(ax.get_ylim())
-        format_save(results_path / 'NormMethod/', name + 'FactorComp', legend=True, fig=fig,
+        format_save(results_path, name + 'FactorComp', legend=legend, fig=fig,
                     axes=[ax])
         ax.set_ylim(0.92, 1.08)
-        format_save(results_path / 'NormMethod/', name + 'FactorComp_Zoom', legend=True, fig=fig,
+        format_save(results_path, name + 'FactorComp_Zoom', legend=legend, fig=fig,
                     axes=[ax])
         # --------------------------------------------------------------------------------------------------------------
 
     return factor_new
 
 
-factor = normalization_from_translated_array_v3(A.measurement_files, A, align_lines=True)
+mapping = Path('../Files/mapping.xlsx')
+data = pd.read_excel(mapping, header=1)
+channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
+direction1 = pd.read_excel(mapping, header=1)
+direction1 = np.array([int(k[-3:]) for k in direction1['direction_1']])
+direction2 = pd.read_excel(mapping, header=1)
+direction2 = np.array([int(k[-3:]) for k in direction2['direction_2']])
+
+mapping = Path('../Files/Mapping_BigMatrix_2.xlsx')
+data2 = pd.read_excel(mapping, header=None)
+mapping_map = data2.to_numpy().flatten()
+mapping_large2 = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
+
+mapping = Path('../Files/Mapping_MatrixArray.xlsx')
+data2 = pd.read_excel(mapping, header=None)
+mapping_map = data2.to_numpy().flatten()
+mapping_large1 = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
+
+mapping = Path('../Files/Mapping_SmallMatrix1.xlsx')
+data2 = pd.read_excel(mapping, header=None)
+mapping_map = data2.to_numpy().flatten()
+mapping_small1 = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
+
+path_1110 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
+matrix_1110 = ['2DLarge_YScan_', '2DLarge_XScan_']
+
+path_2110 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211024/')
+matrix_2110 = ['2D_Mini_YScan_', '2D_Mini_YScanAfter_']
+
+path_2210 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
+matrix_2210 = ['2Line_YScan', '2DLarge_YTranslation_']
+
+all_matrix = matrix_1110 + matrix_2110 + matrix_2210
+for i, crit in enumerate(all_matrix[0:]):
+    results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/NormMethod/')
+    if i < len(matrix_1110):
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
+    elif i < len(matrix_1110) + len(matrix_2110):
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211024/')
+    else:
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
+
+    if '2Line' in crit:
+        readout, position_parser = lambda x, y: ams_2line_readout(x, y, channel_assignment=channel_assignment), standard_position
+        results_path = results_path / (crit + '/')
+        dark_path = folder_path
+        dark = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.csv']
+        A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout, diode_offset=[[0, - 0.25], np.zeros(64)],
+                     position_parser=standard_position)
+    elif '2D_Mini_' in crit:
+        readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=mapping_small1), standard_position
+        results_path = results_path / (crit + '/')
+        dark_path = folder_path
+        dark = ['2D_Mini_Dark_VoltageLinearity_200_um_0_nA_nA_1.9_x_22.0_y_71.25.csv']
+        A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
+    elif '_111024' in str(folder_path):
+        readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=mapping_large1), standard_position
+        results_path = results_path / ('Large1_' + crit + '/')
+        dark_path = folder_path
+        dark = ['2DLarge_dark_200_um_0_nA__nA_1.9_x_21.0_y_70.35.csv']
+        A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
+    else:
+        readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=mapping_large2), standard_position
+        results_path = results_path / ('Large2_' + crit + '/')
+        dark_path = folder_path
+        dark = ['2DLarge_DarkVoltage_200_ um_0_nA_nA_1.9_x_44.0_y_66.625.csv']
+        A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
+
+    A.set_dark_measurement(dark_path, dark)
+    A.set_measurement(folder_path, crit)
+    name = crit
+    factor = normalization_from_translated_array_v3(A.measurement_files, A, align_lines=True)

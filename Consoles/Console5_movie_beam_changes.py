@@ -23,14 +23,17 @@ readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_
 A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024//movie_current_increase/')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/movie_current_increase_normed/')
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 matrix_dark = ['2DLarge_DarkVoltage_200_ um_0_nA_nA_1.9_x_44.0_y_66.625.csv']
 A.set_dark_measurement(dark_path, matrix_dark)
+norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
+        list_of_files, instance, method, align_lines=True)
+A.normalization(folder_path, ['2DLarge_YTranslation_'], normalization_module=norm_func)
 crit = '2DLarge_MovieCurrentIncrease_'
 
-'''
+# '''
 
 # rename_files(folder_path, crit, file_suffix='.csv') # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -39,7 +42,6 @@ map_storage = []
 names = []
 for i in tqdm(range(len(array_txt_file_search(files, searchlist=[crit], txt_file=False, file_suffix='.csv')))):
     A.set_measurement(folder_path, '_'+str(i+1)+'_'+crit)
-
     A.load_measurement()
     A.create_map(inverse=[True, False])
     map_storage.append(A.maps)
@@ -49,10 +51,12 @@ intensity_limits = [0, np.max([np.max(i[0]['z']) for i in map_storage])]
 for i, image_map in tqdm(enumerate(map_storage)):
     A.name = names[i]
     A.maps = map_storage[i]
+    # A.maps[0]['z'] = zero_pixel_replace(A.maps[0]['z'])
     A.plot_map(results_path / 'pixel/', pixel='fill',
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'contour/', pixel=False,
                intensity_limits=intensity_limits)
+
 # '''
 import cv2
 import os
@@ -62,9 +66,9 @@ image_folder_pixel = results_path / 'pixel/'
 image_folder_contour = results_path / 'contour/'
 
 video_name_pixel_original = results_path / 'original_pixel.mp4'
-video_name_pixel_increased = results_path / 'x50increased_pixel.mp4'
+video_name_pixel_increased = results_path / 'x30increased_pixel.mp4'
 video_name_contour_original = results_path / 'original_contour.mp4'
-video_name_contour_increased = results_path / 'x50increased_contour.mp4'
+video_name_contour_increased = results_path / 'x30increased_contour.mp4'
 
 
 # videos of pixel images
@@ -75,16 +79,15 @@ frame = cv2.imread(os.path.join(image_folder_pixel, images[0]))
 height, width, layers = frame.shape
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Be sure to use lower case
-'''
-video = cv2.VideoWriter(video_name_pixel_original, fourcc, 0.7, (width, height))
+
+video = cv2.VideoWriter(video_name_pixel_original, fourcc, 1., (width, height))
 for image in images:
     video.write(cv2.imread(os.path.join(image_folder_pixel, image)))
 cv2.destroyAllWindows()
 video.release()
-'''
-video = cv2.VideoWriter(video_name_pixel_increased, fourcc, 10, (width, height))
+
+video = cv2.VideoWriter(video_name_pixel_increased, fourcc, 30, (width, height))
 for i, image in enumerate(images):
-    print(i)
     video.write(cv2.imread(os.path.join(image_folder_pixel, image)))
 cv2.destroyAllWindows()
 video.release()
@@ -96,16 +99,17 @@ frame = cv2.imread(os.path.join(image_folder_contour, images[0]))
 height, width, layers = frame.shape
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Be sure to use lower case
-'''
-video = cv2.VideoWriter(video_name_contour_original, fourcc, 0.7, (width, height))
+
+video = cv2.VideoWriter(video_name_contour_original, fourcc, 1., (width, height))
 for image in images:
     video.write(cv2.imread(os.path.join(image_folder_contour, image)))
 cv2.destroyAllWindows()
 video.release()
-'''
 
-video = cv2.VideoWriter(video_name_contour_increased, fourcc, 10, (width, height))
+
+video = cv2.VideoWriter(video_name_contour_increased, fourcc, 30, (width, height))
 for i, image in enumerate(images):
     video.write(cv2.imread(os.path.join(image_folder_contour, image)))
 cv2.destroyAllWindows()
 video.release()
+# '''
