@@ -45,6 +45,10 @@ for k, crit in enumerate(new_measurements[0:1]):
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'maps/', pixel=False,
                intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'maps/', pixel='fill',
+               intensity_limits=intensity_limits, imshow=True)
+    A.plot_map(results_path / 'maps/', pixel=True,
+               intensity_limits=intensity_limits, imshow=True)
 
     for i, image_map in enumerate(A.maps):
         A.maps[i]['z'] = simple_zero_replace(image_map['z'])
@@ -54,6 +58,10 @@ for k, crit in enumerate(new_measurements[0:1]):
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'maps_plus/', pixel=False,
                intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'maps_plus/', pixel='fill',
+               intensity_limits=intensity_limits, imshow=True)
+    A.plot_map(results_path / 'maps_plus/', pixel=True,
+               intensity_limits=intensity_limits, imshow=True)
 
     A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout, diode_offset=[[0, - 0.25], np.zeros(64)])
     A.set_measurement(folder_path, crit)
@@ -66,6 +74,8 @@ for k, crit in enumerate(new_measurements[0:1]):
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'raw/', pixel=False,
                intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'raw/', pixel='fill',
+               intensity_limits=intensity_limits, imshow=True)
 
     A.set_dark_measurement(dark_path, dark)
     A.update_measurement(factor=False)
@@ -77,3 +87,5 @@ for k, crit in enumerate(new_measurements[0:1]):
                intensity_limits=intensity_limits)
     A.plot_map(results_path / 'no_norm/', pixel=False,
                intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'no_norm/', pixel='fill',
+               intensity_limits=intensity_limits, imshow=True)

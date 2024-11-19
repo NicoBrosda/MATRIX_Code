@@ -293,7 +293,7 @@ class Analyzer:
 
     def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 plot_size=fullsize_plot, *args, **kwargs):
+                 plot_size=fullsize_plot, imshow=False, dpi=300, insert_txt: bool or list = False, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()
         if len(self.maps) == 1:
@@ -306,6 +306,7 @@ class Analyzer:
                 fig, ax = plt.subplots()
             else:
                 fig, ax = fig_in, ax_in
+            fig.set_dpi(dpi)
 
             if intensity_limits is None:
                 # intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
@@ -318,8 +319,8 @@ class Analyzer:
                 y_steps = np.array([map_el['y'][i + 1] - map_el['y'][i] for i in range(np.shape(map_el['y'])[0] - 1)])
 
                 # Auto-detect if spaces should be inserted in one-direction (> 2 diodes and distances = diodes geometry)
-                if self.diode_dimension[0] <= 2 and x_steps.std() == 0 and \
-                        x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
+                # if self.diode_dimension[0] <= 2 and x_steps.std() == 0 and x_steps.mean() == self.diode_size[0]+self.diode_spacing[0]:
+                if x_steps.std() == 0 and x_steps.mean() == self.diode_size[0] + self.diode_spacing[0]:
                     cache_x = np.array([map_el['x'][0]-(self.diode_spacing[0]+self.diode_size[0])/2])
                     for i in range(np.shape(map_el['x'])[0]):
                         if i == 0:
@@ -344,8 +345,8 @@ class Analyzer:
                     cache_x = np.append(map_el['x'], map_el['x'][-1] + x_steps.mean()) - x_steps.mean()/2
                     cache_z = map_el['z']
 
-                if self.diode_dimension[1] <= 2 and y_steps.std() == 0 and \
-                        y_steps.mean() == self.diode_size[1]+self.diode_spacing[1]:
+                # if self.diode_dimension[1] <= 2 and y_steps.std() == 0 and y_steps.mean() == self.diode_size[1]+self.diode_spacing[1]:
+                if y_steps.std() == 0 and y_steps.mean() == self.diode_size[1] + self.diode_spacing[1]:
                     cache_y = np.array([map_el['y'][0]-(self.diode_spacing[1]+self.diode_size[1])/2])
                     for i in range(np.shape(map_el['y'])[0]):
                         if i == 0:
@@ -373,7 +374,21 @@ class Analyzer:
                 # homogenize_pixel_size({'x': cache_x, 'y': cache_y, 'z': cache_z})
                 # print(np.shape(cache_x), np.shape(cache_y), np.shape(cache_z))
                 norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
-                color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
+                if not imshow:
+                    color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
+                else:
+                    map_x, map_y, map_z = homogenize_pixel_size([cache_x, cache_y, cache_z])
+                    pixel_size = map_x[1] - map_x[0]
+                    p2 = pixel_size / 2
+                    if isinstance(imshow, str):
+                        interpolation = imshow
+                    else:
+                        interpolation = 'antialiased'
+
+                    color_map = ax.imshow(map_z, cmap=cmap, origin='lower', vmin=intensity_limits[0],
+                                          vmax=intensity_limits[1], interpolation=interpolation,
+                                          extent=(map_x[0] - p2, map_x[-1] + p2, map_y[0] - p2, map_y[-1] + p2))
+                # '''
                 norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
                 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
                 sm.set_array([])
@@ -412,7 +427,13 @@ class Analyzer:
             if colorbar:
                 bar.set_label('Measured Signal (a.u.)')
 
+            if insert_txt:
+                ax.text(*transform_axis_to_data_coordinates(ax, insert_txt[0]), insert_txt[1], fontsize=insert_txt[2],
+                        c='k', zorder=3, bbox={'facecolor': 'white', 'alpha': 0.3, 'pad': 2})
+
             save_name = self.name + '_map' + map_el['position']
+            if imshow:
+                save_name += '_imshow'
             if not pixel:
                 save_name += '_contour'
             if pixel == 'fill':
@@ -420,11 +441,12 @@ class Analyzer:
             if save_path is not None:
                 if pixel:
                     save_format = '.png'
-                    dpi = 300
+                    # dpi = 300
                 else:
                     save_format = '.png'
-                    dpi = 300
-                format_save(save_path=save_path, save_name=save_name, dpi=dpi, format=save_format, fig=fig)
+                    # dpi = 300
+                format_save(save_path=save_path, save_name=save_name, dpi=dpi, plot_size=plot_size, format=save_format,
+                            fig=fig)
 
     def overview(self):
         pass
@@ -606,6 +628,7 @@ class Analyzer:
                     r'Diode $\#$' + str(self.diode_dimension[direction]),
                     fontsize=13, c=diode_color(self.diode_dimension[direction]),
                     zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+
             if direction == 0:
                 save_name = 'DiodeScan_XDirection_YMeasurement' + str(set_position)
             else:

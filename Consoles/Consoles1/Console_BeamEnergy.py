@@ -11,5 +11,5 @@ ax.plot(data['thickness alu (mm)'], data['energie'], c='k')
 ax.set_xlabel('Thickness of Al wheel (mm)')
 ax.set_ylabel('Energy of the proton beam (MeV)')
 
-format_save('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/Results_230924/BeamProps/', 'Beam_Energy',
+format_save('/Users/nico_brosda/Cyrce_Messungen/Results_230924/BeamProps/', 'Beam_Energy',
             legend=False)

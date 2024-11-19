@@ -5,12 +5,12 @@ from scipy.optimize import curve_fit
 from AMS_Evaluation.FitFuncs import linear_function
 from AMS_Evaluation.read_MATRIX import *
 
-save_path = Path('/Users/nico_brosda/Desktop/iphc_python_misc/Results/linearity/')
+save_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/Results/linearity/')
 # ---------------------------------------------------------------------------------------------------------------------
 # Linearity measurements sample e2
 
 # Find the corresponding files:
-folder_path_e2 = Path('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/')
+folder_path_e2 = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/')
 files_e2 = os.listdir(folder_path_e2)
 files_e2 = array_txt_file_search(files_e2, blacklist=['scan', '.png', 'top_', 'bottom_'], searchlist=['p_nA'],
                               file_suffix='.csv', txt_file=False)
@@ -18,7 +18,7 @@ print(files_e2)
 print(len(files_e2))
 
 # Find the corresponding files:
-folder_path_e1 = Path('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/d2/')
+folder_path_e1 = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/d2/')
 files_e1 = os.listdir(folder_path_e1)
 files_e1 = array_txt_file_search(files_e1, blacklist=['scan', '.png', 'top_', 'bottom_'], searchlist=['long_nA_2'],
                               file_suffix='.csv', txt_file=False)
@@ -26,7 +26,7 @@ print(files_e1)
 print(len(files_e1))
 
 # Find the corresponding files:
-folder_path_d2 = Path('/Users/nico_brosda/Desktop/iphc_python_misc/matrix_27052024/e1/')
+folder_path_d2 = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/e1/')
 files_d2 = os.listdir(folder_path_d2)
 files_d2 = array_txt_file_search(files_d2, blacklist=['scan', '.png', 'top_', 'bottom_'], searchlist=['lin_nA_2'],
                               file_suffix='.csv', txt_file=False)
