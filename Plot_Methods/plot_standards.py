@@ -48,6 +48,7 @@ latex_textwidth = 14.6979*cm
 # This defines the size of plots used in the text. E.g. I defined a standard fullsize_plot where the ratio of width to
 # height is 1.3. This can easily be adapted for other formats.
 fullsize_plot = (latex_textwidth, latex_textwidth/1.3)
+fullsize_plot = (latex_textwidth, latex_textwidth / 1.2419)
 halfsize_plot = (latex_textwidth/2, latex_textwidth/1.3/2)
 totalpage_plot = (14.6979*cm, 20*cm)
 totalpage_plot_side = (20*cm, 14.6979*cm)

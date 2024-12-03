@@ -15,6 +15,7 @@ results_path3 = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/ImageUpd
 new_measurements = ['_GafComp200_', '_GafComp400_', '_GafComp40_', '_GafCompLogo_', '_GafCompMisc_', '_GafCompPEEK_',
                     '_MouseFoot_', '_MouseFoot2_', '2Line_Beam_']
 new_measurements = ['_GafComp200_', '_GafCompLogo_', '_GafCompMisc_', '_MouseFoot2_', '2Line_Beam_', '_GafCompPEEK_']
+new_measurements = ['_GafCompMisc_']
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 
@@ -38,7 +39,6 @@ for k, crit in enumerate(new_measurements[0:]):
     norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(list_of_files, instance, method, align_lines=True)
     A.normalization(norm_path, norm, normalization_module=norm_func)
     A.load_measurement()
-    intensity_limits = None
     A.create_map(inverse=[True, False])
 
     for i, image_map in enumerate(A.maps):
@@ -46,12 +46,20 @@ for k, crit in enumerate(new_measurements[0:]):
     # A.maps[0] = overlap_treatment(A.maps[0], A, True, super_res=True)
 
     # '''
+    if 'MouseFoot' in crit:
+        intensity_limits = [4500, np.max(A.maps[0]['z'])]
+        c_map = "Greys_r"
+        c_map = sns.color_palette(c_map, as_cmap=True)
+    else:
+        intensity_limits = [0, np.max(A.maps[0]['z'])]
+        c_map = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
+
     A.name = 'PColormesh_Whitespace'
-    A.plot_map(results_path / (str(crit)+'/'), pixel=True, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+    A.plot_map(results_path / (str(crit)+'/'), pixel=True, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
     A.name = 'PColormesh_Filled'
-    A.plot_map(results_path / (str(crit)+'/'), pixel='fill', intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+    A.plot_map(results_path / (str(crit)+'/'), pixel='fill', intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
     A.name = 'Contourf'
-    A.plot_map(results_path / (str(crit)+'/'), pixel=False, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+    A.plot_map(results_path / (str(crit)+'/'), pixel=False, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
 
     for interpolation in ['none', 'antialiased', 'nearest', 'bilinear', 'bicubic', 'spline16', 'spline36', 'hanning',
                           'hamming', 'hermite', 'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc',
@@ -59,25 +67,25 @@ for k, crit in enumerate(new_measurements[0:]):
         if interpolation in ['none', 'antialiased', 'nearest', 'bilinear']:
             A.name = 'Imshow_Whitespace_' + interpolation
             A.plot_map(results_path / (str(crit) + '/'), pixel=True, imshow=interpolation,
-                       intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+                       intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
         A.name = 'Imshow_Filled_' + interpolation
         A.plot_map(results_path / (str(crit) + '/'), pixel='Fill', imshow=interpolation,
-                   intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+                   intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
 
     for dpi in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1200]:
         A.name = str(dpi) + 'PColormesh_Filled'
-        A.plot_map(results_path2, pixel='fill', dpi=dpi, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+        A.plot_map(results_path2, pixel='fill', dpi=dpi, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
         A.name = str(dpi) + 'PColormesh_Whitespace'
-        A.plot_map(results_path2, pixel=True, dpi=dpi, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
+        A.plot_map(results_path2, pixel=True, dpi=dpi, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
         for interpolation in ['none', 'antialiased', 'bilinear']:
             A.name = str(dpi) + 'Imshow_Whitespace_' + interpolation
-            A.plot_map(results_path2, pixel=True, imshow=interpolation, dpi=dpi,
+            A.plot_map(results_path2, pixel=True, imshow=interpolation, dpi=dpi, cmap=c_map,
                        intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
             A.name = str(dpi) + 'Imshow_Filled_' + interpolation
-            A.plot_map(results_path2, pixel='Fill', imshow=interpolation, dpi=dpi,
+            A.plot_map(results_path2, pixel='Fill', imshow=interpolation, dpi=dpi, cmap=c_map,
                        intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15])
-    #'''
 
+    # '''
     # cmap testing
     for cmap in tqdm(["rocket", "rocket_r", "mako", "mako_r", "flare", "flare_r", "crest", "crest_r", "magma", "magma_r",
                  "viridis", "viridis_r", "plasma", "plasma_r", "inferno", "inferno_r", "cividis", "cividis_r", "Greys",
@@ -90,7 +98,7 @@ for k, crit in enumerate(new_measurements[0:]):
             c_map = sns.color_palette(cmap, as_cmap=True)
         print(cmap)
 
-        plotsize_adapt = (latex_textwidth / 1.0320427, latex_textwidth / 1.3)
+        plotsize_adapt = fullsize_plot
         A.name = 'PColormesh_' + cmap
         A.plot_map(results_path3 / (str(crit) + '/'), pixel='Fill', intensity_limits=intensity_limits, cmap=c_map,
                    plot_size=plotsize_adapt, insert_txt=[txt_posi, A.name, 15])
@@ -103,3 +111,5 @@ for k, crit in enumerate(new_measurements[0:]):
         A.name = 'Imshow_Cmap_' + 'lanczos_' + cmap
         A.plot_map(results_path3 / (str(crit) + '/'), pixel='Fill', imshow='lanczos',
                    intensity_limits=intensity_limits, cmap=c_map, insert_txt=[txt_posi, A.name, 15])
+
+    # '''

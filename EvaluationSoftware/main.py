@@ -293,7 +293,8 @@ class Analyzer:
 
     def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 plot_size=fullsize_plot, imshow=False, dpi=300, insert_txt: bool or list = False, *args, **kwargs):
+                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.png',
+                 insert_txt: bool or list = False, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()
         if len(self.maps) == 1:
@@ -311,7 +312,8 @@ class Analyzer:
             if intensity_limits is None:
                 # intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
                 intensity_limits = [0, np.abs(np.max(map_el['z']))]
-            levels = np.linspace(intensity_limits[0], intensity_limits[1], 100)
+            # levels = np.linspace(intensity_limits[0], intensity_limits[1], 100)
+            levels = np.linspace(intensity_limits[0], intensity_limits[1], 256)
 
             if pixel:
                 # Auto-detect step width in x and y:
@@ -439,12 +441,6 @@ class Analyzer:
             if pixel == 'fill':
                 save_name += '_fill'
             if save_path is not None:
-                if pixel:
-                    save_format = '.png'
-                    # dpi = 300
-                else:
-                    save_format = '.png'
-                    # dpi = 300
                 format_save(save_path=save_path, save_name=save_name, dpi=dpi, plot_size=plot_size, format=save_format,
                             fig=fig)
 
