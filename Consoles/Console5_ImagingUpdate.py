@@ -15,7 +15,7 @@ results_path3 = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/ImageUpd
 new_measurements = ['_GafComp200_', '_GafComp400_', '_GafComp40_', '_GafCompLogo_', '_GafCompMisc_', '_GafCompPEEK_',
                     '_MouseFoot_', '_MouseFoot2_', '2Line_Beam_']
 new_measurements = ['_GafComp200_', '_GafCompLogo_', '_GafCompMisc_', '_MouseFoot2_', '2Line_Beam_', '_GafCompPEEK_']
-new_measurements = ['_GafCompMisc_']
+new_measurements = ['_GafComp200_', '2Line_Beam_']
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 
@@ -45,7 +45,7 @@ for k, crit in enumerate(new_measurements[0:]):
         A.maps[i]['z'] = simple_zero_replace(image_map['z'])
     # A.maps[0] = overlap_treatment(A.maps[0], A, True, super_res=True)
 
-    # '''
+
     if 'MouseFoot' in crit:
         intensity_limits = [4500, np.max(A.maps[0]['z'])]
         c_map = "Greys_r"
@@ -53,7 +53,7 @@ for k, crit in enumerate(new_measurements[0:]):
     else:
         intensity_limits = [0, np.max(A.maps[0]['z'])]
         c_map = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
-
+    '''
     A.name = 'PColormesh_Whitespace'
     A.plot_map(results_path / (str(crit)+'/'), pixel=True, intensity_limits=intensity_limits, insert_txt=[txt_posi, A.name, 15], cmap=c_map)
     A.name = 'PColormesh_Filled'
@@ -98,7 +98,8 @@ for k, crit in enumerate(new_measurements[0:]):
             c_map = sns.color_palette(cmap, as_cmap=True)
         print(cmap)
 
-        plotsize_adapt = fullsize_plot
+        plotsize_adapt = (13.55 * cm, 13.55 * cm / 1.2419)
+
         A.name = 'PColormesh_' + cmap
         A.plot_map(results_path3 / (str(crit) + '/'), pixel='Fill', intensity_limits=intensity_limits, cmap=c_map,
                    plot_size=plotsize_adapt, insert_txt=[txt_posi, A.name, 15])
@@ -107,9 +108,9 @@ for k, crit in enumerate(new_measurements[0:]):
                    plot_size=plotsize_adapt, insert_txt=[txt_posi, A.name, 15])
         A.name = 'Imshow_Cmap_' + 'antialiased_' + cmap
         A.plot_map(results_path3 / (str(crit) + '/'), pixel='Fill', imshow='antialiased',
-                   intensity_limits=intensity_limits, cmap=c_map, insert_txt=[txt_posi, A.name, 15])
+                   intensity_limits=intensity_limits, cmap=c_map, insert_txt=[txt_posi, A.name, 15], plot_size=plotsize_adapt)
         A.name = 'Imshow_Cmap_' + 'lanczos_' + cmap
         A.plot_map(results_path3 / (str(crit) + '/'), pixel='Fill', imshow='lanczos',
-                   intensity_limits=intensity_limits, cmap=c_map, insert_txt=[txt_posi, A.name, 15])
+                   intensity_limits=intensity_limits, cmap=c_map, insert_txt=[txt_posi, A.name, 15], plot_size=plotsize_adapt)
 
     # '''
