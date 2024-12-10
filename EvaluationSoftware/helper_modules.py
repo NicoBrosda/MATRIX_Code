@@ -364,11 +364,10 @@ def homogenize_pixel_size(input_map):
         input_x, input_y, input_z = input_map['x'], input_map['y'], input_map['z']
     else:
         input_x, input_y, input_z = input_map[0], input_map[1], input_map[2]
-
     # Estimation of the minimum pixel size (contains a workaround to use a gcd algorithm from numpy...)
     if np.shape(input_x)[0] == np.shape(input_z)[1]:
         x_steps = np.array([input_x[i + 1] - input_x[i] for i in range(np.shape(input_x)[0] - 1)])
-        x_steps = np.append(x_steps, x_steps.mean())
+        x_steps = np.append(x_steps, x_steps[-1])
         x_pos = input_x
     elif np.shape(input_x)[0] == np.shape(input_z)[1] + 1:
         x_steps = np.array([input_x[i + 1] - input_x[i] for i in range(np.shape(input_x)[0] - 1)])
@@ -380,7 +379,7 @@ def homogenize_pixel_size(input_map):
 
     if np.shape(input_y)[0] == np.shape(input_z)[0]:
         y_steps = np.array([input_y[i + 1] - input_y[i] for i in range(np.shape(input_y)[0] - 1)])
-        y_steps = np.append(y_steps, y_steps.mean())
+        y_steps = np.append(y_steps, y_steps[-1])
         y_pos = input_y
     elif np.shape(input_y)[0] == np.shape(input_z)[0] + 1:
         y_steps = np.array([input_y[i + 1] - input_y[i] for i in range(np.shape(input_y)[0] - 1)])

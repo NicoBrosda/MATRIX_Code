@@ -1,5 +1,3 @@
-import numpy as np
-
 from EvaluationSoftware.main import *
 from EvaluationSoftware.helper_modules import rename_files
 
@@ -20,7 +18,7 @@ translated_mapping = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 
 
 readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=translated_mapping), standard_position
 
-A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
+A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211024/')
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/2DSmall/')
@@ -38,21 +36,27 @@ A.normalization(norm_path, norm, normalization_module=norm_func)
 measurements = ['2D_Mini_XYScanMisc_200_um_2,0_nA_nA_1.9_']
 measurements = ['2D_Mini_YScanAfter_200_ um_2,0_nA_nA_1.9_x_22.0_y_82.75.csv']
 measurements = ['2D_Mini_FullXYScan_200_um_2,0_nA_nA_1.9']
+measurements = ['2D_Mini_YScanAfter_200_ um_2,0_nA_']
+# measurements = ['2D_Mini_YScan_200_um_2,0_nA_']
 
-for crit in measurements:
-    A.set_measurement(folder_path, crit)
+# Line Scan image by image
+results_path2 = results_path / 'YScanAfter/'
+# results_path2 = results_path / 'YScan/'
+
+A.set_measurement(folder_path, measurements[0])
+measurement_files = np.array([str(i)[len(str(folder_path))+1:] for i in A.measurement_files], dtype=str)
+measurement_files = measurement_files[np.argsort([standard_position(i)[1] for i in measurement_files])]
+
+for file in tqdm(measurement_files[0:], colour='blue'):
+    A.set_measurement(folder_path, file)
     A.load_measurement()
     A.create_map(inverse=[True, False])
     intensity_limits = [0, np.max(A.maps[0]['z'])]
 
-    A.plot_map(results_path / 'maps/', pixel=True,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill',
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel=False,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill',
-               intensity_limits=intensity_limits, imshow=True)
-    A.plot_map(results_path / 'maps/', pixel=True,
-               intensity_limits=intensity_limits, imshow=True)
+    A.plot_map(results_path2, pixel='fill', intensity_limits=intensity_limits)
 
+A.set_measurement(folder_path, measurements[0])
+A.load_measurement()
+A.create_map(inverse=[True, False])
+intensity_limits = [0, np.max(A.maps[0]['z'])]
+A.plot_map(results_path, pixel='fill', intensity_limits=intensity_limits)

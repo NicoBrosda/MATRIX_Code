@@ -22,14 +22,17 @@ readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_
 A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024//movie_logo/')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/movie_logo_normed/')
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 matrix_dark = ['2DLarge_DarkVoltage_200_ um_0_nA_nA_1.9_x_44.0_y_66.625.csv']
 A.set_dark_measurement(dark_path, matrix_dark)
+norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
+        list_of_files, instance, method, align_lines=True)
+A.normalization(folder_path, ['2DLarge_YTranslation_'], normalization_module=norm_func)
 crit = '2DLarge_MovieLogoMove_'
 
-'''
+# '''
 files = os.listdir(folder_path)
 map_storage = []
 names = []
@@ -58,9 +61,9 @@ image_folder_pixel = results_path / 'pixel/'
 image_folder_contour = results_path / 'contour/'
 
 video_name_pixel_original = results_path / 'original_pixel.mp4'
-video_name_pixel_increased = results_path / 'x50increased_pixel.mp4'
+video_name_pixel_increased = results_path / 'x20increased_pixel.mp4'
 video_name_contour_original = results_path / 'original_contour.mp4'
-video_name_contour_increased = results_path / 'x50increased_contour.mp4'
+video_name_contour_increased = results_path / 'x20increased_contour.mp4'
 
 
 # videos of pixel images
@@ -100,12 +103,11 @@ for image in images:
     video.write(cv2.imread(os.path.join(image_folder_contour, image)))
 cv2.destroyAllWindows()
 video.release()
-'''
-
+# '''
 video = cv2.VideoWriter(video_name_contour_increased, fourcc, 20, (width, height))
 for i, image in enumerate(images):
     # print(i)
     # print(image)
-    video.write(cv2.imread(os.path.join(image_folder_contour, image)))
+    video.write(cv2.imread(os.path.join(image_folder_pixel, image)))
 cv2.destroyAllWindows()
 video.release()

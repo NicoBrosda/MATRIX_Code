@@ -95,6 +95,7 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
 
     # Find the different currents available from this data
     currents = np.sort(np.array(list(set([i['current'] for i in signal]))))
+
     cache_currents = [[] for i in currents]
     for sig in signal:
         cache_currents[np.argwhere(currents == sig['current']).flatten()[0]].append(sig)

@@ -91,6 +91,11 @@ class Analyzer:
         files = os.listdir(path_to_folder)
         if not isinstance(filter_criterion, (tuple, list)):
             filter_criterion = [filter_criterion]
+
+        for i, crit in enumerate(filter_criterion):
+            if str(path_to_folder) in crit:
+                filter_criterion[i] = crit[len(str(path_to_folder))+1:]
+
         measurement_files = array_txt_file_search(files, searchlist=filter_criterion, blacklist=blacklist,
                                                   file_suffix=file_format, txt_file=False)
         print(len(measurement_files), ' files found in the folder: ', path_to_folder, ' under the search criterion: ',
@@ -344,7 +349,9 @@ class Analyzer:
                     cache_z = np.array(cache_z).T
                 # Else insert +1 step in the end of the measurement and do not add white spaces
                 else:
-                    cache_x = np.append(map_el['x'], map_el['x'][-1] + x_steps.mean()) - x_steps.mean()/2
+                    cache_x = [map_el['x'][i] - x_steps[i-1]/2 for i, el in enumerate(map_el['x']) if i > 0]
+                    cache_x = [map_el['x'][0] - x_steps[0]/2] + cache_x + [map_el['x'][-1] + x_steps[-1]/2]
+                    # cache_x = np.append(map_el['x'], map_el['x'][-1] + x_steps.mean()) - x_steps.mean()/2
                     cache_z = map_el['z']
 
                 # if self.diode_dimension[1] <= 2 and y_steps.std() == 0 and y_steps.mean() == self.diode_size[1]+self.diode_spacing[1]:
@@ -370,7 +377,9 @@ class Analyzer:
                         cache.append(row)
                     cache_z = np.array(cache)
                 else:
-                    cache_y = np.append(map_el['y'], map_el['y'][-1] + y_steps.mean()) - y_steps.mean()/2
+                    cache_y = [map_el['y'][i] - y_steps[i - 1] / 2 for i, el in enumerate(map_el['y']) if i > 0]
+                    cache_y = [map_el['y'][0] - y_steps[0] / 2] + cache_y + [map_el['y'][-1] + y_steps[-1] / 2]
+                    # cache_y = np.append(map_el['y'], map_el['y'][-1] + y_steps[-1]) - y_steps.mean()/2
                     cache_z = cache_z
 
                 # homogenize_pixel_size({'x': cache_x, 'y': cache_y, 'z': cache_z})
@@ -380,6 +389,7 @@ class Analyzer:
                     color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
                 else:
                     map_x, map_y, map_z = homogenize_pixel_size([cache_x, cache_y, cache_z])
+
                     pixel_size = map_x[1] - map_x[0]
                     p2 = pixel_size / 2
                     if isinstance(imshow, str):
