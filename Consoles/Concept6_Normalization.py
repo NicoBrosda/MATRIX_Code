@@ -99,20 +99,13 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
         for i in iteration:
             cache = deepcopy(position)
             cache[:, sp] = cache[:, sp] + (i - (instance.diode_dimension[sp]-1)/2) * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line]
-            # print((i - (instance.diode_dimension[sp]-1)/2) * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line])
+            print((i - (instance.diode_dimension[sp]-1)/2) * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line])
             positions.append(cache)
         positions = np.array(positions)
 
         # Try to detect the signal level
         threshold = ski_threshold_otsu(signals[:, line])
-        print(line)
-        print(threshold)
-        if threshold > np.median(signals[:, line]):
-            threshold = np.median(signals[:, line]) * 0.6
-        print(threshold)
-
         mean_over = np.mean(signals[(signals > threshold)])
-        print(mean_over)
 
         # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
         group_distance = instance.diode_size[sp]
@@ -295,11 +288,6 @@ data2 = pd.read_excel(mapping, header=None)
 mapping_map = data2.to_numpy().flatten()
 mapping_small1 = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
 
-mapping = Path('../Files/Mapping_SmallMatrix2.xlsx')
-data2 = pd.read_excel(mapping, header=None)
-mapping_map = data2.to_numpy().flatten()
-mapping_small2 = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
-
 path_1110 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
 matrix_1110 = ['2DLarge_YScan_', '2DLarge_XScan_']
 
@@ -309,23 +297,15 @@ matrix_2110 = ['2D_Mini_YScan_', '2D_Mini_YScanAfter_']
 path_2210 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 matrix_2210 = ['2Line_YScan', '2DLarge_YTranslation_']
 
-path_2211 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221124/')
-matrix_2211 = ['12_2DSmall_miscshape_']
-
-all_matrix = matrix_1110 + matrix_2110 + matrix_2210 + matrix_2211
+all_matrix = matrix_1110 + matrix_2110 + matrix_2210
 for i, crit in enumerate(all_matrix[0:]):
     results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/NormMethod/')
     if i < len(matrix_1110):
-        continue
         folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
     elif i < len(matrix_1110) + len(matrix_2110):
-        continue
         folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211024/')
-    elif i < len(matrix_1110) + len(matrix_2110) + len(matrix_2210):
-        continue
-        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
     else:
-        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 
     if '2Line' in crit:
         readout, position_parser = lambda x, y: ams_2line_readout(x, y, channel_assignment=channel_assignment), standard_position
@@ -346,12 +326,6 @@ for i, crit in enumerate(all_matrix[0:]):
         dark_path = folder_path
         dark = ['2DLarge_dark_200_um_0_nA__nA_1.9_x_21.0_y_70.35.csv']
         A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
-    elif '8_2DSmall_' in crit:
-        readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=mapping_small2), standard_position
-        results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221124/Norm/')
-        dark_path = folder_path
-        dark = ['9_2DSmall_miscshape_xyscan_2.0_nA_nA_1.9_x_0.0_y_48.0.csv']
-        A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
     else:
         readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=mapping_large2), standard_position
         results_path = results_path / ('Large2_' + crit + '/')

@@ -79,7 +79,7 @@ def voltage_analysis(folder_path, dark_crit, signal_crit, instance, filter_worki
 
 
 def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_dependent=True):
-    def linear_func(x, a, b):
+    def linear_func2(x, a, b):
         return a*x + b
 
     def linear_func(x, a):
@@ -124,8 +124,12 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
         signal_voltage, signal_current, signal_std = signal_voltage[sorting_s], signal_current[sorting_s], signal_std[
             sorting_s]
 
-        fvp = [np.argwhere(_dark_voltage == i)[0][0] for i in signal_voltage]
-        dark_voltage, dark_current, dark_std = _dark_voltage[fvp], _dark_current[fvp], _dark_std[fvp]
+        if len(_dark_voltage) < len(signal_voltage):
+            dark_voltage, dark_current, dark_std = signal_voltage, np.zeros_like(signal_current), np.zeros_like(signal_std)
+            linear_func = linear_func2
+        else:
+            fvp = [np.argwhere(_dark_voltage == i)[0][0] for i in signal_voltage]
+            dark_voltage, dark_current, dark_std = _dark_voltage[fvp], _dark_current[fvp], _dark_std[fvp]
 
         if j == 0:
             track = filter_signal_diodes(signal_voltage, signal_current, signal_std, dark_voltage, dark_current,
@@ -177,7 +181,10 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
             params.append([popt, pcov])
 
         # print(np.mean([i[0][0] for i in params]), np.std([i[0][0] for i in params]))
-        ax.plot(currents, linear_func(currents, np.mean([i[0][0] for i in params])), ls='--', c='r', zorder=3)
+        print(np.mean([i[0] for i in params], axis=0))
+        print(np.shape([i[0] for i in params]))
+        ax.plot(currents, linear_func(currents, *np.mean([i[0] for i in params], axis=0)), ls='--', c='r', zorder=3)
+        # ax.plot(currents, linear_func(currents, *np.mean([i[0][0] for i in params])), ls='--', c='r', zorder=3)
         # print(np.mean([i[0][1] for i in params]), np.std([i[0][1] for i in params]))
 
         # print('-'*50)
@@ -249,5 +256,3 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     ax.set_ylim(ax.get_ylim())
     just_save(results_path / ('Linearity/'+str(crit)+'/'), 'VoltageComp', legend=True)
     plt.close('all')
-
-

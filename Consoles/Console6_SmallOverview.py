@@ -23,14 +23,14 @@ folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221124/2DSmall/')
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
-matrix_dark = ['9_2DSmall_miscshape_xyscan_2.0_nA_nA_1.9_x_0.0_y_48.0.csv']
+matrix_dark = ['12_2DSmall_miscshape_']
 A.set_dark_measurement(dark_path, matrix_dark)
 
 norm_path = folder_path
 norm = '8_2DSmall_yscan_'
 norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
         list_of_files, instance, method, align_lines=True)
-# A.normalization(norm_path, norm, normalization_module=norm_func)
+A.normalization(norm_path, norm, normalization_module=norm_func)
 
 measurements = ['9_2DSmall_miscshape_xyscan_', '10_2DSmall_miscshape_xyscan_',
                 '14_2DSmall_misc_xyscan_', '15_2DSmall_misc_xyscan_', '16_2DSmall_foot_xyscan_',
@@ -59,7 +59,8 @@ for k, crit in enumerate(measurements[4 :]):
 
     A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
     dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
-    matrix_dark = ['9_2DSmall_miscshape_xyscan_2.0_nA_nA_1.9_x_0.0_y_48.0.csv']
+    matrix_dark = ['12_2DSmall_miscshape_']
+
     A.set_measurement(folder_path, crit)
     A.set_dark_measurement(dark_path, matrix_dark)
     norm_path = folder_path
@@ -89,9 +90,13 @@ for k, crit in enumerate(measurements[4 :]):
     A.plot_map(results_path / 'maps_plus/', pixel=True, intensity_limits=intensity_limits, imshow=True)
 
     if 'foot' in crit:
+        fig, ax = plt.subplots()
+        ax.hist(A.maps[0]['z'].flatten(), bins=500)
+        ax.set_xlabel('Signal (a.u.)')
+        format_save(results_path / 'XRay/', 'Hist_' + crit, legend=False, fig=fig, axes=[ax])
         c_map = "Greys_r"
         c_map = sns.color_palette(c_map, as_cmap=True)
-        intensity_limitsXRay = [4500, np.max(A.maps[0]['z'])]
+        intensity_limitsXRay = [5000, np.max(A.maps[0]['z'])]
         A.plot_map(results_path / 'XRay/', pixel='fill', intensity_limits=intensity_limitsXRay, cmap=c_map)
 
     A = Analyzer((11, 11), 0.4, 0.1, readout=readout)

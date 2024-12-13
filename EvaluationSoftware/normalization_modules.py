@@ -327,6 +327,8 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
 
         # Try to detect the signal level
         threshold = ski_threshold_otsu(signals[:, line])
+        if threshold > np.median(signals[:, line]):
+            threshold = np.median(signals[:, line]) * 0.6
         mean_over = np.mean(signals[(signals > threshold)])
 
         # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
