@@ -1,0 +1,117 @@
+logbook 16/12/24
+
+Beam center
+x : 22
+y : 135.5 (/2)
+diffuser 40µm
+
+exp1
+dark current
+voltage scanning
+
+exp2
+2nA
+voltage and y scanning
+collimator 24mm
+
+exp3
+exp4
+wheel, collimator 24mm
+2nA (readjusted in need)
+Bragg peak, with peek material (trapezoïd collimator), y scanning
+v = 1.9
+from P01 to P20
+
+
+exp6
+wheel P01
+star scanning super res @ 2nA, 1.1V
+end 1.84nA
+beam problem, signal lost ?, x=24.75 to 25.25 (y = 63.75)
+
+exp7 
+wheel P06
+
+exp8 
+wheel P12
+click twice on start - > experiment restart, files were rewritten (check date), not a problem
+
+exp10 
+wheel P18
+wrong filename say wheel at p01 but it was p18
+
+exp13 
+wheel P15
+
+exp14 
+wheel P09
+crash software AMS (latchup)
+exp14_star_p09_2nA_1.1V nA, bias : 1.1 Volts -- x_axis : 28.25 mm, y_axis : 67.5 mm
+
+
+
+---------------------------------
+Big matrix 2
+2nA
+diffuseur 200µm
+Y : step 0.5mm
+----------------------------------
+seems that 64 channels are working with a high noise level.
+it was the cable, fixed for exp > 18
+exp145
+dark_voltage scanning
+big matrix 2
+100 read
+
+exp16
+dark_voltage scanning
+big matrix 2
+1000 read
+
+exp17
+1.8V
+2nA
+movie
+big matrix 2
+
+x = cste= 28.250
+y min : 0
+y max : 240
+
+---
+2nA
+cable fixed
+exp 18
+dark_voltage scanning
+big matrix 2
+100 read
+
+exp 19
+dark_voltage scanning
+big matrix 2
+1000 read
+
+
+-----
+movie
+y scanning, 0.5 mm steps
+-----
+exp 20
+1.8V
+
+exp 21
+1.1V
+
+exp 22
+1.1V
+19.5MeV (to be recalculated with the diffuseur)
+leads to 18 MeV (diffuseur 200um + 50um exit window)
+2.12nA
+
+exp 23
+1.8V
+19.5MeV
+2.07nA
+
+
+

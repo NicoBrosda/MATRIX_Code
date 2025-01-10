@@ -256,3 +256,124 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     ax.set_ylim(ax.get_ylim())
     just_save(results_path / ('Linearity/'+str(crit)+'/'), 'VoltageComp', legend=True)
     plt.close('all')
+
+
+def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit, instance, names=None,
+                      voltage_range=[0.9, 2.0]):
+    # Load in the dark data for the comparison:
+    if dark_crit is not None:
+        instance.set_measurement(folder_path, dark_crit)
+        instance.load_measurement()
+        dark = instance.measurement_data
+        _dark_voltage = np.array([i['voltage'] for i in dark])
+        sorting_d = np.argsort(_dark_voltage)
+        _dark_signal = np.array([np.mean(i['signal'].flatten()) for i in dark])
+        _dark_voltage, _dark_signal = _dark_voltage[sorting_d], _dark_signal[sorting_d]
+    else:
+        _dark_voltage, _dark_signal = [], []
+
+    # Result plot
+    fig, ax = plt.subplots()
+
+    # Load in all the data for the comparison
+    for i, crit in enumerate(list_of_crit):
+        # Plot colour
+        color = sns.color_palette("tab10")[i % 10]
+
+        instance.set_measurement(folder_path, crit)
+        instance.load_measurement()
+        signal = instance.measurement_data
+
+        cache = []
+        for sig in signal:
+            v = sig['voltage']
+            if voltage_range[0] > v or voltage_range[1] < v:
+                continue
+            if v in _dark_voltage:
+                signal = sig['signal'].flatten() - _dark_signal[_dark_voltage == v]
+                std = np.std(signal)
+                signal = np.mean(signal)
+            else:
+                signal = sig['signal'].flatten()
+                std = np.std(signal)
+                signal = np.mean(signal)
+
+            cache.append([v, signal, std])
+
+        cache = np.array(cache)[np.argsort([k[0] for k in cache])]
+        if names is None:
+            label = crit
+        else:
+            label = names[i]
+        ax.errorbar([k[0] for k in cache], [k[1] for k in cache], yerr=[k[2] for k in cache], color=color, label=label,
+                    capsize=5)
+
+    ax.set_xlabel('Voltage AMS circuit (V)')
+    ax.set_ylabel(r'Signal (a.u.)')
+    name = str(list_of_crit)
+    if len(str(list_of_crit)) > 20:
+        name = str(list_of_crit)[:21]
+    format_save(results_path / ('Voltage/' + 'SignalComp/Voltage/'), name, legend=True)
+    plt.close('all')
+
+
+def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit, instance, names=None, normed=False,
+                      channel_range=[0, 128], mark_n=[]):
+
+    # Load in the dark data for the comparison:
+    if dark_crit is not None:
+        instance.set_dark_measurement(folder_path, dark_crit)
+    instance.load_measurement()
+
+    # Result plot
+    fig, ax = plt.subplots()
+
+    # Load in all the data for the comparison
+    for i, crit in enumerate(list_of_crit):
+        # Plot colour
+        color = sns.color_palette("crest", as_cmap=True)(i / (len(list_of_crit)-1))
+
+        instance.set_measurement(folder_path, crit)
+        instance.load_measurement()
+        data = instance.measurement_data
+
+        cache_sig = []
+        cache_std = []
+        for dat in data:
+            signal = dat['signal']
+            std = np.std(signal, axis=0)
+            signal = np.mean(signal, axis=0)
+            if np.shape(signal)[0] > channel_range[1]-channel_range[0]:
+                signal, std = signal[channel_range[0]:channel_range[1]], std[channel_range[0]:channel_range[1]]
+            cache_sig.append(signal)
+            cache_std.append(std)
+
+        signal = np.mean(cache_sig, axis=0)
+        std = np.mean(cache_std, axis=0)
+
+        if names is None:
+            label = crit
+        else:
+            label = names[i]
+
+        if normed:
+            max_sig = np.max(signal)
+            signal = signal / max_sig
+            std = std / max_sig
+        if i in mark_n:
+            ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color='m', label=label,
+                        capsize=5, zorder=3)
+        else:
+            ax.errorbar([k+1 for k in range(len(signal))], signal, yerr=std, color=color, label=label,
+                        capsize=5, alpha=0.9)
+
+    ax.set_xlabel(r'$\#$ Channel diode array')
+    ax.set_ylabel(r'Signal (a.u.)')
+    # ax.set_yscale('log')
+    name = str(list_of_crit)
+    if len(str(list_of_crit)) > 40:
+        name = str(list_of_crit)[:41]
+    if normed:
+        name += '_normed'
+    format_save(results_path / 'SignalComp/Channel/', name, legend=True)
+    plt.close('all')

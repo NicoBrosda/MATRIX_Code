@@ -80,7 +80,7 @@ def zero_pixel_replace(image_map):
                         if image_map[i, j - 1] != 0:
                             cache.append(image_map[i, j - 1])
                     if len(cache) > 0:
-                        image_map[i, j] = np.mean(cache) / len(cache)
+                        image_map[i, j] = np.mean(cache)
             except IndexError:
                 continue
     return image_map

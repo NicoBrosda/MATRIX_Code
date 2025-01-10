@@ -310,7 +310,7 @@ class Analyzer:
 
     def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.png',
+                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.png', bbox=None,
                  insert_txt: bool or list = False, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()
@@ -463,8 +463,8 @@ class Analyzer:
             if pixel == 'fill':
                 save_name += '_fill'
             if save_path is not None:
-                format_save(save_path=save_path, save_name=save_name, dpi=dpi, plot_size=plot_size, format=save_format,
-                            fig=fig)
+                format_save(save_path=save_path, save_name=save_name, dpi=dpi, plot_size=plot_size,
+                            save_format=save_format, fig=fig, bbox=bbox)
 
     def overview(self):
         pass

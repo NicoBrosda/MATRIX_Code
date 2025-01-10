@@ -1,0 +1,76 @@
+11/12/2024
+Irradiation tests at Cyrcé
+Trying to get the maximum current (some ideas for the future in order the increase it more)
+linear diode range from 50 to 78 (around)
+diffuser 20 µm
+the lower is the better for maximum beam fluence without diffusing in the room and above
+Conversion factor : 0.69
+Maximum intensity 25nA so 25*0.69 = 17nA on the diodes
+
+Collimator 24mm
+beam center : fixed position (cross behind the pcb)
+
+Exp 1
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+1nA
+
+Exp 2
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+2nA
+
+Exp 3
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+4nA
+
+Exp 4
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+8nA
+
+Exp 5
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+16nA
+
+Exp 6
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+25nA
+
+Exp 7
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+dark with cup
+
+Exp 8
+Linear scanning function of the voltage
+voltage scan from 0 to 2, .1 steps at fixed position
+dark without cup
+========================================================
+
+Exp 9
+Voltage at 1.9
+25nA
+diode 3 and 64
+11/12 10:26 -> 18h12
+12/12 8:43 -> crash AMS
+Run stopped
+
+
+Exp 12
+Voltage at 1.9
+25nA
+diode 3 and 64
+12/12 15:11
+
+
+
+
+
+
+
+
+

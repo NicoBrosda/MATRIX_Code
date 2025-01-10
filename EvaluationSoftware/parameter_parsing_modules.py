@@ -42,12 +42,28 @@ def standard_current(path_to_data_file):
 
 
 def current2(path_to_data_file):
+    # Current as format: _5_nA_nA_
     if not isinstance(path_to_data_file, str):
         path_to_data_file = str(path_to_data_file)
 
     # The parsing of the position out of the name and save it
     try:
         index2 = path_to_data_file.rindex('_nA_nA_')
+        index1 = path_to_data_file[:index2].rindex('_')
+        current = float(comma_replace(path_to_data_file[index1+1:index2]))
+    except ValueError:
+        current = None
+    return current
+
+
+def current3(path_to_data_file):
+    # Current as format: _5nA_nA_
+    if not isinstance(path_to_data_file, str):
+        path_to_data_file = str(path_to_data_file)
+
+    # The parsing of the position out of the name and save it
+    try:
+        index2 = path_to_data_file.rindex('nA_nA_')
         index1 = path_to_data_file[:index2].rindex('_')
         current = float(comma_replace(path_to_data_file[index1+1:index2]))
     except ValueError:
