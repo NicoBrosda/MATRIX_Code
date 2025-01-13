@@ -435,6 +435,9 @@ class Analyzer:
             ax.set_xlabel(r'Position x (mm)')
             ax.set_ylabel(r'Position y (mm)')
 
+            ax.set_xlabel(r'Stage position y (mm)')
+            ax.set_ylabel(r'Stage position x (mm)')
+
             # Scale the axis true to scale
             x_scale = ax.get_xlim()
             y_scale = ax.get_ylim()

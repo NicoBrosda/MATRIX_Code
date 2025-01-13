@@ -23,7 +23,7 @@ readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_
 A = Analyzer((11, 11), 0.8, 0.2, readout=readout)
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_161224/')
-results_root = Path('/Users/nico_brosda/Cyrce_Messungen/Results_161224/movies_normed/')
+results_root = Path('/Users/nico_brosda/Cyrce_Messungen/Results_161224/movies_final_version/')
 
 movie_crits = ['exp17_', 'exp20_', 'exp21_', 'exp22_', 'exp23_']
 
@@ -32,7 +32,7 @@ dark_crit = ['exp16_dark_big_matrix_2_nA_1.8_x_28.25_y_0.0', 'exp18_dark_big_mat
              'exp18_dark_big_matrix_2_nA_1.1_x_28.25_y_0.0', 'exp18_dark_big_matrix_2_nA_1.1_x_28.25_y_0.0',
              'exp18_dark_big_matrix_2_nA_1.8_x_28.25_y_0.0']
 
-for j, crit in enumerate(movie_crits):
+for j, crit in enumerate(movie_crits[3:]):
     print(f'Movie from crit {crit}')
     print('-'*50)
     results_path = results_root / crit
@@ -68,6 +68,8 @@ for j, crit in enumerate(movie_crits):
         A.name = names[i]
         A.maps = map_storage[i]
         A.maps[0]['z'] = zero_pixel_replace(A.maps[0]['z'])
+        A.maps[0]['x'], A.maps[0]['y'] = map_storage[i][0]['y'], map_storage[i][0]['x']
+        A.maps[0]['z'] = A.maps[0]['z'].T
         if i == 0:
             A.plot_map(None, pixel='fill',
                        intensity_limits=intensity_limits)
