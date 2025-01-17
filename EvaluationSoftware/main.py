@@ -75,6 +75,7 @@ class Analyzer:
         self.measurement_files = []
         self.measurement_data = []
         self.dark_files = []
+        self.dark_measurements = []
         self.dark = np.zeros(self.diode_dimension)
         self.norm_factor = np.ones(diode_dimension)
         self.name = ''
@@ -102,8 +103,22 @@ class Analyzer:
               filter_criterion)
         self.measurement_files = [Path(path_to_folder) / i for i in measurement_files]
 
+    def choose_dark_param(self, parameter=None):
+        cache = []
+        for measurement in self.dark_measurements:
+            if parameter is None:
+                cache.append(measurement['signal'])
+            else:
+                try:
+                    if measurement[parameter[0]] == parameter[1]:
+                        cache.append(measurement['signal'])
+                except (KeyError, ValueError):
+                    pass
+        if len(cache) > 0:
+            self.dark = np.mean(np.array(cache), axis=0)
+
     def set_dark_measurement(self, path_to_folder, filter_criterion: list = ['dark'], file_format: str = '.csv',
-                             blacklist: list = ['.png', '.pdf', '.jpg'], readout_module: any = None):
+                             blacklist: list = ['.png', '.pdf', '.jpg'], readout_module: any = None, parameter=None):
         if readout_module is None:
             readout_module = self.readout
         if blacklist is None:
@@ -119,10 +134,14 @@ class Analyzer:
               ' under the search criterion: ', filter_criterion)
         self.dark_files = [Path(path_to_folder) / i for i in dark_files]
 
-        cache = []
         for file in self.dark_files:
-            cache.append(readout_module(path_to_folder / file, self)['signal'])
-        self.dark = np.mean(np.array(cache), axis=0)
+            self.dark_measurements.append(readout_module(path_to_folder / file, self))
+            if self.voltage_parser is not None:
+                self.dark_measurements[-1].update({'voltage': self.voltage_parser(file)})
+            if self.current_parser is not None:
+                self.dark_measurements[-1].update({'current': self.current_parser(file)})
+
+        self.choose_dark_param(parameter)
 
     def normalization(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg'],
                       normalization_module=None, cache_save=True, factor_limits=(0, 3), norm_factor=True):
@@ -435,8 +454,8 @@ class Analyzer:
             ax.set_xlabel(r'Position x (mm)')
             ax.set_ylabel(r'Position y (mm)')
 
-            ax.set_xlabel(r'Stage position y (mm)')
-            ax.set_ylabel(r'Stage position x (mm)')
+            # ax.set_xlabel(r'Stage position y (mm)')
+            # ax.set_ylabel(r'Stage position x (mm)')
 
             # Scale the axis true to scale
             x_scale = ax.get_xlim()
@@ -472,8 +491,35 @@ class Analyzer:
     def overview(self):
         pass
 
-    def plot_parameter(self, parameter):
-        pass
+    def plot_for_parameter(self, parameter='voltage', dark=True, map_inverse=[True, False], *args, **kwargs):
+        if dark:
+            self.dark = np.zeros(self.diode_dimension)
+            factor_cache = deepcopy(self.norm_factor)
+            self.norm_factor = np.ones(self.diode_dimension)
+        self.load_measurement()
+
+        param_list = []
+        for measurement in self.measurement_data:
+            try:
+                param_list.append(measurement[str(parameter)])
+            except KeyError:
+                print('The given parameter is not given for the chosen measurements!')
+                return None
+        param_list = set(param_list)
+        print(f'For the parameter {parameter} there are {len(param_list)} different values in the chosen measurements. '
+              f'A map for each of the values in {param_list} will be plotted!')
+        cache = deepcopy(self.measurement_data)
+        name = deepcopy(self.name)
+        for param in param_list:
+            self.measurement_data = [i for i in cache if i[parameter]==param]
+            if dark:
+                self.choose_dark_param([parameter, param])
+                self.norm_factor = factor_cache
+                self.update_measurement(dark=True, factor=True)
+            self.create_map(inverse=map_inverse)
+            self.name = name + f'_{parameter}={param}_'
+            self.plot_map(*args, **kwargs)
+
 
     def get_signal_xline(self, y_position=None, x_start=None, x_end=None, map_select=None):
         if map_select is None:

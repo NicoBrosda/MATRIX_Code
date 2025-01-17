@@ -16,38 +16,15 @@ mapping_map = data2.to_numpy().flatten()
 translated_mapping_small2 = np.array([direction2[np.argwhere(direction1 == i)[0][0]]-1 for i in mapping_map])
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_161224/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_161224/')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_161224/energy_imaging/')
 
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_161224/')
-
-readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=translated_mapping_small2), standard_position, standard_voltage, current3
-A = Analyzer((11, 11), 0.4, 0.1, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser)
-
-dark = ['exp1_dark_voltage_']
-A.set_dark_measurement(dark_path, dark)
-
-'''
-norm_path = folder_path
-norm = '8_2DSmall_yscan_'
-norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
-    list_of_files, instance, method, align_lines=True)
-A.normalization(norm_path, norm, normalization_module=norm_func)
-# '''
-
-A.set_measurement(folder_path, 'exp2_voltage_')
-# A.plot_for_parameter('voltage', True, [True, False], results_path / 'no_norm/', pixel='fill')
-
-# '''
 norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
 norm = '8_2DSmall_yscan_'
 norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
     list_of_files, instance, method, align_lines=True)
-A.normalization(norm_path, norm, normalization_module=norm_func)
-A.norm_factor[3][5] = 1
-A.norm_factor[4][5] = 1
-# '''
-A.set_measurement(folder_path, 'exp2_voltage_')
-# A.plot_for_parameter('voltage', True, [True, False], results_path / 'maps/', pixel='fill')
+
+readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=translated_mapping_small2), standard_position, standard_voltage, current3
 
 measurements = (['exp3_bragg_p01_']+[f'exp4_bragg_p0{i}_' for i in range(2, 10)]+
                 [f'exp4_bragg_p{i}_' for i in range(10, 21)]+['exp6_star_p01_', 'exp7_star_p06_', 'exp8_star_p06_',
@@ -74,6 +51,9 @@ for k, crit in enumerate(measurements[0:]):
     print('-'*50)
     print(crit)
     print('-'*50)
+    continue
+    if 'bragg' in crit:
+        continue
 
     A = Analyzer((11, 11), 0.4, 0.1, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser)
     A.set_measurement(folder_path, crit)
@@ -88,31 +68,69 @@ for k, crit in enumerate(measurements[0:]):
     A.load_measurement()
     A.create_map(inverse=[True, False])
 
-    intensity_limits = [0, np.max(A.maps[0]['z'])]
+    if 'exp6_' in crit:
+        intensity_limits = [0, np.max(A.maps[0]['z'])]
 
-    A.plot_map(results_path / 'maps/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill', intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel=False, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
-    A.plot_map(results_path / 'maps/', pixel=True, intensity_limits=intensity_limits, imshow=True)
+    if 'exp6_' in crit:
+        label = r'23.69$\,$MeV'  # P01
+        A.name = '_1_P01'
+    elif 'exp7_' in crit:
+        label = r'20.19$\,$MeV'  # P06
+        A.name = '_2_P06'
+    elif 'exp8_' in crit:
+        label = r'15.16$\,$MeV'  # P12
+        A.name = '_4_P12'
+    elif 'exp10_' in crit:
+        label = r'8.00$\,$MeV'  # P18
+        A.name = '_6_P18'
+    elif 'exp13_' in crit:
+        label = r'12.01$\,$MeV'  # P15
+        A.name = '_5_P15'
+    elif 'exp14_' in crit:
+        label = r'17.81$\,$MeV'  # P09
+        A.name = '_3_P09'
+
+    txt_posi = [0.03, 0.93]
+    A.plot_map(results_path / 'pixel/', pixel='fill', intensity_limits=intensity_limits, insert_txt=[txt_posi, label, 15])
+    A.plot_map(results_path / 'contour/', pixel=False, intensity_limits=intensity_limits, insert_txt=[txt_posi, label, 15])
 
 
-    A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
-    A.set_measurement(folder_path, crit)
-    A.load_measurement()
-    A.create_map(inverse=[True, False])
+import cv2
+import os
 
-    A.plot_map(results_path / 'raw/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'raw/', pixel='fill', intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'raw/', pixel=False, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'raw/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
+# Do 2 videos for contour and pixel: 1 with increased fps (x5) and with realistic fps (42 fpm = 0.7 fps)
+image_folder_pixel = results_path / 'pixel/'
+image_folder_contour = results_path / 'contour/'
 
-    A.set_dark_measurement(dark_path, dark)
-    A.update_measurement(factor=False)
-    A.create_map(inverse=[True, False])
+video_name_pixel_original = results_path / 'pixel.mp4'
+video_name_contour_original = results_path / 'contour.mp4'
 
-    A.plot_map(results_path / 'no_norm/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'no_norm/', pixel='fill', intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'no_norm/', pixel=False, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'no_norm/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
-# '''
+
+# videos of pixel images
+images = np.array([img for img in os.listdir(image_folder_pixel) if (img.endswith(".png"))])
+print(len(images))
+images = images[np.argsort([float(i[1:i.index('_P')]) for i in images])]
+frame = cv2.imread(os.path.join(image_folder_pixel, images[0]))
+height, width, layers = frame.shape
+
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Be sure to use lower case
+
+video = cv2.VideoWriter(video_name_pixel_original, fourcc, 0.5, (width, height))
+for image in images:
+    video.write(cv2.imread(os.path.join(image_folder_pixel, image)))
+cv2.destroyAllWindows()
+video.release()
+
+# videos of contour images
+images = np.array([img for img in os.listdir(image_folder_contour) if (img.endswith(".png"))])
+images = images[np.argsort([float(i[1:i.index('_P')]) for i in images])]
+frame = cv2.imread(os.path.join(image_folder_contour, images[0]))
+height, width, layers = frame.shape
+
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Be sure to use lower case
+
+video = cv2.VideoWriter(video_name_contour_original, fourcc, 0.5, (width, height))
+for image in images:
+    video.write(cv2.imread(os.path.join(image_folder_contour, image)))
+cv2.destroyAllWindows()
+video.release()
