@@ -361,7 +361,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
     else:
         bb = bbox
     # Saving of the figure and showing if necessary
-    if not os.path.exists(save_path):
+    if save_path is not None and not os.path.exists(save_path):
         os.makedirs(save_path)
     if save:
         if save_name == '':

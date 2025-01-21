@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from EvaluationSoftware.main import *
 from skimage.filters import threshold_multiotsu
+import time
 
 # Some calculations handmade to get a rough impression of the Grayscale Scan pixel size
 # Square aperture:
@@ -24,7 +25,9 @@ print((dLR + dUO) / 2)
 print('Round aperture pixel size (mm): ', 36.51/((dLR + dUO) / 2))
 
 # This calculated pixel size aligns with a resolution of 150 dpi - pixel size = 0.0026246733333333337 - I use this value
-pixel_size = 0.0026246733333333337
+# pixel_size = 0.0026246733333333337
+pixel_size = 1/9600 * 2.54 * 10  # The resolution of the scanner was set to 9600 ppi (ppp en Français)
+# - resulting in a pixel size of 0.0026458333333333334 mm - this is the real value to use!!!!
 
 # Paths to the Gafchromic Scans
 path1 = Path('/Users/nico_brosda/Cyrce_Messungen/Gafchromic_111024/')
@@ -34,9 +37,11 @@ gafimages2 = os.listdir(path2)
 
 gafimages = gafimages1 + gafimages2
 
-for i, gafimage in enumerate(gafimages[0:]):
+for i, gafimage in enumerate(gafimages[0:1]):
+    '''
     if not 'matrix211024_006.bmp' in gafimage:
         continue
+    # '''
     print(gafimage, gafimage[-4:])
     if not gafimage[-4:] == '.bmp':
         continue
@@ -48,8 +53,11 @@ for i, gafimage in enumerate(gafimages[0:]):
         results_path = path2
 
     # Load in the image
+    start = time.time()
     image = cv2.imread(full_path, cv2.IMREAD_GRAYSCALE)
     print(np.shape(image))
+    end = time.time()
+    print(end - start)
 
     # Generate the plot
     fig, ([ax1, ax2], [ax3, ax4]) = plt.subplots(2, 2)
