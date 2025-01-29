@@ -389,6 +389,149 @@ def align_and_compare_imagesv2(
 
     return diff_image, alignment_score
 
+
+def align_and_compare_imagesv3(
+    image_low_res,
+    image_high_res,
+    pixel_size_low,
+    pixel_size_high,
+    center_position=None,
+    rotation=0,
+    optimize_alignment=False,
+    optimization_method='gradient',
+    output_resolution="high",
+    force_downscaling=True,
+    max_runtime_minutes=10
+):
+    """
+    Align and compare two images, considering spatial extents and resolution differences.
+
+    Parameters:
+    -----------
+    image_low_res : np.ndarray
+        Lower-resolution image (values normalized between 0 and 1).
+    image_high_res : np.ndarray
+        Higher-resolution image (values normalized between 0 and 1).
+    pixel_size_low : float
+        Pixel size of the lower-resolution image.
+    pixel_size_high : float
+        Pixel size of the higher-resolution image.
+    center_position : tuple (optional)
+        (x, y) position to align the center of the images. Default is None.
+    rotation : float (optional)
+        Rotation angle (in degrees) to apply to the low-resolution image. Default is 0.
+    optimize_alignment : bool (optional)
+        Whether to optimize the alignment (minimize difference). Default is False.
+    optimization_method : str (optional)
+        Method for optimization: 'gradient', 'global_gradient', or 'evolutionary'. Default is 'gradient'.
+    output_resolution : str (optional)
+        "high" or "low" to specify the resolution of the output difference image. Default is "high".
+    force_downscaling : bool (optional)
+        Whether to force downscaling for high-res output if runtime estimation exceeds a threshold. Default is True.
+    max_runtime_minutes : int (optional)
+        Maximum allowed runtime (in minutes) for the optimization process. Default is 10.
+
+    Returns:
+    --------
+    diff_image : np.ndarray
+        Difference image after alignment.
+    alignment_score : float
+        Metric quantifying how well the images align (lower is better).
+    """
+
+    import numpy as np
+    from skimage.transform import resize, rotate
+    from scipy.optimize import minimize, differential_evolution
+    from scipy.ndimage import affine_transform
+    import time
+
+    def resample_image(image, original_pixel_size, target_pixel_size):
+        scale_factor = original_pixel_size / target_pixel_size
+        output_shape = (np.array(image.shape) * scale_factor).astype(int)
+        return resize(image, output_shape, mode='reflect', anti_aliasing=True)
+
+    def transform_image(image, rotation, center_shift):
+        # Rotate the image without reshape and apply center shift
+        rotated_image = rotate(image, rotation, order=1, mode='reflect')
+        shift_matrix = np.eye(3)
+        shift_matrix[:2, 2] = center_shift
+        transformed_image = affine_transform(
+            rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=1
+        )
+        return transformed_image
+
+    start_time = time.time()
+
+    if output_resolution == "high":
+        if force_downscaling:
+            high_res_downscaled = resample_image(image_high_res, pixel_size_high, pixel_size_low)
+            image_high_res_resampled = high_res_downscaled
+            image_low_res_resampled = resample_image(image_low_res, pixel_size_low, pixel_size_high)
+            target_pixel_size = pixel_size_high
+        else:
+            image_high_res_resampled = image_high_res
+            image_low_res_resampled = resample_image(image_low_res, pixel_size_low, pixel_size_high)
+            target_pixel_size = pixel_size_high
+
+    elif output_resolution == "low":
+        image_high_res_resampled = resample_image(image_high_res, pixel_size_high, pixel_size_low)
+        image_low_res_resampled = image_low_res
+        target_pixel_size = pixel_size_low
+    else:
+        raise ValueError("output_resolution must be 'high' or 'low'.")
+
+    if center_position is None:
+        center_shift = [0, 0]
+    else:
+        center_shift = list(center_position)
+
+    def alignment_metric(params):
+        rotation, shift_x, shift_y = params
+        transformed_low_res = transform_image(image_low_res_resampled, rotation, [shift_x, shift_y])
+
+        overlap = np.minimum(image_high_res_resampled.shape, transformed_low_res.shape)
+        high_res_cropped = image_high_res_resampled[:overlap[0], :overlap[1]]
+        low_res_cropped = transformed_low_res[:overlap[0], :overlap[1]]
+
+        diff = high_res_cropped - low_res_cropped
+        mse = np.mean(diff**2)
+
+        # Allow wider shifts but penalize large shifts less aggressively
+        shift_penalty = 0.001 * (shift_x**2 + shift_y**2)
+        return mse + shift_penalty
+
+    if optimize_alignment:
+        if optimization_method == 'gradient':
+            result = minimize(
+                alignment_metric,
+                [rotation, center_shift[0], center_shift[1]],
+                bounds=[(-20, 20), (-100, 100), (-100, 100)],
+                method="L-BFGS-B"
+            )
+            rotation, shift_x, shift_y = result.x
+
+        elif optimization_method == 'evolutionary':
+            bounds = [(-20, 20), (-100, 100), (-100, 100)]
+            result = differential_evolution(alignment_metric, bounds, maxiter=200, popsize=25)
+            rotation, shift_x, shift_y = result.x
+
+        else:
+            raise ValueError("Unsupported optimization_method. Choose 'gradient' or 'evolutionary'.")
+
+        center_shift = [shift_x, shift_y]
+
+    transformed_low_res = transform_image(image_low_res_resampled, rotation, center_shift)
+
+    overlap = np.minimum(image_high_res_resampled.shape, transformed_low_res.shape)
+    high_res_cropped = image_high_res_resampled[:overlap[0], :overlap[1]]
+    low_res_cropped = transformed_low_res[:overlap[0], :overlap[1]]
+    diff_image = high_res_cropped - low_res_cropped
+
+    alignment_score = np.mean((high_res_cropped - low_res_cropped) ** 2)
+
+    return diff_image, alignment_score
+
+
 '''
 # Example usage (with dummy data)
 low_res_image = np.random.rand(100, 100)

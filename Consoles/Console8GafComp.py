@@ -1,7 +1,7 @@
 from EvaluationSoftware.main import *
 import time
 import scipy as sp
-from Concept8GafMeasurementComparison import GafImage, align_and_compare_images, align_and_compare_imagesv2
+from Concept8GafMeasurementComparison import GafImage, align_and_compare_images, align_and_compare_imagesv2, align_and_compare_imagesv3
 
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 cmap2 = sns.color_palette('viridis', as_cmap=True)
@@ -31,7 +31,7 @@ dark_paths_array1 = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.
 norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 norm_array1 = ['2Line_YScan_']
 
-for k, crit in enumerate(new_measurements[0:]):
+for k, crit in enumerate(new_measurements[0:1]):
     print('-' * 50)
     print(crit)
     print('-' * 50)
@@ -114,10 +114,10 @@ for k, crit in enumerate(new_measurements[0:]):
     '''
     low_pixel_size = A.maps[0]['x'][1] - A.maps[0]['x'][0]
     diff, score = align_and_compare_imagesv2(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
-                                             Test.pixel_size, center_position=[0, 0], optimize_alignment=False,
+                                             Test.pixel_size, center_position=[0, 0], optimize_alignment=True,
                                              output_resolution='low')
-    diff2, score2 = align_and_compare_imagesv2(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
-                                               optimize_alignment=True, output_resolution='low')
+    diff2, score2 = align_and_compare_imagesv3(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+                                               optimize_alignment=True, output_resolution='low', optimization_method='gradient')
 
     # -------------------------------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------------------------------
