@@ -58,24 +58,63 @@ class GafImage:
         plt.show()
         plt.close('all')
 
-    def transform_to_normed(self):
+    def transform_to_normed(self, max_n=0):
+        start = time.time()
+
         # The transformation of the data into to 1 normed array
         thresholds = threshold_multiotsu(self.image)
+
+        print('Thresholds: ', time.time()-start)
+        start = time.time()
+
         self.image = self.image * 1.0  # This is a necessary change of the Greyscales np array data format to float!!!
+
+        print('Image floatization: ', time.time() - start)
+        start = time.time()
+
         # mean_GafFilm = bins[(bins > thresholds[0]) & (bins < thresholds[1])][np.argmax(n[(bins > thresholds[0]) & (bins < thresholds[1])])]
         mean_GafFilm = np.mean(self.image[(self.image > thresholds[0]) & (self.image < thresholds[1])])
         self.image[self.image > mean_GafFilm] = mean_GafFilm
-        # Now it is better to estimate the images maximum in a radius around the center to exclude the notes
+
+        print('Gaf Mean: ', time.time() - start)
+        start = time.time()
+
+        # Now it is better to estimate the response maximum (greyscale minimum) in a radius around the center
         radius = 10
         image_middle = np.array([np.shape(self.image)[1] // 2, np.shape(self.image)[0] // 2])
         ll_corner, ru_corner = image_middle - radius // pixel_size, image_middle + radius // pixel_size
         ll_corner, ru_corner = np.array(ll_corner, dtype=np.int64), np.array(ru_corner, dtype=np.int64)
+        image_region = self.image[ll_corner[1]:ru_corner[1], ll_corner[0]:ru_corner[0]]
+
+        print('Image middle region: ', time.time() - start)
+        start = time.time()
 
         # print(image_middle, ll_corner, ru_corner)
-        rest_max = np.max(self.image)
-        self.image = (self.image - rest_max) / np.min(
-            self.image[ll_corner[1]:ru_corner[1], ll_corner[0]:ru_corner[0]] - rest_max)
-        self.image[self.image > 1] = 1
+        rest_max = np.max(self.image)  # This is the right border in the image histogram (response lower border)
+        print(rest_max)
+        max_n = int(max_n)
+        if max_n <= 1:
+            min_value = np.min(image_region - rest_max)
+            print('MinValue: ', min_value)
+        elif max_n < np.multiply(*np.shape(self.image)):
+            min_value = np.mean(np.sort(image_region.flatten() - rest_max)[0:max_n])
+            print('MinValues: ', np.sort(image_region.flatten() - rest_max)[0:max_n])
+        else:
+            min_value = np.mean(np.sort(image_region.flatten() - rest_max)[0:int(np.multiply(*np.shape(self.image)))])
+            print('2MinValues: ', np.sort(image_region.flatten() - rest_max)[0:int(np.multiply(*np.shape(self.image)))])
+
+        print(min_value)
+        print('Max min calc: ', time.time() - start)
+        start = time.time()
+
+        # Image left border in the greyscale data (upper border in the response) -> critical for comparison !!!
+        self.image = (self.image - rest_max) / min_value
+        # self.image[self.image > 1] = 1
+
+        print('Image rebase: ', time.time() - start)
+
+        return min_value, rest_max
+
 
 
 '''

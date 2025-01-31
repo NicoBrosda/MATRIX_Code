@@ -1,3 +1,4 @@
+from Consoles.Concept8GafCompTests import func_calls
 from EvaluationSoftware.main import *
 import time
 import scipy as sp
@@ -15,6 +16,7 @@ readout, position_parser = lambda x, y: ams_2line_readout(x, y,
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/GafComp/')
+run_name = '_OptMethod_'
 
 new_measurements = ['_GafComp200_', '_GafComp400_', '_GafComp40_', '_GafCompLogo_', '_GafCompMisc_', '_GafCompPEEK_',
                     '_MouseFoot_', '_MouseFoot2_', '2Line_Beam_']
@@ -32,7 +34,7 @@ dark_paths_array1 = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.
 norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 norm_array1 = ['2Line_YScan_']
 
-for k, crit in enumerate(new_measurements[0:1]):
+for k, crit in enumerate(new_measurements[0:]):
     print('-' * 50)
     print(crit)
     print('-' * 50)
@@ -58,7 +60,7 @@ for k, crit in enumerate(new_measurements[0:1]):
     if 'matrix211024_006.bmp' in Gaf_map[k]:
         Test.image = Test.image[::-1]
         Test.image = Test.image[:, ::-1]
-    Test.transform_to_normed()
+    Test.transform_to_normed(max_n=1e5)
 
     print('-'*50)
 
@@ -68,21 +70,24 @@ for k, crit in enumerate(new_measurements[0:1]):
 
     print('-'*50)
 
-    start, start_score = align_and_compare_images(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
+    start, start_score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
                                            Test.pixel_size, image_down_sampled=down_samp, center_position=[0, 0],
                                            optimize_alignment=False)
     # Part I: Variation of penalty:
-    penalty = [0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2]
+    '''
+    rotation = [1, 2, 3, 4, 5, 6]
     results_grad = []
     results_evol = []
-    for pen in penalty:
+
+    for rot in rotation:
         diff, score = align_and_compare_images(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
-                                               Test.pixel_size, image_down_sampled=down_samp, center_position=[0, 0],
+                                               Test.pixel_size, image_down_sampled=down_samp,
+                                               center_position=[0, 0],
                                                optimize_alignment=True, optimization_method='gradient',
-                                               penalty_factor=pen)
+                                               bounds=(-rot, rot))
         diff2, score2 = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
                                                  image_down_sampled=down_samp, optimize_alignment=True,
-                                                 optimization_method='evolutionary', penalty_factor=pen)
+                                                 optimization_method='evolutionary', bounds=(-rot, rot))
         results_grad.append([np.abs(diff), score])
         results_evol.append(([np.abs(diff2), score2]))
 
@@ -97,13 +102,13 @@ for k, crit in enumerate(new_measurements[0:1]):
         sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map5.cmap)
         sm.set_array([])
         bar = fig.colorbar(sm, ax=ax, extend='max')
-        ax.set_title(f'Penalty factor = {penalty[i]} | Alignment Score = {score: .4f}')
+        ax.set_title(f'Max Rotation {rotation[i]}, Score {score: .4f}')
         ax.set_xlabel('Position x (mm)')
         ax.set_ylabel('Position y (mm)')
         bar.set_label('Difference between images')
 
     plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419)
-    name = A.name + 'Grad_overview_'
+    name = A.name + run_name +'GridGrad_overview_'
     format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
     # plt.show()
 
@@ -120,12 +125,113 @@ for k, crit in enumerate(new_measurements[0:1]):
         sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map5.cmap)
         sm.set_array([])
         bar = fig.colorbar(sm, ax=ax, extend='max')
-        ax.set_title(f'Penalty factor = {penalty[i]} | Alignment Score = {score: .4f}')
+        ax.set_title(f'Max Rotation {rotation[i]}, Score {score: .4f}')
         ax.set_xlabel('Position x (mm)')
         ax.set_ylabel('Position y (mm)')
         bar.set_label('Difference between images')
 
     plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419)
-    name = A.name + 'Evol_overview_'
+    name = A.name + run_name + 'Evol_overview_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
+    # plt.show()
+    # '''
+
+    maxiter = [50, 100, 200, 400, 1000, 5000]
+    popsize = [1, 5, 10, 25, 100, 500]
+    grad_n = [3, 5, 10, 15, 20, 30]
+    results_gradn = []
+    results_evol_max = []
+    results_evol_popsize = []
+
+    print('Evol Max N', ':'*50)
+
+    for i in maxiter:
+        diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+                                                 image_down_sampled=down_samp, optimize_alignment=True,
+                                                 optimization_method='evolutionary', ev_max_iter=i)
+        results_evol_max.append(([np.abs(diff), score, addition[2]]))
+        print(f'Optimization {start_score:.3f} -> {score:.3f} with rotation {addition[0]} and center shift {addition[1]} consuming {addition[2]} metric function calls.')
+        func_calls = 0
+
+    print('Evol Popsize', ':'*50)
+
+    for i in popsize:
+        diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+                                                 image_down_sampled=down_samp, optimize_alignment=True,
+                                                 optimization_method='evolutionary', ev_pop_size=i)
+        results_evol_popsize.append(([np.abs(diff), score, addition[2]]))
+        print(f'Optimization {start_score:.3f} -> {score:.3f} with rotation {addition[0]} and center shift {addition[1]} consuming {addition[2]} metric function calls.')
+        func_calls = 0
+
+
+    print('Grad max n', ':'*50)
+
+    for i in grad_n:
+        diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+                                                 image_down_sampled=down_samp, optimize_alignment=True,
+                                                 optimization_method='gradient', grid_n=i)
+        results_gradn.append(([np.abs(diff), score, addition[2]]))
+        print(f'Optimization {start_score:.3f} -> {score:.3f} with rotation {addition[0]} and center shift {addition[1]} consuming {addition[2]} metric function calls.')
+        func_calls = 0
+
+    fig, axes = plt.subplots(3, 2)
+    for i, ax in enumerate(axes.flatten()):
+        diff = results_gradn[i][0]
+        score = results_gradn[i][1]
+        color_map5 = ax.imshow(diff, vmin=0, vmax=1,
+                               extent=(0, np.shape(diff)[1] * low_pixel_size, 0, np.shape(diff)[0] * low_pixel_size))
+        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map5.cmap)
+        sm.set_array([])
+        bar = fig.colorbar(sm, ax=ax, extend='max')
+        ax.set_title(f'{grad_n[i]} start points, FuncCalls {results_gradn[i][2]} \n Score {start_score:.7f} -to- {score: .7f}')
+        ax.set_xlabel('Position x (mm)')
+        ax.set_ylabel('Position y (mm)')
+        bar.set_label('Difference between images')
+
+    plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419)
+    name = A.name + run_name + 'GridGrad_overview_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
+    # plt.show()
+
+    fig, axes = plt.subplots(3, 2)
+    for i, ax in enumerate(axes.flatten()):
+        diff = results_evol_max[i][0]
+        score = results_evol_max[i][1]
+        color_map5 = ax.imshow(diff, vmin=0, vmax=1,
+                               extent=(0, np.shape(diff)[1] * low_pixel_size, 0, np.shape(diff)[0] * low_pixel_size))
+        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map5.cmap)
+        sm.set_array([])
+        bar = fig.colorbar(sm, ax=ax, extend='max')
+        ax.set_title(
+            f'{maxiter[i]} max iterations, FuncCalls {results_evol_max[i][2]} \n Score {start_score:.7f} -to- {score: .7f}')
+        ax.set_xlabel('Position x (mm)')
+        ax.set_ylabel('Position y (mm)')
+        bar.set_label('Difference between images')
+
+    plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419)
+    name = A.name + run_name + 'MaxiterEvol_overview_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
+    # plt.show()
+
+    fig, axes = plt.subplots(3, 2)
+    for i, ax in enumerate(axes.flatten()):
+        diff = results_evol_popsize[i][0]
+        score = results_evol_popsize[i][1]
+        color_map5 = ax.imshow(diff, vmin=0, vmax=1,
+                               extent=(0, np.shape(diff)[1] * low_pixel_size, 0, np.shape(diff)[0] * low_pixel_size))
+        norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+        sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map5.cmap)
+        sm.set_array([])
+        bar = fig.colorbar(sm, ax=ax, extend='max')
+        ax.set_title(
+            f'{popsize[i]} Popsize, FuncCalls {results_evol_popsize[i][2]} \n Score {start_score:.7f} -to- {score: .7f}')
+        ax.set_xlabel('Position x (mm)')
+        ax.set_ylabel('Position y (mm)')
+        bar.set_label('Difference between images')
+
+    plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419)
+    name = A.name + run_name + 'PopsizeEvol_overview_'
     format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
     # plt.show()
