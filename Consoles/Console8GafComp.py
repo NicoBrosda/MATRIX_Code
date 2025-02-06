@@ -50,8 +50,16 @@ for k, crit in enumerate(new_measurements[0:]):
     for i, image_map in enumerate(A.maps):
         A.maps[i]['z'] = simple_zero_replace(image_map['z'])
 
+    print(np.shape(A.maps[0]['z']))
+    print(A.maps[0]['x'][1] - A.maps[0]['x'][0])
+    print(A.maps[0]['y'][1] - A.maps[0]['y'][0])
+
+
     A.maps[0]['x'], A.maps[0]['y'], A.maps[0]['z'] = homogenize_pixel_size(
         [A.maps[0]['x'], A.maps[0]['y'], np.abs(A.maps[0]['z']) / np.max(A.maps[0]['z'])])
+
+    print(np.shape(A.maps[0]['z']))
+    print(A.maps[0]['x'][1] - A.maps[0]['x'][0])
 
     Test = GafImage(Gaf_path / Gaf_map[k])
     Test.load_image()
@@ -60,6 +68,7 @@ for k, crit in enumerate(new_measurements[0:]):
         Test.image = Test.image[:, ::-1]
     Test.transform_to_normed(max_n=1e5)
     print('-' * 50)
+
     '''
     print(len(A.maps[0]['x']))
     print(A.maps[0]['x'])
@@ -121,7 +130,7 @@ for k, crit in enumerate(new_measurements[0:]):
                                              Test.pixel_size, center_position=[0, 0], optimize_alignment=False,
                                            image_down_sampled=down_samp)
     diff2, score2, addition2 = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
-                                               optimize_alignment=True, bounds=(-3, 3), ev_max_iter=500, ev_pop_size=10,
+                                               optimize_alignment=True, bounds=(-5, 5), ev_max_iter=500, ev_pop_size=10,
                                                optimization_method='evolutionary', image_down_sampled=down_samp)
 
     # -------------------------------------------------------------------------------------------------------------------
@@ -139,7 +148,7 @@ for k, crit in enumerate(new_measurements[0:]):
     ax1.set_title(f'Alignment Score = {score2: .4f}')
     bar.set_label('Difference between images')
 
-    ax2.hist(diff2.flatten(), bins=100)
+    ax2.hist(diff2.flatten(), bins=100, color='k')
     ax2.set_xlabel('Differences between normed maps')
     plot_size = (latex_textwidth * 3, latex_textwidth / 1.5 / 1.2419)
     name = A.name + '_HistogramNotNormed_'
@@ -180,12 +189,12 @@ for k, crit in enumerate(new_measurements[0:]):
     # -------------------------------------------------------------------------------------------------------------------
     # Ax3: Plot of GafImage transformed
     # -------------------------------------------------------------------------------------------------------------------
-    ax3.hist(A.maps[0]['z'].flatten(), bins=100)
+    ax3.hist(A.maps[0]['z'].flatten(), bins=100, color='k')
     ax3.set_xlabel('Normed signal')
     # -------------------------------------------------------------------------------------------------------------------
     # Ax4: Plot of GafImage transformed
     # -------------------------------------------------------------------------------------------------------------------
-    ax4.hist(Test.image.flatten(), bins=100)
+    ax4.hist(Test.image.flatten(), bins=100, color='k')
     ax4.set_xlabel('Gafchromic response')
     # -------------------------------------------------------------------------------------------------------------------
     # Ax5: Plot of GafImage transformed
@@ -286,12 +295,235 @@ for k, crit in enumerate(new_measurements[0:]):
     ax1.set_title(f'Alignment Score = {score2: .4f}')
     bar.set_label('Difference between images')
 
-    ax2.hist(diff2.flatten(), bins=100)
+    ax2.hist(diff2.flatten(), bins=100, color='k')
     ax2.set_xlabel('Differences between normed maps')
     plot_size = (latex_textwidth * 3, latex_textwidth / 1.5 / 1.2419)
     name = A.name + '_HistogramNormed_'
     format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig)
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+    # ------------------------------------------------------------------------------------------------------------------
+    # Ax1: Plot of original map normed to 1
+    # ------------------------------------------------------------------------------------------------------------------
+    color_map1 = ax1.imshow(A.maps[0]['z'], cmap=cmap, vmin=0, vmax=1, extent=(
+        np.min(A.maps[0]['x']), np.max(A.maps[0]['x']), np.min(A.maps[0]['y']), np.max(A.maps[0]['y'])))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map1.cmap)
+    sm.set_array([])
+    bar1 = fig.colorbar(sm, ax=ax1, extend='max')
+    ax1.set_xlabel('Position x (mm)')
+    ax1.set_ylabel('Position y (mm)')
+    bar1.set_label('Normed Signal')
+    # -------------------------------------------------------------------------------------------------------------------
+    # Ax2: Plot of GafImage transformed
+    # -------------------------------------------------------------------------------------------------------------------
+    color_map2 = ax2.imshow(Test.image, cmap=cmap, vmin=0, vmax=1, extent=(
+        0, np.shape(Test.image)[1] * Test.pixel_size, 0, np.shape(Test.image)[0] * Test.pixel_size))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
+    sm.set_array([])
+    bar2 = fig.colorbar(sm, ax=ax2, extend='max')
+    ax2.set_xlabel('Position x (mm)')
+    ax2.set_ylabel('Position y (mm)')
+    bar2.set_label('Gafchromic response')
+    # -------------------------------------------------------------------------------------------------------------------
+    # Ax3: Plot of GafImage transformed
+    # -------------------------------------------------------------------------------------------------------------------
+    print(np.min(diff2), np.max(diff2))
+    color_map3 = ax3.imshow(diff2, vmin=0, vmax=1,
+                            extent=(0, np.shape(diff2)[1] * low_pixel_size, 0, np.shape(diff2)[0] * low_pixel_size))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map3.cmap)
+    sm.set_array([])
+    bar3 = fig.colorbar(sm, ax=ax3, extend='max')
+    ax3.set_title(f'Alignment Score = {score2: .4f}')
+    ax3.set_xlabel('Position x (mm)')
+    ax3.set_ylabel('Position y (mm)')
+    bar3.set_label('Difference between images')
+    # -------------------------------------------------------------------------------------------------------------------
+    # Ax4: Plot of GafImage transformed
+    # -------------------------------------------------------------------------------------------------------------------
+    color_map4 = ax4.imshow(diff2, vmin=0, vmax=0.3,
+                            extent=(0, np.shape(diff2)[1] * low_pixel_size, 0, np.shape(diff2)[0] * low_pixel_size))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=0.3)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map4.cmap)
+    sm.set_array([])
+    bar4 = fig.colorbar(sm, ax=ax4, extend='max')
+    ax4.set_xlabel('Position x (mm)')
+    ax4.set_ylabel('Position y (mm)')
+    ax4.set_title(f'Alignment Score = {score2: .4f}')
+    bar4.set_label('Difference between images')
+
+    plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419 * 2 / 3)
+    name = A.name + '_MapsBeforeAfter_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
+    # plt.show()
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+    # ------------------------------------------------------------------------------------------------------------------
+    # Ax1: Plot of original map normed to 1
+    # ------------------------------------------------------------------------------------------------------------------
+    color_map1 = ax1.imshow(A.maps[0]['z'], cmap=cmap, vmin=0, vmax=1, extent=(
+        np.min(A.maps[0]['x']), np.max(A.maps[0]['x']), np.min(A.maps[0]['y']), np.max(A.maps[0]['y'])))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map1.cmap)
+    sm.set_array([])
+    bar1 = fig.colorbar(sm, ax=ax1, extend='max')
+    ax1.set_xlabel('Position x (mm)')
+    ax1.set_ylabel('Position y (mm)')
+    bar1.set_label('Normed Signal')
+    # -------------------------------------------------------------------------------------------------------------------
+    # Ax2: Plot of GafImage transformed
+    # -------------------------------------------------------------------------------------------------------------------
+    color_map2 = ax2.imshow(Test.image, cmap=cmap, vmin=0, vmax=1, extent=(
+        0, np.shape(Test.image)[1] * Test.pixel_size, 0, np.shape(Test.image)[0] * Test.pixel_size))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
+    sm.set_array([])
+    bar2 = fig.colorbar(sm, ax=ax2, extend='max')
+    ax2.set_xlabel('Position x (mm)')
+    ax2.set_ylabel('Position y (mm)')
+    bar2.set_label('Gafchromic response')
+    # -------------------------------------------------------------------------------------------------------------------
+    # Ax4: Plot of GafImage transformed
+    # -------------------------------------------------------------------------------------------------------------------
+    print(np.min(diff2), np.max(diff2))
+    color_map4 = ax4.imshow(diff2, vmin=0, vmax=1,
+                            extent=(0, np.shape(diff2)[1] * low_pixel_size, 0, np.shape(diff2)[0] * low_pixel_size))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map4.cmap)
+    sm.set_array([])
+    bar4 = fig.colorbar(sm, ax=ax4, extend='max')
+    ax4.set_title(f'Alignment Score = {score2: .4f}')
+    ax4.set_xlabel('Position x (mm)')
+    ax4.set_ylabel('Position y (mm)')
+    bar4.set_label('Difference between images')
+    # -------------------------------------------------------------------------------------------------------------------
+    # Ax3: Plot of GafImage transformed
+    # -------------------------------------------------------------------------------------------------------------------
+    image1 = addition2[-2]
+    image2 = addition2[-1]
+
+    # Erstellen des RGB-Bildes (Rot für A, Blau für B)
+    rgb_overlay = np.zeros((image1.shape[0], image1.shape[1], 3))  # Leeres RGB-Bild
+    rgb_overlay[..., 0] = image1 # Rot-Kanal für Bild A
+    rgb_overlay[..., 2] = image2  # Blau-Kanal für Bild B
+
+    # Anzeigen mit Matplotlib
+    color_map4 = ax3.imshow(rgb_overlay,
+                            extent=(0, np.shape(image1)[1] * low_pixel_size, 0, np.shape(image1)[0] * low_pixel_size))
+    '''
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map4.cmap)
+    sm.set_array([])
+    bar4 = fig.colorbar(sm, ax=ax4, extend='max')
+    bar4.set_label('Difference between images')
+    '''
+
+    ax3.set_xlabel('Position x (mm)')
+    ax3.set_ylabel('Position y (mm)')
+    ax3.set_title("Red=Gafchromic, Blue=MATRIX, \n Pink=Overlaying Features")
+
+    plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419 * 2 / 3)
+    name = A.name + '_MapsDifferentMethods_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
+    # plt.show()
+
+    # -------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------------------------------
+
+    fig, ax = plt.subplots()
+    image1 = addition2[-2]  # Gaf Image
+    image2 = addition2[-1]  # Measured Image
+
+    # Erstellen des RGB-Bildes (Rot für A, Blau für B)
+    rgb_overlay = np.zeros((image1.shape[0], image1.shape[1], 3))  # Leeres RGB-Bild
+    rgb_overlay[..., 0] = image1  # Rot-Kanal für Bild A
+    rgb_overlay[..., 2] = image2  # Blau-Kanal für Bild B
+
+    # Anzeigen mit Matplotlib
+    color_map = ax.imshow(rgb_overlay,
+                            extent=(0, np.shape(image1)[1] * low_pixel_size, 0, np.shape(image1)[0] * low_pixel_size))
+    '''
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+    sm.set_array([])
+    bar = fig.colorbar(sm, ax=ax, extend='max')
+    bar.set_label('Difference between images')
+    '''
+    ax.set_xlabel('Position x (mm)')
+    ax.set_ylabel('Position y (mm)')
+    plt.title("Red=Gafchromic, Blue=MATRIX, \n Pink=Overlaying Features")
+
+    # plot_size = (latex_textwidth * 1.5, latex_textwidth * 2.5 / 1.2419 * 2 / 3)
+    name = A.name + '_CompMethod2_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    fig, (ax3, ax4) = plt.subplots(1, 2)
+    n, bins, patches = ax3.hist(A.maps[0]['z'].flatten(), bins=100, color='k')
+    ax3.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
+    ax3.set_xlabel('Normed signal')
+
+    n, bins, patches = ax4.hist(Test.image.flatten(), bins=100, color='k')
+    ax4.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
+    ax4.set_xlabel('Gafchromic response')
+
+    name = A.name + '_HistComp_'
+    plot_size = (latex_textwidth * 1.5, latex_textwidth / 1.2419)
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    fig, (ax3, ax4) = plt.subplots(1, 2)
+    n, bins, patches = ax3.hist(A.maps[0]['z'].flatten(), bins=100, color='b')
+    ax3.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
+    ax3.set_title('MATRIX')
+    ax3.set_xlabel('Normed signal')
+
+    n, bins, patches = ax4.hist(down_samp.flatten(), bins=100, color='r')
+    ax4.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
+    ax4.set_title('Gafchromic')
+    ax4.set_xlabel('Gafchromic response Downsampled')
+
+    name = A.name + '_HistComp_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    fig, (ax3, ax4) = plt.subplots(1, 2)
+    n, bins, patches = ax3.hist(A.maps[0]['z'].flatten(), bins=100, color='b')
+    ax3.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
+    ax3.set_xlabel('Normed signal')
+
+    n, bins, patches = ax4.hist(down_samp.flatten(), bins=100, color='r')
+    ax4.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
+    ax4.set_xlabel('Gafchromic response Downsampled')
+    ax3.set_title('MATRIX')
+    ax4.set_title('Gafchromic')
 
 
+    name = A.name + '_HistCompDownSamp_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig)
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+
+    fig, ax = plt.subplots()
+    n2, bins2, patches2 = ax.hist(down_samp.flatten(), bins=100, color='r', label='Gafchromic', alpha=0.7)
+    n1, bins1, patches1 = ax.hist(A.maps[0]['z'].flatten(), bins=100, color='b', label='MATRIX', alpha=0.7)
+    ax.set_xlabel('Normed signal')
+    ax.set_ylim(0, max(np.max(n1[bins1[:-1] > 0.2]), np.max(n2[bins2[:-1] > 0.2])))
+
+    name = A.name + '_HistCompDownSamp_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=True, fig=fig)

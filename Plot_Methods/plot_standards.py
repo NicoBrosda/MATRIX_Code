@@ -77,28 +77,29 @@ if use_LaTeX:
 
 
 # This defines a simple standard layout, all plots at our chair (and in general) should fulfill:
-def afp_layout(axes=None, *arg, **kwarg):
+def afp_layout(axes=None, second_axis=False, *arg, **kwarg):
     # Here it is important to hand axes if they deviate from the currently used standard axes of a plot
     if axes is None:
         axes = plt.gcf().get_axes()
     # Boxed, ticks inside the axes, no grid lines in plot
     for ax in axes:
         ax.grid(which='both', visible=False)
-        ax.tick_params(which='both', direction='in')
-    if len(axes) == 1:
-        axes[0].tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
-    elif len(axes) == 2:
-        axes[0].tick_params(which='both', direction='in', top=True, right=False, left=True, bottom=True)
-        axes[1].tick_params(which='both', direction='in', top=True, right=True, left=False, bottom=True)
+        ax.tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
+    if second_axis:
+        if len(axes) == 1:
+            axes[0].tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
+        elif len(axes) == 2:
+            axes[0].tick_params(which='both', direction='in', top=True, right=False, left=True, bottom=True)
+            axes[1].tick_params(which='both', direction='in', top=True, right=True, left=False, bottom=True)
 
 
 # I wrapped the afp_layout in another functions that allows deviations from the layout without touching the standards
 # from our chair
-def standard_layout(axes=None, *args, **kwargs):
+def standard_layout(axes=None, second_axis=False, *args, **kwargs):
     if axes is None:
         axes = plt.gcf().get_axes()
 
-    afp_layout(axes, *args, **kwargs)
+    afp_layout(axes, *args, second_axis=second_axis, **kwargs)
 
 
 # Python consists of a standard colour cycle for plots on the same axes. With the code below it is possible to change
@@ -285,6 +286,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
             no_colorbar.append(False)
         else:
             no_colorbar.append(True)
+
 
     # string formatting
     cache = [[], []]

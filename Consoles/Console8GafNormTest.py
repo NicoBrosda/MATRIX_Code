@@ -112,7 +112,7 @@ for k, crit in enumerate(new_measurements[0:]):
     for i, ax in enumerate(axes.flatten()):
         image = cache[i]
         n = max_n[i]
-        color_map = ax.hist(image.flatten(), bins=100)
+        color_map = ax.hist(image.flatten(), bins=100, color='k')
         ax.axvline(0, color='red')
         ax.axvline(1, color='red')
         ax.set_xlim(-0.05, 1.1)
@@ -138,10 +138,10 @@ for k, crit in enumerate(new_measurements[0:]):
         ax.axvline(cache2[i][0]+cache2[i][1], color=color_cycle[i], label=f'Max n = {n:.1e}')
         ax.axvline(cache2[i][1], color=color_cycle[i])
 
-    ax.hist(image.flatten(), bins=100)
+    ax.hist(image.flatten(), bins=100, color='k')
     ax.set_xlabel('Gafchromic response (normed to 1)')
 
     name = run_name + '_GafHistBefore_'
-    format_save(results_path / A.name, save_name=name, save=True, legend=True, fig=fig, plot_size=plot_size)
+    format_save(results_path / A.name, save_name=name, save=True, legend=True, fig=fig)
     # plt.show()
     print('Plot HistBefore: ', time.time() - start)

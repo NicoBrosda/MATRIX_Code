@@ -87,6 +87,7 @@ def align_and_compare_images(
     diff_x = abs((image_high_res_resampled.shape[1] * target_pixel_size) - (image_high_res.shape[1] * pixel_size_high))
     print(f'{diff_x} difference on image x axis - equal to {diff_x/target_pixel_size} pixels')
     print(f'{diff_y} difference on image y axis - equal to {diff_y/target_pixel_size} pixels')
+    print(f'Shape of resampled image is {np.shape(image_high_res_resampled)} and from low res image {np.shape(image_low_res_resampled)}')
 
     max_shape = (
         max(image_high_res_resampled.shape[0], image_low_res_resampled.shape[0]),
@@ -176,4 +177,4 @@ def align_and_compare_images(
 
     alignment_score = np.mean(diff_image[valid_mask] ** 2) if valid_mask.any() else np.inf
 
-    return diff_image, alignment_score, (rotation, center_shift, func_calls)
+    return diff_image, alignment_score, (rotation, center_shift, func_calls, image_high_res_padded, transformed_low_res)

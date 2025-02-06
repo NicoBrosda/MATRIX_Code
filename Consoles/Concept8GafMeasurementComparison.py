@@ -3,9 +3,123 @@ import cv2
 import matplotlib.pyplot as plt
 from skimage.filters import threshold_multiotsu
 import time
+from scipy.stats import gaussian_kde
+from scipy.optimize import curve_fit
 
 
-pixel_size = 1/9600 * 2.54 * 10
+def gaussian(x, a, mu, sigma):
+    return a * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+
+def estimate_distribution_center(image_data, area, method="hist_peak"):
+    """
+    Estimate the center of a distribution in image data using different methods.
+
+    Parameters:
+    - image_data (np.ndarray): Input image data.
+    - area (tuple): (threshold1, upper_border) defining the range of interest.
+    - method (str): One of ['hist_peak', 'median', 'kde_peak', 'fwhm'].
+
+    Returns:
+    - float: Estimated center of the distribution.
+    """
+    threshold1, upper_border = area
+    filtered_data = image_data[(image_data > threshold1) & (image_data <= upper_border)]
+    if filtered_data.size == 0:
+        return None  # Return None if no data in the range
+
+    start_time = time.time()
+    center = None
+
+    if method == "hist_peak":
+        # Histogram-based peak detection + Gaussian fit
+        hist, bin_edges = np.histogram(filtered_data, bins=30)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        peak_idx = np.argmax(hist)
+        initial_mu = bin_centers[peak_idx]
+
+        try:
+            popt, _ = curve_fit(gaussian, bin_centers, hist, p0=[np.max(hist), initial_mu, np.std(filtered_data)])
+            center = popt[1]  # Mean of the Gaussian fit
+        except:
+            center = initial_mu  # Fallback to histogram peak if fit fails
+
+    elif method == "median":
+        center = np.median(filtered_data)
+
+    elif method == "kde_peak":
+        # Limit KDE computation to a subset if too many points
+        sample_size = min(len(filtered_data), 5000)
+        sample_data = np.random.choice(filtered_data, sample_size, replace=False)
+        kde = gaussian_kde(sample_data)
+        x_vals = np.linspace(threshold1, upper_border, 500)  # Reduce evaluation points
+        density = kde(x_vals)
+        center = x_vals[np.argmax(density)]
+
+    elif method == "fwhm":
+        sample_size = min(len(filtered_data), 5000)
+        sample_data = np.random.choice(filtered_data, sample_size, replace=False)
+        kde = gaussian_kde(sample_data)
+        x_vals = np.linspace(threshold1, upper_border, 500)  # Reduce evaluation points
+        density = kde(x_vals)
+        peak_idx = np.argmax(density)
+        peak_value = density[peak_idx]
+        half_max = peak_value / 2
+
+        left_idx = np.where(density[:peak_idx] < half_max)[0]
+        right_idx = np.where(density[peak_idx:] < half_max)[0]
+
+        if len(left_idx) > 0 and len(right_idx) > 0:
+            left_fwhm = x_vals[left_idx[-1]]
+            right_fwhm = x_vals[peak_idx + right_idx[0]]
+            center = (left_fwhm + right_fwhm) / 2
+        else:
+            center = x_vals[peak_idx]  # Fallback to peak if FWHM fails
+
+    end_time = time.time()
+    # print(f"Method: {method}, Estimated Center: {center:.2f}, Time: {end_time - start_time:.5f} sec")
+
+    return center
+
+
+def evaluate_methods(image_data, area, n_bootstrap=100):
+    """
+    Evaluate different estimation methods using bootstrap resampling.
+
+    Parameters:
+    - image_data (np.ndarray): Input image data.
+    - area (tuple): (threshold1, upper_border) defining the range of interest.
+    - n_bootstrap (int): Number of bootstrap samples to estimate variability.
+
+    Returns:
+    - dict: Mean estimated center and standard deviation for each method.
+    """
+    methods = ["hist_peak", "median", "kde_peak", "fwhm"]
+    results = {method: [] for method in methods}
+
+    filtered_data = image_data[(image_data > area[0]) & (image_data <= area[1])]
+    if filtered_data.size == 0:
+        print("No data in specified area.")
+        return {}
+
+    sample_size = max(len(filtered_data) // 100, 100)  # Limit subset size
+
+    for _ in tqdm(range(n_bootstrap)):
+        bootstrap_sample = np.random.choice(filtered_data, size=sample_size, replace=True)
+        for method in methods:
+            estimated_center = estimate_distribution_center(bootstrap_sample, area, method)
+            if estimated_center is not None:
+                results[method].append(estimated_center)
+
+    summary = {}
+    print("\nBootstrap Evaluation Results:")
+    for method, estimates in results.items():
+        mean_center = np.mean(estimates)
+        std_dev = np.std(estimates)
+        summary[method] = {"Mean Estimated Center": mean_center, "Std Dev": std_dev}
+        print(f"{method}: Mean Center = {mean_center:.2f}, Std Dev = {std_dev:.2f}")
+
+    return summary
 
 
 class GafImage:
@@ -41,12 +155,12 @@ class GafImage:
         if np.max(self.image) > 1:
             color_map2 = ax.imshow(self.image, cmap='gray', vmin=0, vmax=255,
                                    extent=(
-                                   0, np.shape(self.image)[1] * pixel_size, 0, np.shape(self.image)[0] * pixel_size))
+                                   0, np.shape(self.image)[1] * self.pixel_size, 0, np.shape(self.image)[0] * self.pixel_size))
             norm = matplotlib.colors.Normalize(vmin=0, vmax=255)
         else:
             color_map2 = ax.imshow(self.image, cmap=cmap, vmin=0, vmax=1,
                                    extent=(
-                                   0, np.shape(self.image)[1] * pixel_size, 0, np.shape(self.image)[0] * pixel_size))
+                                   0, np.shape(self.image)[1] * self.pixel_size, 0, np.shape(self.image)[0] * self.pixel_size))
             norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
         sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
         sm.set_array([])
@@ -73,7 +187,7 @@ class GafImage:
         start = time.time()
 
         # mean_GafFilm = bins[(bins > thresholds[0]) & (bins < thresholds[1])][np.argmax(n[(bins > thresholds[0]) & (bins < thresholds[1])])]
-        mean_GafFilm = np.mean(self.image[(self.image > thresholds[0]) & (self.image < thresholds[1])])
+        mean_GafFilm = np.median(self.image[self.image > thresholds[0]])
         self.image[self.image > mean_GafFilm] = mean_GafFilm
 
         print('Gaf Mean: ', time.time() - start)
@@ -82,7 +196,7 @@ class GafImage:
         # Now it is better to estimate the response maximum (greyscale minimum) in a radius around the center
         radius = 10
         image_middle = np.array([np.shape(self.image)[1] // 2, np.shape(self.image)[0] // 2])
-        ll_corner, ru_corner = image_middle - radius // pixel_size, image_middle + radius // pixel_size
+        ll_corner, ru_corner = image_middle - radius // self.pixel_size, image_middle + radius // self.pixel_size
         ll_corner, ru_corner = np.array(ll_corner, dtype=np.int64), np.array(ru_corner, dtype=np.int64)
         image_region = self.image[ll_corner[1]:ru_corner[1], ll_corner[0]:ru_corner[0]]
 
@@ -109,7 +223,7 @@ class GafImage:
 
         # Image left border in the greyscale data (upper border in the response) -> critical for comparison !!!
         self.image = (self.image - rest_max) / min_value
-        # self.image[self.image > 1] = 1
+        self.image[self.image > 1] = 1
 
         print('Image rebase: ', time.time() - start)
 
