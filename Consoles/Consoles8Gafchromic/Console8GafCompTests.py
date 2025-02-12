@@ -1,14 +1,11 @@
-from Consoles.Concept8GafCompTests import func_calls
 from EvaluationSoftware.main import *
-import time
-import scipy as sp
 from Concept8GafMeasurementComparison import GafImage
 from Concept8GafCompTests import align_and_compare_images, resample_image
 
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 cmap2 = sns.color_palette('viridis', as_cmap=True)
 
-mapping = Path('../Files/mapping.xlsx')
+mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
 readout, position_parser = lambda x, y: ams_2line_readout(x, y,
@@ -16,7 +13,7 @@ readout, position_parser = lambda x, y: ams_2line_readout(x, y,
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/GafComp/')
-run_name = '_OptMethod_'
+run_name = '_MaxShift_'
 
 new_measurements = ['_GafComp200_', '_GafComp400_', '_GafComp40_', '_GafCompLogo_', '_GafCompMisc_', '_GafCompPEEK_',
                     '_MouseFoot_', '_MouseFoot2_', '2Line_Beam_']
@@ -35,6 +32,8 @@ norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 norm_array1 = ['2Line_YScan_']
 
 for k, crit in enumerate(new_measurements[0:]):
+    if not 'PEEK' in crit:
+        continue
     print('-' * 50)
     print(crit)
     print('-' * 50)
@@ -55,39 +54,55 @@ for k, crit in enumerate(new_measurements[0:]):
     A.maps[0]['x'], A.maps[0]['y'], A.maps[0]['z'] = homogenize_pixel_size(
         [A.maps[0]['x'], A.maps[0]['y'], np.abs(A.maps[0]['z']) / np.max(A.maps[0]['z'])])
 
-    Test = GafImage(Gaf_path / Gaf_map[k])
-    Test.load_image()
+    OriginalGaf = GafImage(Gaf_path / Gaf_map[k])
+    OriginalGaf.load_image()
     if 'matrix211024_006.bmp' in Gaf_map[k]:
-        Test.image = Test.image[::-1]
-        Test.image = Test.image[:, ::-1]
-    Test.transform_to_normed(max_n=1e5)
+        OriginalGaf.image = OriginalGaf.image[::-1]
+        OriginalGaf.image = OriginalGaf.image[:, ::-1]
+    OriginalGaf.transform_to_normed(max_n=1e5)
 
     print('-'*50)
 
     # Image down sampling (global to save time):
     low_pixel_size = A.maps[0]['x'][1] - A.maps[0]['x'][0]
-    down_samp = resample_image(Test.image, Test.pixel_size, low_pixel_size)
+    DownSampGaf = GafImage(Gaf_path / Gaf_map[k])
+    quick_load = ((Gaf_path / Gaf_map[k]).parent / 'QuickLoads') / (Gaf_map[k][:-4] + '.npy')
+    print(quick_load)
+    if os.path.isfile(quick_load):
+        DownSampGaf.load_image(quick=True)
+        down_samp = DownSampGaf.image
+    else:
+        down_samp = resample_image(OriginalGaf.image, OriginalGaf.pixel_size, low_pixel_size)
+        DownSampGaf.image = down_samp
+        DownSampGaf.save_image(quick_load.parent)
 
     print('-'*50)
 
-    start, start_score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
-                                           Test.pixel_size, image_down_sampled=down_samp, center_position=[0, 0],
+    start, start_score, addition = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
+                                           OriginalGaf.pixel_size, image_down_sampled=down_samp, center_position=[0, 0],
                                            optimize_alignment=False)
     # Part I: Variation of penalty:
-    '''
-    rotation = [1, 2, 3, 4, 5, 6]
+    # '''
+    rotation = [0, 3, 5, 10, 15, 30]
+    max_shift = [20, 10, 8, 6, 4, 2]
+    max_shape = (
+        max(down_samp.shape[0], A.maps[0]['z'].shape[0]),
+        max(down_samp.shape[1], A.maps[0]['z'].shape[1])
+    )
     results_grad = []
     results_evol = []
 
-    for rot in rotation:
-        diff, score = align_and_compare_images(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
-                                               Test.pixel_size, image_down_sampled=down_samp,
+    # for rot in rotation:
+    for shift in max_shift:
+        bounds = [(-30, 30), (-max_shape[0] // shift, max_shape[0] // shift), (-max_shape[1] // shift, max_shape[1] // shift)]
+        diff, score, addition1 = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
+                                               OriginalGaf.pixel_size, image_down_sampled=down_samp,
                                                center_position=[0, 0],
                                                optimize_alignment=True, optimization_method='gradient',
-                                               bounds=(-rot, rot))
-        diff2, score2 = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+                                               bounds=bounds)
+        diff2, score2, addition2 = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, low_pixel_size, OriginalGaf.pixel_size,
                                                  image_down_sampled=down_samp, optimize_alignment=True,
-                                                 optimization_method='evolutionary', bounds=(-rot, rot))
+                                                 optimization_method='evolutionary', bounds=bounds)
         results_grad.append([np.abs(diff), score])
         results_evol.append(([np.abs(diff2), score2]))
 
@@ -103,6 +118,8 @@ for k, crit in enumerate(new_measurements[0:]):
         sm.set_array([])
         bar = fig.colorbar(sm, ax=ax, extend='max')
         ax.set_title(f'Max Rotation {rotation[i]}, Score {score: .4f}')
+        ax.set_title(f'Max shift {max_shift[i]}, Score {score: .4f}')
+
         ax.set_xlabel('Position x (mm)')
         ax.set_ylabel('Position y (mm)')
         bar.set_label('Difference between images')
@@ -126,6 +143,8 @@ for k, crit in enumerate(new_measurements[0:]):
         sm.set_array([])
         bar = fig.colorbar(sm, ax=ax, extend='max')
         ax.set_title(f'Max Rotation {rotation[i]}, Score {score: .4f}')
+        ax.set_title(f'Max shift {max_shift[i]}, Score {score: .4f}')
+
         ax.set_xlabel('Position x (mm)')
         ax.set_ylabel('Position y (mm)')
         bar.set_label('Difference between images')
@@ -134,7 +153,7 @@ for k, crit in enumerate(new_measurements[0:]):
     name = A.name + run_name + 'Evol_overview_'
     format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
     # plt.show()
-    # '''
+    '''
 
     maxiter = [50, 100, 200, 400, 1000, 5000]
     popsize = [1, 5, 10, 25, 100, 500]
@@ -146,7 +165,7 @@ for k, crit in enumerate(new_measurements[0:]):
     print('Evol Max N', ':'*50)
 
     for i in maxiter:
-        diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+        diff, score, addition = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, low_pixel_size, OriginalGaf.pixel_size,
                                                  image_down_sampled=down_samp, optimize_alignment=True,
                                                  optimization_method='evolutionary', ev_max_iter=i)
         results_evol_max.append(([np.abs(diff), score, addition[2]]))
@@ -156,7 +175,7 @@ for k, crit in enumerate(new_measurements[0:]):
     print('Evol Popsize', ':'*50)
 
     for i in popsize:
-        diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+        diff, score, addition = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, low_pixel_size, OriginalGaf.pixel_size,
                                                  image_down_sampled=down_samp, optimize_alignment=True,
                                                  optimization_method='evolutionary', ev_pop_size=i)
         results_evol_popsize.append(([np.abs(diff), score, addition[2]]))
@@ -167,7 +186,7 @@ for k, crit in enumerate(new_measurements[0:]):
     print('Grad max n', ':'*50)
 
     for i in grad_n:
-        diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
+        diff, score, addition = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, low_pixel_size, OriginalGaf.pixel_size,
                                                  image_down_sampled=down_samp, optimize_alignment=True,
                                                  optimization_method='gradient', grid_n=i)
         results_gradn.append(([np.abs(diff), score, addition[2]]))
@@ -235,3 +254,4 @@ for k, crit in enumerate(new_measurements[0:]):
     name = A.name + run_name + 'PopsizeEvol_overview_'
     format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
     # plt.show()
+    # '''

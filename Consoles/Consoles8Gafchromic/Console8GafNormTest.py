@@ -9,7 +9,7 @@ cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black"
 cmap2 = sns.color_palette('viridis', as_cmap=True)
 color_cycle = sns.color_palette("tab10")
 
-mapping = Path('../Files/mapping.xlsx')
+mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
 readout, position_parser = lambda x, y: ams_2line_readout(x, y,

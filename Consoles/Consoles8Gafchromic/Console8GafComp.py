@@ -7,7 +7,7 @@ from Concept8GafCompTests import align_and_compare_images, resample_image
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 cmap2 = sns.color_palette('viridis', as_cmap=True)
 
-mapping = Path('../Files/mapping.xlsx')
+mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
 readout, position_parser = lambda x, y: ams_2line_readout(x, y,
@@ -61,12 +61,12 @@ for k, crit in enumerate(new_measurements[0:]):
     print(np.shape(A.maps[0]['z']))
     print(A.maps[0]['x'][1] - A.maps[0]['x'][0])
 
-    Test = GafImage(Gaf_path / Gaf_map[k])
-    Test.load_image()
+    OriginalGaf = GafImage(Gaf_path / Gaf_map[k])
+    OriginalGaf.load_image()
     if 'matrix211024_006.bmp' in Gaf_map[k]:
-        Test.image = Test.image[::-1]
-        Test.image = Test.image[:, ::-1]
-    Test.transform_to_normed(max_n=1e5)
+        OriginalGaf.image = OriginalGaf.image[::-1]
+        OriginalGaf.image = OriginalGaf.image[:, ::-1]
+    OriginalGaf.transform_to_normed(max_n=1e5)
     print('-' * 50)
 
     '''
@@ -95,16 +95,16 @@ for k, crit in enumerate(new_measurements[0:]):
 
         return cache2
 
-    minimal_ext_x = min(np.shape(Test.image)[1] * Test.pixel_size, -np.min(A.maps[0]['x']) + np.max(A.maps[0]['x']))
-    minimal_ext_y = min(np.shape(Test.image)[0] * Test.pixel_size, - np.min(A.maps[0]['y']) + np.max(A.maps[0]['y']))
-    newx = np.linspace(0, minimal_ext_x, int(minimal_ext_x/Test.pixel_size))
-    newy = np.linspace(0, minimal_ext_y, int(minimal_ext_y/Test.pixel_size))
+    minimal_ext_x = min(np.shape(OriginalGaf.image)[1] * OriginalGaf.pixel_size, -np.min(A.maps[0]['x']) + np.max(A.maps[0]['x']))
+    minimal_ext_y = min(np.shape(OriginalGaf.image)[0] * OriginalGaf.pixel_size, - np.min(A.maps[0]['y']) + np.max(A.maps[0]['y']))
+    newx = np.linspace(0, minimal_ext_x, int(minimal_ext_x/OriginalGaf.pixel_size))
+    newy = np.linspace(0, minimal_ext_y, int(minimal_ext_y/OriginalGaf.pixel_size))
 
     A2 = interp2D((A.maps[0]['x']-np.min(A.maps[0]['x']), A.maps[0]['y']-np.min(A.maps[0]['y'])), A.maps[0]['z'].T, (newx, newy))
 
     print(np.shape(A2))
     print('_'*50)
-    print('Extent of Gaf is: ', (np.shape(Test.image)[1] * Test.pixel_size, np.shape(Test.image)[0] * Test.pixel_size))
+    print('Extent of Gaf is: ', (np.shape(OriginalGaf.image)[1] * OriginalGaf.pixel_size, np.shape(OriginalGaf.image)[0] * OriginalGaf.pixel_size))
     print('Extent of Map is: ', (-np.min(A.maps[0]['x']) + np.max(A.maps[0]['x']), - np.min(A.maps[0]['y']) + np.max(A.maps[0]['y'])))
 
 
@@ -119,18 +119,33 @@ for k, crit in enumerate(new_measurements[0:]):
     ax1.imshow(A.maps[0]['z'], cmap=cmap, vmin=0, vmax=1, extent=(np.min(A.maps[0]['x']), np.max(A.maps[0]['x']), np.min(A.maps[0]['y']), np.max(A.maps[0]['y'])))
     ax2.imshow(A2.T, cmap=cmap, vmin=0, vmax=1, extent=(0, minimal_ext_x, 0, minimal_ext_y))
 
-    ax3.imshow(Test.image, cmap=cmap, vmin=0, vmax=1, extent=(0, np.shape(Test.image)[1] * Test.pixel_size, 0, np.shape(Test.image)[0] * Test.pixel_size))
+    ax3.imshow(OriginalGaf.image, cmap=cmap, vmin=0, vmax=1, extent=(0, np.shape(OriginalGaf.image)[1] * OriginalGaf.pixel_size, 0, np.shape(OriginalGaf.image)[0] * OriginalGaf.pixel_size))
     plt.show()
     '''
     # Image down sampling (global to save time):
     low_pixel_size = A.maps[0]['x'][1] - A.maps[0]['x'][0]
-    down_samp = resample_image(Test.image, Test.pixel_size, low_pixel_size)
+    DownSampGaf = GafImage(Gaf_path / Gaf_map[k])
+    quick_load = ((Gaf_path / Gaf_map[k]).parent / 'QuickLoads') / (Gaf_map[k][:-4] + '.npy')
+    print(quick_load)
+    if os.path.isfile(quick_load):
+        DownSampGaf.load_image(quick=True)
+        down_samp = DownSampGaf.image
+    else:
+        down_samp = resample_image(OriginalGaf.image, OriginalGaf.pixel_size, low_pixel_size)
+        DownSampGaf.image = down_samp
+        DownSampGaf.save_image(quick_load.parent)
 
-    diff, score, addition = align_and_compare_images(A.maps[0]['z'], Test.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
-                                             Test.pixel_size, center_position=[0, 0], optimize_alignment=False,
+    diff, score, addition = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, A.maps[0]['x'][1] - A.maps[0]['x'][0],
+                                             OriginalGaf.pixel_size, center_position=[0, 0], optimize_alignment=False,
                                            image_down_sampled=down_samp)
-    diff2, score2, addition2 = align_and_compare_images(A.maps[0]['z'], Test.image, low_pixel_size, Test.pixel_size,
-                                               optimize_alignment=True, bounds=(-5, 5), ev_max_iter=500, ev_pop_size=10,
+    if 'PEEK' in crit:
+        max_shape = (max(down_samp.shape[0], A.maps[0]['z'].shape[0]), max(down_samp.shape[1], A.maps[0]['z'].shape[1]))
+        bounds = [(-30, 30), (-max_shape[0] // 5, max_shape[0] // 5), (-max_shape[1] // 5, max_shape[1] // 5)]
+    else:
+        bounds = (-3, 3)
+
+    diff2, score2, addition2 = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, low_pixel_size, OriginalGaf.pixel_size,
+                                               optimize_alignment=True, bounds=bounds, ev_max_iter=500, ev_pop_size=10,
                                                optimization_method='evolutionary', image_down_sampled=down_samp)
 
     # -------------------------------------------------------------------------------------------------------------------
@@ -177,8 +192,8 @@ for k, crit in enumerate(new_measurements[0:]):
     # -------------------------------------------------------------------------------------------------------------------
     # Ax2: Plot of GafImage transformed
     # -------------------------------------------------------------------------------------------------------------------
-    color_map2 = ax2.imshow(Test.image, cmap=cmap, vmin=0, vmax=1, extent=(
-    0, np.shape(Test.image)[1] * Test.pixel_size, 0, np.shape(Test.image)[0] * Test.pixel_size))
+    color_map2 = ax2.imshow(OriginalGaf.image, cmap=cmap, vmin=0, vmax=1, extent=(
+    0, np.shape(OriginalGaf.image)[1] * OriginalGaf.pixel_size, 0, np.shape(OriginalGaf.image)[0] * OriginalGaf.pixel_size))
     norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
     sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
     sm.set_array([])
@@ -194,7 +209,7 @@ for k, crit in enumerate(new_measurements[0:]):
     # -------------------------------------------------------------------------------------------------------------------
     # Ax4: Plot of GafImage transformed
     # -------------------------------------------------------------------------------------------------------------------
-    ax4.hist(Test.image.flatten(), bins=100, color='k')
+    ax4.hist(OriginalGaf.image.flatten(), bins=100, color='k')
     ax4.set_xlabel('Gafchromic response')
     # -------------------------------------------------------------------------------------------------------------------
     # Ax5: Plot of GafImage transformed
@@ -320,8 +335,8 @@ for k, crit in enumerate(new_measurements[0:]):
     # -------------------------------------------------------------------------------------------------------------------
     # Ax2: Plot of GafImage transformed
     # -------------------------------------------------------------------------------------------------------------------
-    color_map2 = ax2.imshow(Test.image, cmap=cmap, vmin=0, vmax=1, extent=(
-        0, np.shape(Test.image)[1] * Test.pixel_size, 0, np.shape(Test.image)[0] * Test.pixel_size))
+    color_map2 = ax2.imshow(OriginalGaf.image, cmap=cmap, vmin=0, vmax=1, extent=(
+        0, np.shape(OriginalGaf.image)[1] * OriginalGaf.pixel_size, 0, np.shape(OriginalGaf.image)[0] * OriginalGaf.pixel_size))
     norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
     sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
     sm.set_array([])
@@ -381,8 +396,8 @@ for k, crit in enumerate(new_measurements[0:]):
     # -------------------------------------------------------------------------------------------------------------------
     # Ax2: Plot of GafImage transformed
     # -------------------------------------------------------------------------------------------------------------------
-    color_map2 = ax2.imshow(Test.image, cmap=cmap, vmin=0, vmax=1, extent=(
-        0, np.shape(Test.image)[1] * Test.pixel_size, 0, np.shape(Test.image)[0] * Test.pixel_size))
+    color_map2 = ax2.imshow(OriginalGaf.image, cmap=cmap, vmin=0, vmax=1, extent=(
+        0, np.shape(OriginalGaf.image)[1] * OriginalGaf.pixel_size, 0, np.shape(OriginalGaf.image)[0] * OriginalGaf.pixel_size))
     norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
     sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
     sm.set_array([])
@@ -473,7 +488,7 @@ for k, crit in enumerate(new_measurements[0:]):
     ax3.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
     ax3.set_xlabel('Normed signal')
 
-    n, bins, patches = ax4.hist(Test.image.flatten(), bins=100, color='k')
+    n, bins, patches = ax4.hist(OriginalGaf.image.flatten(), bins=100, color='k')
     ax4.set_ylim(0, np.max(n[bins[:-1] > 0.2]))
     ax4.set_xlabel('Gafchromic response')
 

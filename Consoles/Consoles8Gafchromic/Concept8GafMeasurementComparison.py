@@ -129,10 +129,11 @@ class GafImage:
         self.name = self.path.name[:-len(self.path.suffix)]
         self.image = np.array([])
 
-    def load_image(self):
-        if ((self.path.parent / 'QuickLoads/').exists() and
-                os.path.isfile(self.path.parent / ('QuickLoads/' + self.name + '.npy'))):
-            self.path = self.path.parent / ('QuickLoads/' + self.name + '.npy')
+    def load_image(self, quick=False):
+        if quick:
+            if ((self.path.parent / 'QuickLoads/').exists() and
+                    os.path.isfile(self.path.parent / ('QuickLoads/' + self.name + '.npy'))):
+                self.path = self.path.parent / ('QuickLoads/' + self.name + '.npy')
         print(self.path, self.path.suffix, self.path.suffix=='.bmp')
         if self.path.suffix == '.bmp':
             self.image = cv2.imread(self.path, cv2.IMREAD_GRAYSCALE)
