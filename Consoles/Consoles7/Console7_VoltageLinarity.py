@@ -12,9 +12,10 @@ mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 print(channel_assignment)
-readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position, standard_voltage, current3
+readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position, standard_voltage, lambda c: current3(c, conversion_factor=0.688)
 A = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage_parser, current_parser)
 
+standard_layout = lambda axes: standard_layout(axes, second_axis=True)
 linearity(folder_path, results_path, crit, dark_crit, A)
 
 # signal_comparison_voltage(folder_path, results_path, ['test_nA_', 'exp7_', 'exp8_'], None, A, names=['before linearity', 'after with cup', 'after without cup'], )

@@ -78,20 +78,50 @@ if use_LaTeX:
 
 # This defines a simple standard layout, all plots at our chair (and in general) should fulfill:
 def afp_layout(axes=None, second_axis=False, *arg, **kwarg):
+    def share_x_axis(axis1, axis2):
+        # Check if both axes share the same x-axis limits
+        same_xlim = axis1.get_xlim() == axis2.get_xlim()
+        if not same_xlim:
+            return False
+        # Check if both axes share the same position in figure coordinates
+        same_position = axis1.transAxes == axis2.transAxes
+        return same_position
+
+    def share_y_axis(axis1, axis2):
+        # Check if both axes share the same x-axis limits
+        same_ylim = axis1.get_ylim() == axis2.get_ylim()
+        if not same_ylim:
+            return False
+        # Check if both axes share the same position in figure coordinates
+        same_position = axis1.transAxes == axis2.transAxes
+        return same_position
+
     # Here it is important to hand axes if they deviate from the currently used standard axes of a plot
     if axes is None:
         axes = plt.gcf().get_axes()
-    # Boxed, ticks inside the axes, no grid lines in plot
-    for ax in axes:
-        ax.grid(which='both', visible=False)
-        ax.tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
-    if second_axis:
-        if len(axes) == 1:
-            axes[0].tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
-        elif len(axes) == 2:
-            axes[0].tick_params(which='both', direction='in', top=True, right=False, left=True, bottom=True)
-            axes[1].tick_params(which='both', direction='in', top=True, right=True, left=False, bottom=True)
-
+    # Boxed, ticks inside the axes, no grid lines in plot + automatic detection if x- or y-axis is shared
+    formatted = []
+    for i, ax in enumerate(axes):
+        if i in formatted:
+            continue
+        if i < len(axes)-1 and share_x_axis(ax, axes[i+1]):
+            ax.grid(which='both', visible=False)
+            ax.tick_params(which='both', direction='in', top=True, right=False, left=True, bottom=True)
+            axes[i+1].grid(which='both', visible=False)
+            axes[i+1].tick_params(which='both', direction='in', top=True, right=True, left=False, bottom=True)
+            formatted.append(i)
+            formatted.append(i+1)
+        elif i < len(axes)-1 and share_y_axis(ax, axes[i+1]):
+            ax.grid(which='both', visible=False)
+            ax.tick_params(which='both', direction='in', top=False, right=True, left=True, bottom=True)
+            axes[i+1].grid(which='both', visible=False)
+            axes[i+1].tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=False)
+            formatted.append(i)
+            formatted.append(i+1)
+        else:
+            ax.grid(which='both', visible=False)
+            ax.tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
+            formatted.append(i)
 
 # I wrapped the afp_layout in another functions that allows deviations from the layout without touching the standards
 # from our chair

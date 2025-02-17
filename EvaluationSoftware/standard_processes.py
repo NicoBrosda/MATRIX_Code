@@ -205,13 +205,13 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
             params_std.append([popt, pcov])
 
         # print(np.mean([i[0][0] for i in params_std]), np.std([i[0][0] for i in params_std]))
-        ax.plot(currents, exp_func(currents, np.mean([i[0][0] for i in params_std]), dark_std), ls='--', c='r', zorder=3)
+        ax.plot(currents, exp_func(currents, np.mean([i[0][0] for i in params_std]), dark_std), ls='--', c='r', zorder=3, label='Fit')
 
-        ax.plot(currents, np.mean(netto_signals, axis=1), c='k', marker='x')
-        ax.plot(currents, [np.sqrt(signal_std[i]**2+np.std(netto_signals[i])**2) for i, cur in enumerate(currents)], c='k', marker='^')
-        ax.plot(currents, signal_std, c='b', ls='-', marker='^')
-        ax.plot(currents, [np.std(netto_signals[i]) for i, cur in enumerate(currents)], c='g', ls='-', marker='^')
-        ax.plot(currents, dark_std, c='k', marker='v')
+        ax.plot(currents, np.mean(netto_signals, axis=1), c='k', marker='x', label='Channel Signal')
+        ax.plot(currents, [np.sqrt(signal_std[i]**2+np.std(netto_signals[i])**2) for i, cur in enumerate(currents)], c='k', marker='^', label='Cumulative Error')
+        ax.plot(currents, signal_std, c='b', ls='-', marker='^', label='Channel Std')
+        ax.plot(currents, [np.std(netto_signals[i]) for i, cur in enumerate(currents)], c='g', ls='-', marker='^', label='Std in between channel')
+        ax.plot(currents, dark_std, c='k', marker='v', label='Dark std')
         [ax.plot(currents, netto_signals[:, k], c='grey', alpha=0.6, zorder=-1, marker='x') for k in range(np.shape(netto_signals)[1])]
 
         ax.set_xlabel('Proton current at Faraday cup (nA)')
@@ -222,7 +222,7 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
         ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), r'Signal linear fit $\bar{\mathrm{R}}^2$'+' = {x:.5f}'.format(x=np.mean(r2s)), fontsize=12)
         ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), r'Std sqrt fit $\bar{\mathrm{R}}^2$'+' = {x:.5f}'.format(x=np.mean(r2s_st)), fontsize=12)
         ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.81]), r'{v:.1f}$\,$V'.format(v=voltage), fontsize=15)
-        just_save(results_path / ('Linearity/' + str(crit) + '/'), 'Linearity_' + str(voltage) + 'V_', legend=False)
+        just_save(results_path / ('Linearity/' + str(crit) + '/'), 'Linearity_' + str(voltage) + 'V_', legend=True)
         plt.close('all')
         r2s_lin.append(np.mean(r2s))
         r2s_std.append(np.mean(r2s_st))
@@ -249,12 +249,12 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     ax.set_ylabel(r'Agreement with fit model $\bar{\mathrm{R}}^2$')
     ax2.set_ylabel(r'Std / signal level ($\%$)')
     ax.set_xlim(max(0.66, min(voltages)), 2.02)
-    ax.set_ylim([0.95, 1.008])
-    ax2.set_ylim(5, 15)
+    ax.set_ylim([0.98, 1.008])
+    ax2.set_ylim(0, 30)
     ax.set_title('Accuracy of linear (sqrt) growth of diode signal (std) \n and inhomogeneity of diodes response', fontsize=12)
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
-    just_save(results_path / ('Linearity/'+str(crit)+'/'), 'VoltageComp', legend=True)
+    format_save(results_path / ('Linearity/'+str(crit)+'/'), 'VoltageComp', legend=True, fig=fig)
     plt.close('all')
 
 
@@ -318,7 +318,7 @@ def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit
 
 
 def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit, instance, names=None, normed=False,
-                      channel_range=[0, 128], mark_n=[]):
+                      channel_range=[0, 128], mark_n=[], save_plot=True, add_plot=False):
 
     # Load in the dark data for the comparison:
     if dark_crit is not None:
@@ -326,12 +326,19 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
     instance.load_measurement()
 
     # Result plot
-    fig, ax = plt.subplots()
+    if add_plot:
+        fig = plt.gcf()
+        ax = plt.gca()
+    else:
+        fig, ax = plt.subplots()
 
     # Load in all the data for the comparison
     for i, crit in enumerate(list_of_crit):
         # Plot colour
-        color = sns.color_palette("crest", as_cmap=True)(i / (len(list_of_crit)-1))
+        if len(list_of_crit) == 1:
+            color = 'r'
+        else:
+            color = sns.color_palette("crest", as_cmap=True)(i / (len(list_of_crit)-1))
 
         instance.set_measurement(folder_path, crit)
         instance.load_measurement()
@@ -375,5 +382,6 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
         name = str(list_of_crit)[:41]
     if normed:
         name += '_normed'
-    format_save(results_path / 'SignalComp/Channel/', name, legend=True)
-    plt.close('all')
+    if save_plot:
+        format_save(results_path / 'SignalComp/Channel/', name, legend=True)
+        plt.close('all')
