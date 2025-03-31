@@ -22,17 +22,22 @@ else:
     first_measurements = ['noscrew', 'screwsmaller_horizontal']
     new_measurements = ['10s_iphcmatrixcrhea_', '5s_misc_shapes_']
 
-A = Analyzer((1, 64), 0.42, 0.08)
+# A = Analyzer((1, 64), 0.42, 0.08)
 for k, crit in enumerate(first_measurements+new_measurements):
     # -------------------------------------------------------------------------------------------------------
     A = Analyzer((1, 64), 0.42, 0.08)
     A.excluded[0, 36] = True
     A.readout = ams_otsus_readout
-    A.pos_parser = first_measurements_position
-    folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/')
+    A.pos_parser = lambda x: first_measurements_position(x, y=70, x_stepwidth=0.25)
+
+    if k < len(first_measurements):
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/')
+    else:
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_19062024/')
 
     A.set_measurement(folder_path, crit)
     A.load_measurement()
+
     if k < len(first_measurements):
         A.create_map(inverse=[True, False])
         intensity_limits = (0, 1200)
@@ -40,32 +45,33 @@ for k, crit in enumerate(first_measurements+new_measurements):
         A.create_map(inverse=[False, False])
         intensity_limits = None
 
+    poster_size = (28 * cm, 28 * cm/ 1.2419)
     A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps_raw/',
-               contour=True, intensity_limits=intensity_limits)
+               contour=True, intensity_limits=intensity_limits, save_format='.pdf', plot_size=poster_size)
     A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps_raw/',
-               contour=False, intensity_limits=intensity_limits)
+               contour=False, intensity_limits=intensity_limits, save_format='.pdf', plot_size=poster_size)
 
-    A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
+    dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_19062024/')
+    A.set_dark_measurement(dark_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
     A.update_measurement(dark=True, factor=False)
     A.create_map(inverse=[True, False])
     A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_no_norm/',
-               contour=True, intensity_limits=intensity_limits)
+               contour=True, intensity_limits=intensity_limits, save_format='.pdf', plot_size=poster_size)
     A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_no_norm/',
-               contour=False, intensity_limits=intensity_limits)
-    continue
+               contour=False, intensity_limits=intensity_limits, save_format='.pdf', plot_size=poster_size)
     # -------------------------------------------------------------------------------------------------------
-
+    '''
     if k == 0:
         A.excluded[0, 36] = True
         A.readout = ams_otsus_readout
-        A.pos_parser = first_measurements_position
-        folder_path = Path('/Users/nico_brosda/Desktop/Cyrce_Messungen.nosync/iphc_python_misc/matrix_27052024/')
+        A.pos_parser = lambda x: first_measurements_position(x, y=70, x_stepwidth=0.25)
+        folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/')
         paths = ['e2_500p_bottom_nA_2.csv',
                  'e2_500p_nA_2.csv',
                  'e2_500p_top_nA_2.csv']
         A.normalization(folder_path, paths, normalization_module=simple_normalization, cache_save=False)
     if k == len(first_measurements):
-        A = Analyzer((1, 64), 0.42, 0.08)
+        # A = Analyzer((1, 64), 0.42, 0.08)
         folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_19062024/')
         A.set_dark_measurement(folder_path, 'd2_1n_3s_beam_all_without_diffuser_dark.csv')
         A.normalization(folder_path, '5s_flat_calib_', normalization_module=normalization_from_translated_array)
@@ -78,17 +84,41 @@ for k, crit in enumerate(first_measurements+new_measurements):
     else:
         A.create_map(inverse=[False, False])
         intensity_limits = None
+    '''
+    print(A.maps[0]['z'].max(), A.maps[0]['z'].min())
+
+    if k == 0:
+        norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/iphc_python_misc/matrix_27052024/')
+        paths = ['e2_500p_bottom_nA_2.csv',
+                 'e2_500p_nA_2.csv',
+                 'e2_500p_top_nA_2.csv']
+        A.normalization(norm_path, paths, normalization_module=simple_normalization, cache_save=False)
+    if k > len(first_measurements):
+        norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_19062024/')
+        A.normalization(norm_path, '5s_flat_calib_', normalization_module=normalization_from_translated_array)
+    # A.update_measurement(dark=False, factor=True)
+    A.set_measurement(folder_path, crit)
+    A.load_measurement()
+    A.create_map(inverse=[True, False])
+    A.maps[0]['z'][2] = np.zeros_like(A.maps[0]['z'][2])
 
     A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/',
-               contour=True, intensity_limits=intensity_limits)
+               contour=True, intensity_limits=intensity_limits, save_format='.pdf', plot_size=poster_size)
     A.plot_map('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/',
-               contour=False, intensity_limits=intensity_limits)
+               contour=False, intensity_limits=intensity_limits, save_format='.pdf', plot_size=poster_size)
 
     # Detect the signal and no signal values in signal array
     threshold1 = threshold_otsu(A.maps[0]['z'].flatten())
     threshold2 = ski_threshold_otsu(A.maps[0]['z'])
-    # print(threshold1)
-    # print(threshold2)
+    print(A.maps[0]['z'])
+    print(A.maps[0]['z'][2])
+    print(A.maps[0]['z'].max(), A.maps[0]['z'].min())
+    print(threshold1)
+    print(threshold2)
+    print(A.norm_factor)
+    print('-'*50)
+    print('-'*50)
+
     dark_mean = np.mean(A.maps[0]['z'][A.maps[0]['z'] < threshold2])
     signal_mean = np.mean(A.maps[0]['z'][A.maps[0]['z'] > threshold2])
 
@@ -112,16 +142,16 @@ for k, crit in enumerate(first_measurements+new_measurements):
             if j == 0:
                 continue
             if column[j - 1] < threshold2 <= column[j]:
-                ax.plot(A.maps[0]['x'][i]+0.125, A.maps[0]['y'][j-1]+0.25, ls='', marker='^', c='lime', markersize=1)
+                ax.plot(A.maps[0]['x'][i]+0.125, A.maps[0]['y'][j-1]+0.25, ls='', marker='^', c='lime')
 
             if column[j - 1] >= threshold2 > column[j]:
-                ax.plot(A.maps[0]['x'][i]+0.125, A.maps[0]['y'][j-1]+0.25, ls='', marker='^', c='gold', markersize=1)
+                ax.plot(A.maps[0]['x'][i]+0.125, A.maps[0]['y'][j-1]+0.25, ls='', marker='^', c='gold')
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
     ax.plot(0, 0, ls='', marker='^', c='lime', label='Signal in next cell is above threshold', zorder=-5)
     ax.plot(0, 0, ls='', marker='^', c='gold', label='Signal in next cell is below threshold', zorder=-5)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
-                'edge_detection_'+crit, legend=True)
+                'edge_detection_'+crit, legend=True, save_format='.pdf')
 
     # -----------------------------------------------------------------------------------------------------------------
     # Plot signature recognizing:
@@ -141,16 +171,16 @@ for k, crit in enumerate(first_measurements+new_measurements):
                 continue
             if column[j-3] < threshold2 <= column[j-2] and column[j-2] >= threshold2 > column[j-1] \
                     and column[j-1] < threshold2 <= column[j]:
-                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='x', c='lime', markersize=3)
+                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='*', c='lime', markersize=10)
             if column[j-3] >= threshold2 > column[j-2] and column[j-2] < threshold2 <= column[j-1] \
                     and column[j-1] >= threshold2 > column[j]:
-                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='x', c='gold', markersize=3)
+                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='*', c='gold', markersize=10)
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
-    ax.plot(0, 0, ls='', marker='x', c='lime', label='Signature edge no signal to signal', zorder=-5)
-    ax.plot(0, 0, ls='', marker='x', c='gold', label='Signature edge signal to no signal', zorder=-5)
+    ax.plot(0, 0, ls='', marker='*', c='lime', label='Signature edge no signal to signal', zorder=-5, markersize=10)
+    ax.plot(0, 0, ls='', marker='*', c='gold', label='Signature edge signal to no signal', zorder=-5, markersize=10)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods'),
-                'edge_signature_'+crit, legend=True)
+                'edge_signature_'+crit, legend=True, save_format='.pdf')
 
     # -----------------------------------------------------------------------------------------------------------------
     # Plot signature recognizing after simple artefact filter:
@@ -171,16 +201,16 @@ for k, crit in enumerate(first_measurements+new_measurements):
                 continue
             if column[j - 3] < threshold2 <= column[j - 2] and column[j - 2] >= threshold2 > column[j - 1] and column[
                 j - 1] < threshold2 <= column[j]:
-                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='x', c='lime', markersize=3)
+                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='*', c='lime', markersize=10)
             if column[j - 3] >= threshold2 > column[j - 2] and column[j - 2] < threshold2 <= column[j - 1] and column[
                 j - 1] >= threshold2 > column[j]:
-                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='x', c='gold', markersize=3)
+                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='*', c='gold', markersize=10)
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
-    ax.plot(0, 0, ls='', marker='x', c='lime', label='Signature edge no signal to signal', zorder=-5)
-    ax.plot(0, 0, ls='', marker='x', c='gold', label='Signature edge signal to no signal', zorder=-5)
+    ax.plot(0, 0, ls='', marker='*', c='lime', label='Signature edge no signal to signal', zorder=-5, markersize=10)
+    ax.plot(0, 0, ls='', marker='*', c='gold', label='Signature edge signal to no signal', zorder=-5, markersize=10)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
-                'edge_signature_filtered_'+crit, legend=True)
+                'edge_signature_filtered_'+crit, legend=True, save_format='.pdf')
 
     # -----------------------------------------------------------------------------------------------------------------
     # Plot advanced signature recognizing:
@@ -208,17 +238,17 @@ for k, crit in enumerate(first_measurements+new_measurements):
             # Signal on edge recognition
             if column[j - 4] < threshold2 <= column[j - 3] and column[j - 3] >= threshold2 > column[j - 2] and column[
                 j - 2] < threshold2 <= column[j-1] and column[j] >= threshold2:
-                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 4] + 0.25, ls='', marker='x', c='lime', markersize=3)
+                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 4] + 0.25, ls='', marker='x', c='lime')
             # Signal off edge recognition
             if column[j - 3] >= threshold2 > column[j - 2] and column[j - 2] < threshold2 <= column[j - 1] and column[
                 j - 1] >= threshold2 > column[j] and column[j-4] >= threshold2:
-                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='x', c='gold', markersize=3)
+                ax.plot(A.maps[0]['x'][i] + 0.125, A.maps[0]['y'][j - 3] + 0.25, ls='', marker='x', c='gold')
     ax.set_xlim(ax.get_xlim())
     ax.set_ylim(ax.get_ylim())
     ax.plot(0, 0, ls='', marker='x', c='lime', label='Signature edge no signal to signal', zorder=-5)
     ax.plot(0, 0, ls='', marker='x', c='gold', label='Signature edge signal to no signal', zorder=-5)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/methods/'),
-                'edge_signature_enhanced_' + crit, legend=True)
+                'edge_signature_enhanced_' + crit, legend=True, save_format='.pdf')
 
     # -----------------------------------------------------------------------------------------------------------------
     # Simple correction plot
@@ -262,13 +292,13 @@ for k, crit in enumerate(first_measurements+new_measurements):
     print(np.mean(delta_list), np.std(delta_list))
     A.maps[0]['z'] = corrected_image
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
-    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'), crit+'_simple_')
+    format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'), crit+'_simple_', save_format='.pdf')
     A.plot_map(None, contour=True, intensity_limits=intensity_limits)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'),
-                crit + '_simple_'+'contour')
+                crit + '_simple_'+'contour', save_format='.pdf')
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/corrected/'),
-                crit + '_simple_')
+                crit + '_simple_', save_format='.pdf')
 
     # -----------------------------------------------------------------------------------------------------------------
     def delta_func(sp1, s, signal):
@@ -359,10 +389,10 @@ for k, crit in enumerate(first_measurements+new_measurements):
     A.maps[0]['z'] = corrected_image
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'),
-                crit + '_edge_')
+                crit + '_edge_', save_format='.pdf')
     A.plot_map(None, contour=True, intensity_limits=intensity_limits)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/new_maps/'),
-                crit + '_edge_' + 'contour')
+                crit + '_edge_' + 'contour', save_format='.pdf')
     A.plot_map(None, contour=False, intensity_limits=intensity_limits)
     format_save(Path('/Users/nico_brosda/Cyrce_Messungen/Results_19062024/ProtoEmission/corrected/'),
-                crit + '_edge_')
+                crit + '_edge_', save_format='.pdf')

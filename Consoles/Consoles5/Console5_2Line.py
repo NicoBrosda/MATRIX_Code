@@ -22,7 +22,7 @@ dark_paths_array1 = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.
 norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 norm_array1 = ['2Line_YScan_']
 
-for k, crit in enumerate(new_measurements[0:1]):
+for k, crit in enumerate(new_measurements[0:]):
     print('-'*50)
     print(crit)
     print('-'*50)

@@ -1,0 +1,140 @@
+  
+Collimateur 36.5
+beam center : X,Y = 22 (44), 137
+
+In doubt, look at the screen shot for x,y range
+
+
+Exp 1
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+485pA
+diffuser 200
+------------------------------------------
+Exp 2
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+1.0nA
+diffuser 200
+------------------------------------------
+Exp 3
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+1.5nA
+diffuser 200
+------------------------------------------
+Exp 4
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+1.98nA
+diffuser 200
+------------------------------------------
+Exp 5
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+2.46nA
+diffuser 200 
+------------------------------------------
+Exp 6
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+3.03nA
+diffuser 200 
+------------------------------------------
+Exp 7
+X,Y = 22 (44), 137
+voltage scan from 0 to 2, .1 steps at x, y
+3.46nA
+diffuser 200 
+------------------------------------------
+------------------------------------------
+Exp 8
+v = 1.9v
+X,Y = 22 (44), 137
+y scan from 52 to 85, .5 steps
+1.94nA
+diffuser 200 
+------------------------------------------
+Exp 9 misc shape
+v = 1.9v
+X,Y = 22 (44), 137
+x, y scan from x : 0 to 38, 2 steps, y : 48 to 88, 2 steps
+1.94nA
+diffuser 200 
+crash rdp at x = 32
+------------------------------------------
+Exp 10 misc shape
+crash rdp
+------------------------------------------
+Exp 11 misc shape
+crash rdp, restart pc for remote
+------------------------------------------
+Exp 12 misc shape
+no beam :(, but 1.7nA at this time
+------------------------------------------
+Exp 13 misc shape
+2.0 nA set
+start from x = 32
+wrong voltage set
+------------------------------------------
+Exp 14 misc shape
+2.0 nA
+start from x = 32 to x = 38
+------------------------------------------
+Exp 15 misc shape
+1.95 nA
+extended x
+start from x = 40 to x = 44
+i should have put 2.25 for step in order to have super resolution
+------------------------------------------
+------------------------------------------
+Exp 16 mouse foot
+1.95 nA start
+x, y scan from x : 14 to 30, .75 steps, y : 57.5 to 79.5, .75 steps
+1.71 nA end.
+
+Problem with the mechanical part, head of the screw bumped into the collimator
+I think the image won't be good
+contraption moved so 
+beam center :
+--> New x, y = 22, 133.3 
+
+------------------------------------------
+------------------------------------------
+Exp 17 mouse foot again
+2.01 nA start
+x, y scan from x : 14 to 30, 1.125 steps, y : 55 to 78.3, 1.125 steps
+1.98 nA end.
+------------------------------------------
+------------------------------------------
+Exp 18 mouse foot again
+1.98 nA start
+x, y scan from x : 12 to 34, 2.25 steps, y : 50 to 90, 2.25 steps
+1.95 nA end.
+------------------------------------------
+------------------------------------------
+Exp 20 iphc_crhea
+2.01 nA start
+x, y scan from x : 0 to 40, 4.25 steps, y : 46.65 to 86.65, 4.25 steps
+1.95 nA end.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

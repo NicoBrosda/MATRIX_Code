@@ -91,6 +91,9 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     # Load in all the data for the linearity measurement
     instance.set_measurement(folder_path, crit)
     instance.load_measurement()
+    # Signal conversion:
+    for i in range(len(instance.measurement_data)):
+        instance.measurement_data[i]['signal'] = instance.signal_conversion(instance.measurement_data[i]['signal'])
     signal = instance.measurement_data
 
     # Find the different currents available from this data
@@ -103,6 +106,9 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     # Load and sort the dark measurements
     instance.set_measurement(folder_path, dark_crit)
     instance.load_measurement()
+    # Signal conversion:
+    for i in range(len(instance.measurement_data)):
+        instance.measurement_data[i]['signal'] = instance.signal_conversion(instance.measurement_data[i]['signal'])
     dark = instance.measurement_data
 
     _dark_voltage = np.array([i['voltage'] for i in dark])
@@ -215,7 +221,7 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
         [ax.plot(currents, netto_signals[:, k], c='grey', alpha=0.6, zorder=-1, marker='x') for k in range(np.shape(netto_signals)[1])]
 
         ax.set_xlabel('Proton current at Faraday cup (nA)')
-        ax.set_ylabel('Netto signal (a.u.)')
+        ax.set_ylabel(f'Netto signal ({scale_dict[instance.scale][1]}A)')
         ax.set_yscale('log')  
         ax.set_xlim(ax.get_xlim())
         ax.set_ylim(ax.get_ylim())
@@ -298,6 +304,7 @@ def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit
                 std = np.std(signal)
                 signal = np.mean(signal)
 
+            signal, std = instance.signal_conversion(signal), instance.signal_conversion(std)
             cache.append([v, signal, std])
 
         cache = np.array(cache)[np.argsort([k[0] for k in cache])]
@@ -309,7 +316,7 @@ def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit
                     capsize=5)
 
     ax.set_xlabel('Voltage AMS circuit (V)')
-    ax.set_ylabel(r'Signal (a.u.)')
+    ax.set_ylabel(f'Signal Current ({scale_dict[instance.scale][1]}A)')
     name = str(list_of_crit)
     if len(str(list_of_crit)) > 20:
         name = str(list_of_crit)[:21]
@@ -355,8 +362,8 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
             cache_sig.append(signal)
             cache_std.append(std)
 
-        signal = np.mean(cache_sig, axis=0)
-        std = np.mean(cache_std, axis=0)
+        signal = instance.signal_conversion(np.mean(cache_sig, axis=0))
+        std = instance.signal_conversion(np.mean(cache_std, axis=0))
 
         if names is None:
             label = crit
@@ -375,7 +382,7 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
                         capsize=5, alpha=0.9)
 
     ax.set_xlabel(r'$\#$ Channel diode array')
-    ax.set_ylabel(r'Signal (a.u.)')
+    ax.set_ylabel(f'Signal Current ({scale_dict[instance.scale][1]}A)')
     # ax.set_yscale('log')
     name = str(list_of_crit)
     if len(str(list_of_crit)) > 40:

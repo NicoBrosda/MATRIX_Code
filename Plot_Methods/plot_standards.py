@@ -72,6 +72,17 @@ plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
+poster = False
+if poster:
+    plt.rc('font', size=24)  # controls default text sizes
+    plt.rc('axes', titlesize=28)  # fontsize of the axes title
+    plt.rc('axes', labelsize=28)  # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=24)  # fontsize of the tick labels
+    plt.rc('ytick', labelsize=24)  # fontsize of the tick labels
+    plt.rc('legend', fontsize=24)  # legend fontsize
+    plt.rc('figure', titlesize=32)  # fontsize of the figure title
+    fullsize_plot = (28 * cm, 28 * cm / 1.2419)
+
 if use_LaTeX:
     plt.rcParams.update({'mathtext.default':  'regular'})  # No cursive text in math environment!
 

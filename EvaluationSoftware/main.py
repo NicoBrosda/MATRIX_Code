@@ -29,6 +29,19 @@ class DiodeGeometry:
             self.instance = None
 
 
+scale_dict = {'tera': [1e12, 'T'],
+              'giga': [1e9, 'G'],
+              'mega': [1e6, 'M'],
+              'kilo': [1e3, 'k'],
+              'non': [1, ''],
+              'milli': [1e-3, 'm'],
+              'micro': [1e-6, r'$\micro$'],
+              'nano': [1e-9, 'n'],
+              'pico': [1e-12, 'p'],
+              'femto': [1e-15, 'f'],
+              'atto': [1e-18, 'a']}
+
+
 class Analyzer:
 
     diode_dimension = DiodeGeometry()
@@ -81,6 +94,14 @@ class Analyzer:
         self.name = ''
         self.maps = [{'x': np.array([]), 'y': np.array([]), 'z': np.array([]), 'position': ''}]
         self.excluded = np.full(self.diode_dimension, False)
+
+        self.clock = 3e6
+        self.gain = 1e-6
+        self.scale = 'pico'
+
+    def signal_conversion(self, signal):
+        scale = scale_dict[self.scale][0]
+        return self.gain * self.clock / 3e6 * signal / 2 ** 26 / scale
 
     def set_measurement(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg']):
         self.measurement_files = []
@@ -315,7 +336,9 @@ class Analyzer:
                 z = z[::-1]
             if inverse[1]:
                 z = z[:, ::-1]
-            self.maps.append({'x': np.array(distinct_x), 'y': np.array(distinct_y), 'z': z, 'position': str(position)})
+
+            self.maps.append({'x': np.array(distinct_x), 'y': np.array(distinct_y), 'z': self.signal_conversion(z),
+                              'position': str(position)})
 
         # Create loop to automatize plotting of multiple maps from 1 array (x or y shifted)
         if self.diode_dimension[1] == 1 and len(set([i['position'][0] for i in self.measurement_data])) > 1:
@@ -329,7 +352,7 @@ class Analyzer:
 
     def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.png', bbox=None,
+                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.pdf', bbox=None,
                  insert_txt: bool or list = False, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()
@@ -471,7 +494,8 @@ class Analyzer:
             # ax.set_xlim(x_scale[0]-(x_scale[1]-x_scale[0])*0.15, x_scale[1]+(x_scale[1]-x_scale[0])*0.15)
 
             if colorbar:
-                bar.set_label('Measured Signal (a.u.)')
+                # bar.set_label('Measured Signal (a.u.)')
+                bar.set_label(f'Signal Current ({scale_dict[self.scale][1]}A)')
 
             if insert_txt:
                 ax.text(*transform_axis_to_data_coordinates(ax, insert_txt[0]), insert_txt[1], fontsize=insert_txt[2],
@@ -620,7 +644,7 @@ class Analyzer:
             pos_var[diode], signal_var[diode] = np.array(pos_var[diode])[ordering], np.array(signal_var[diode])[ordering]
         if inverse[direction]:
             signal_var = np.array(signal_var)[::-1, ::-1]
-        return np.array(pos_var), np.array(signal_var)
+        return np.array(pos_var), self.signal_conversion(np.array(signal_var))
 
     def plot_diodes(self, save_path=None, direction=None, plotting_range=None, diode_line=None, inverse=[False, False],
                     diode_cmap=sns.color_palette("coolwarm", as_cmap=True)):
@@ -674,6 +698,7 @@ class Analyzer:
                 pos_var[diode], signal_var[diode] = np.array(pos_var[diode])[ordering], np.array(signal_var[diode])[ordering]
             if inverse[direction]:
                 signal_var = np.array(signal_var)[::-1, ::-1]
+            signal_var = self.signal_conversion(signal_var)
             diode_colormapper = lambda diode: color_mapper(diode, 0, self.diode_dimension[direction])
             diode_color = lambda diode: diode_cmap(diode_colormapper(diode))
 
@@ -684,7 +709,8 @@ class Analyzer:
                 ax.plot(pos_var[diode], signal_var[diode], color=diode_color(diode), alpha=0.5)
 
             ax.set_xlabel('Real measurement position of diode (mm)')
-            ax.set_ylabel('Measured Signal (a.u.)')
+            # ax.set_ylabel('Measured Signal (a.u.)')
+            ax.set_ylabel(f'Signal Current ({scale_dict[self.scale][1]}A)')
             ax.set_xlim(ax.get_xlim())
             ax.set_ylim(ax.get_ylim())
             gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.11, 0.92]),
