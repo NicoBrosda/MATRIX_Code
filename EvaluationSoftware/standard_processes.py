@@ -94,6 +94,7 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     # Signal conversion:
     for i in range(len(instance.measurement_data)):
         instance.measurement_data[i]['signal'] = instance.signal_conversion(instance.measurement_data[i]['signal'])
+        instance.measurement_data[i]['std'] = instance.signal_conversion(instance.measurement_data[i]['std'])
     signal = instance.measurement_data
 
     # Find the different currents available from this data
@@ -109,6 +110,7 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     # Signal conversion:
     for i in range(len(instance.measurement_data)):
         instance.measurement_data[i]['signal'] = instance.signal_conversion(instance.measurement_data[i]['signal'])
+        instance.measurement_data[i]['std'] = instance.signal_conversion(instance.measurement_data[i]['std'])
     dark = instance.measurement_data
 
     _dark_voltage = np.array([i['voltage'] for i in dark])

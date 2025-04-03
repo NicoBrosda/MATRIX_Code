@@ -87,3 +87,18 @@ def current4(path_to_data_file, conversion_factor=0.688):
     except ValueError:
         current = None
     return current
+
+
+def current5(path_to_data_file, conversion_factor=1):
+    # Current as format: _5nA_nA_
+    if not isinstance(path_to_data_file, str):
+        path_to_data_file = str(path_to_data_file)
+
+    # The parsing of the position out of the name and save it
+    try:
+        index2 = path_to_data_file.index('nA_')
+        index1 = path_to_data_file[:index2].rindex('_')
+        current = float(comma_replace(path_to_data_file[index1+1:index2])) * conversion_factor
+    except ValueError:
+        current = None
+    return current
