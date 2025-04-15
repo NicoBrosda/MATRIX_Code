@@ -57,7 +57,7 @@ results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/Maps/')
 # Exp 138 : Dark voltage scan end 0-2V ["DarkEnd_"]
 
 new_measurements = []
-# '''
+'''
 new_measurements += [f'exp{i+14}_energydiffmap_P{i}_' for i in range(19)]
 new_measurements += [f'exp{i+36}_PEEKwedge_P{i}_' if i < 7 else f'exp{i+36}_PEEKwedge_P18_' for i in range(8)]
 new_measurements += [f'exp{44}_PEEKwedge_P{0}_', f'exp{45}_PEEKwedge_P{18}_']
@@ -67,11 +67,17 @@ new_measurements += [f'exp{65}_LargerGap10mm_P{7}_']
 new_measurements += [f'exp{69}_Distance10mm_P{7}_', f'exp{70}_Distance10mm_P{12}_', f'exp{71}_Distance10mm_P{16}_']
 new_measurements += [f'exp{72}_Distance20mm_P{0}_', f'exp{73}_Distance20mm_P{7}_', f'exp{74}_Distance20mm_P{12}_', f'exp{75}_Distance20mm_P{16}_']
 new_measurements += [f'exp{i+77}_energyDep_P{i}_' for i in range(19)]
-# '''
 new_measurements += [f'exp{96}_PEEKWedge_P{0}_', f'exp{97}_PEEKWedge_P{18}_', f'exp{98}_PEEKWedge_P{18}_']
 new_measurements += [f'exp{i+99}_PEEKWedge_P{i}_' for i in range(18)]
 new_measurements += [f'exp{117}_PEEKWedge_P{19}_']
 new_measurements += [f'exp{i+118}_PEEKWedgeMiddle_P{19-i}_' for i in range(8)]
+# '''
+new_measurements += [f'exp{44}_PEEKwedge_P{0}_', f'exp{63}_LargerGap10mm_P{0}_', f'exp{72}_Distance20mm_P{0}_']
+new_measurements += [f'exp{52}_PEEKwedge_P{7}_', f'exp{65}_LargerGap10mm_P{7}_', f'exp{69}_Distance10mm_P{7}_',
+                     f'exp{73}_Distance20mm_P{7}_']
+new_measurements += [f'exp{57}_PEEKwedge_P{12}_', f'exp{70}_Distance10mm_P{12}_', f'exp{74}_Distance20mm_P{12}_']
+new_measurements += [f'exp{61}_PEEKwedge_P{16}_', f'exp{71}_Distance10mm_P{16}_', f'exp{75}_Distance20mm_P{16}_']
+
 new_measurements += [f'exp{126}_Round8mm_5mm_P{0}_', f'exp{127}_Round8mm_5mm_P{12}_', f'exp{128}_Misc_5mm_P{0}_']
 new_measurements += [f'exp{130}_Round8mm_10mm_P{0}_', f'exp{131}_Round8mm_10mm_P{12}_', f'exp{129}_Misc_10mm_P{0}_']
 new_measurements += [f'exp{133}_Round8mm_20mm_P{0}_', f'exp{132}_Round8mm_20mm_P{12}_', f'exp{134}_Misc_20mm_P{0}_']
@@ -86,6 +92,10 @@ norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
 norm_array1 = ['exp7_norm1,9V_']
 # norm_array1 = ['2exp76_normday2_P0_']
 
+cache_round0 = []
+cache_round12 = []
+cache_misc = []
+cache_PEEK = []
 for k, crit in enumerate(new_measurements[0:]):
     print('-'*50)
     print(crit)
@@ -97,7 +107,6 @@ for k, crit in enumerate(new_measurements[0:]):
     dark = dark_paths_array1
     A.set_measurement(folder_path, crit)
     A.load_measurement()
-    cache_save_raw = deepcopy(A.measurement_data)
     A.set_dark_measurement(dark_path, dark)
     norm = norm_array1
     norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
@@ -106,38 +115,72 @@ for k, crit in enumerate(new_measurements[0:]):
     A.update_measurement()
     A.create_map(inverse=[True, False])
     intensity_limits = [0, np.max(A.maps[0]['z'])]
-    print(np.max(np.max(A.maps[0]['z'])))
+    txt_posi = [0.03, 0.93]
+    if 'Misc' in crit:
+        cache_misc.append([crit, A.maps])
+    elif 'PEEK' in crit or 'LargerGap' in crit or 'Distance' in crit:
+        cache_PEEK.append([crit, A.maps])
+    elif 'P0' in crit:
+        cache_round0.append([crit, A.maps])
+    else :
+        cache_round12.append([crit, A.maps])
+
+intensity_limits = [0, np.max([np.max(i[1][0]['z']) for i in cache_PEEK])]
+A.maps = [i[1][0] for i in cache_PEEK]
+A.rescale_maps()
+for k, map in enumerate(A.maps):
+    cache_PEEK[k][1] = [map]
+
+for k, obj in enumerate(cache_PEEK):
+    A.maps = obj[1]
+    A.name = obj[0]
+    crit = A.name
+    if not 'Distance' in crit:
+        if 'PEEK' in crit:
+            crit = f'{"_Distance5mm"}{crit[crit.rindex("_P"):]}'
+        else:
+            crit = f'{"_Distance10mm"}{crit[crit.rindex("_P"):]}'
+
+    insert_txt = [txt_posi, crit[crit.index('_')+1:-1], 15]
+    A.plot_map(results_path / 'straggling/', pixel='fill', intensity_limits=intensity_limits, insert_txt=insert_txt)
+
+intensity_limits = [0, np.max([np.max(i[1][0]['z']) for i in cache_round0])]
+A.maps = [i[1][0] for i in cache_round0]
+A.rescale_maps()
+for k, map in enumerate(A.maps):
+    cache_round0[k][1] = [map]
+
+for k, obj in enumerate(cache_round0):
+    A.maps = obj[1]
+    A.name = obj[0]
+    crit = obj[0]
+    insert_txt = [txt_posi, crit[crit.index('_')+1:-1], 15]
+    A.plot_map(results_path / 'straggling/', pixel='fill', intensity_limits=intensity_limits, insert_txt=insert_txt)
+
+intensity_limits = [0, np.max([np.max(i[1][0]['z']) for i in cache_round12])]
+A.maps = [i[1][0] for i in cache_round12]
+A.rescale_maps()
+for k, map in enumerate(A.maps):
+    cache_round12[k][1] = [map]
+
+for k, obj in enumerate(cache_round12):
+    A.maps = obj[1]
+    A.name = obj[0]
+    crit = obj[0]
+    insert_txt = [txt_posi, crit[crit.index('_') + 1:-1], 15]
+    A.plot_map(results_path / 'straggling/', pixel='fill', intensity_limits=intensity_limits, insert_txt=insert_txt)
+
+intensity_limits = [0, np.max([np.max(i[1][0]['z']) for i in cache_misc])]
+A.maps = [i[1][0] for i in cache_misc]
+A.rescale_maps()
+for k, map in enumerate(A.maps):
+    cache_misc[k][1] = [map]
+
+for obj in cache_misc:
+    A.maps = obj[1]
+    A.name = obj[0]
+    crit = obj[0]
+    insert_txt = [txt_posi, crit[crit.index('_')+1:-1], 15]
+    A.plot_map(results_path / 'straggling/', pixel='fill', intensity_limits=intensity_limits, insert_txt=insert_txt)
 
 
-    # A.plot_map(results_path / 'maps/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill', intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'maps/', pixel=False, intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'maps/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
-    # A.plot_map(results_path / 'maps/', pixel=True, intensity_limits=intensity_limits, imshow=True)
-
-    '''
-    for i, image_map in enumerate(A.maps):
-        A.maps[i]['z'] = simple_zero_replace(image_map['z'])
-    # A.plot_map(results_path / 'maps_plus/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps_plus/', pixel='fill', intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'maps_plus/', pixel=False, intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'maps_plus/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
-    # A.plot_map(results_path / 'maps_plus/', pixel=True, intensity_limits=intensity_limits, imshow=True)
-    '''
-
-    A.measurement_data = cache_save_raw
-    A.create_map(inverse=[True, False])
-    print(np.max(np.max(A.maps[0]['z'])))
-    # A.plot_map(results_path / 'raw/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'raw/', pixel='fill')
-    # A.plot_map(results_path / 'raw/', pixel=False, intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'raw/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
-
-    A.update_measurement(factor=False)
-    A.create_map(inverse=[True, False])
-    print(np.max(np.max(A.maps[0]['z'])))
-
-    # A.plot_map(results_path / 'no_norm/', pixel=True, intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'no_norm/', pixel='fill', intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'no_norm/', pixel=False, intensity_limits=intensity_limits)
-    # A.plot_map(results_path / 'no_norm/', pixel='fill', intensity_limits=intensity_limits, imshow=True)

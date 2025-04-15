@@ -352,7 +352,7 @@ class Analyzer:
 
     def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.pdf', bbox=None,
+                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.pdf', bbox=None, alpha=1.0,
                  insert_txt: bool or list = False, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()
@@ -360,6 +360,9 @@ class Analyzer:
             print(len(self.maps), ' map will be plotted.')
         else:
             print(len(self.maps), ' maps will be plotted at the positions ', [i['position'] for i in self.maps])
+        if intensity_limits is None:
+            # intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
+            intensity_limits = [0, np.abs(np.max([np.max(i['z']) for i in self.maps]))]
         for map_el in self.maps:
 
             if ax_in is None or fig_in is None:
@@ -368,9 +371,6 @@ class Analyzer:
                 fig, ax = fig_in, ax_in
             fig.set_dpi(dpi)
 
-            if intensity_limits is None:
-                # intensity_limits = [0, np.abs(np.max(map_el['z']) * 0.9)]
-                intensity_limits = [0, np.abs(np.max(map_el['z']))]
             # levels = np.linspace(intensity_limits[0], intensity_limits[1], 100)
             levels = np.linspace(intensity_limits[0], intensity_limits[1], 256)
 
@@ -440,7 +440,8 @@ class Analyzer:
                 # print(np.shape(cache_x), np.shape(cache_y), np.shape(cache_z))
                 norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
                 if not imshow:
-                    color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat')
+                    color_map = ax.pcolormesh(cache_x, cache_y, cache_z, cmap=cmap, norm=norm, shading='flat',
+                                              alpha=alpha)
                 else:
                     map_x, map_y, map_z = homogenize_pixel_size([cache_x, cache_y, cache_z])
 
@@ -452,7 +453,7 @@ class Analyzer:
                         interpolation = 'antialiased'
 
                     color_map = ax.imshow(map_z, cmap=cmap, origin='lower', vmin=intensity_limits[0],
-                                          vmax=intensity_limits[1], interpolation=interpolation,
+                                          vmax=intensity_limits[1], interpolation=interpolation, alpha=alpha,
                                           extent=(map_x[0] - p2, map_x[-1] + p2, map_y[0] - p2, map_y[-1] + p2))
                 # '''
                 norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
@@ -462,13 +463,13 @@ class Analyzer:
                     bar = fig.colorbar(sm, ax=ax, extend='max')
             else:
                 if np.min(map_el['z']) < intensity_limits[0] and np.max(map_el['z']) > intensity_limits[1]:
-                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='both', levels=levels)
+                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='both', levels=levels, alpha=alpha)
                 elif np.min(map_el['z']) < intensity_limits[0]:
-                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='min', levels=levels)
+                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='min', levels=levels, alpha=alpha)
                 elif np.max(map_el['z']) > intensity_limits[1]:
-                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='max', levels=levels)
+                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='max', levels=levels, alpha=alpha)
                 else:
-                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='neither', levels=levels)
+                    color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='neither', levels=levels, alpha=alpha)
                 norm = matplotlib.colors.Normalize(vmin=intensity_limits[0], vmax=intensity_limits[1])
                 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
                 sm.set_array([])
@@ -498,8 +499,15 @@ class Analyzer:
                 bar.set_label(f'Signal Current ({scale_dict[self.scale][1]}A)')
 
             if insert_txt:
-                ax.text(*transform_axis_to_data_coordinates(ax, insert_txt[0]), insert_txt[1], fontsize=insert_txt[2],
-                        c='k', zorder=3, bbox={'facecolor': 'white', 'alpha': 0.3, 'pad': 2})
+                if len(insert_txt) < 4:
+                    ax.text(*transform_axis_to_data_coordinates(ax, insert_txt[0]), insert_txt[1], c='k',
+                            fontsize=insert_txt[2], zorder=3, bbox={'facecolor': 'white', 'alpha': 0.3, 'pad': 2})
+                elif len(insert_txt) < 5:
+                    ax.text(*transform_axis_to_data_coordinates(ax, insert_txt[0]), insert_txt[1], c=insert_txt[3],
+                            fontsize=insert_txt[2], zorder=3, bbox={'facecolor': 'white', 'alpha': 0.3, 'pad': 2})
+                else:
+                    ax.text(*transform_axis_to_data_coordinates(ax, insert_txt[0]), insert_txt[1], c=insert_txt[3],
+                            fontsize=insert_txt[2], zorder=3, bbox=insert_txt[4])
 
             save_name = self.name + '_map' + map_el['position']
             if imshow:
@@ -543,7 +551,6 @@ class Analyzer:
             self.create_map(inverse=map_inverse)
             self.name = name + f'_{parameter}={param}_'
             self.plot_map(*args, **kwargs)
-
 
     def get_signal_xline(self, y_position=None, x_start=None, x_end=None, map_select=None):
         if map_select is None:
@@ -728,3 +735,68 @@ class Analyzer:
                 save_name = self.name + 'DiodeScan_YDirection_XMeasurement' + str(set_position)
             if save_path is not None:
                 format_save(save_path=save_path, save_name=save_name)
+
+    def rescale_maps(self, extend=None, standard_value=0.0):
+        # Determine the global extent if not provided
+        if extend is None:
+            extend = [
+                [np.min([np.min(i['x']) for i in self.maps]), np.max([np.max(i['x']) for i in self.maps])],
+                [np.min([np.min(i['y']) for i in self.maps]), np.max([np.max(i['y']) for i in self.maps])]
+            ]
+
+        # Iterate through all maps with index k
+        for k, map_data in enumerate(self.maps):
+            # Get original map data
+            x = map_data['x']
+            y = map_data['y']
+            z = map_data['z']
+
+            # Initialize the new x and y ranges
+            x_min, x_max = extend[0]
+            y_min, y_max = extend[1]
+
+            # Create new x and y arrays considering the padding
+            # For padding, we need to extend the boundaries with the original steps at the edges
+            new_x = list(x)
+            new_y = list(y)
+
+            # Padding for x (extend boundaries with original steps at the edges)
+            if x_min < x[0]:
+                # Add padding to the left
+                while new_x[0] > x_min:
+                    new_x.insert(0, new_x[0] - (x[1] - x[0]))
+
+            if x_max > x[-1]:
+                # Add padding to the right
+                while new_x[-1] < x_max:
+                    new_x.append(new_x[-1] + (x[-1] - x[-2]))
+
+            # Padding for y (extend boundaries with original steps at the edges)
+            if y_min < y[0]:
+                # Add padding to the top
+                while new_y[0] > y_min:
+                    new_y.insert(0, new_y[0] - (y[1] - y[0]))
+
+            if y_max > y[-1]:
+                # Add padding to the bottom
+                while new_y[-1] < y_max:
+                    new_y.append(new_y[-1] + (y[-1] - y[-2]))
+
+            # Now, we need to adjust the z array to match the new x and y grids
+            # Create a new z array that has the same dimensions as the padded x and y arrays
+            new_z = np.full((len(new_y), len(new_x)), standard_value)
+
+            # Get the indices where original x and y fit into the new grid
+            x_start = np.searchsorted(new_x, x[0])
+            x_end = np.searchsorted(new_x, x[-1], side='right')
+            y_start = np.searchsorted(new_y, y[0])
+            y_end = np.searchsorted(new_y, y[-1], side='right')
+
+            # Copy the original z values into the correct locations in the new_z array
+            new_z[y_start:y_end, x_start:x_end] = z
+
+            # Update map with rescaled x, y, z (using the index k)
+            self.maps[k]['x'] = np.array(new_x)
+            self.maps[k]['y'] = np.array(new_y)
+            self.maps[k]['z'] = new_z
+
