@@ -1,0 +1,16 @@
+name: MATRIX_Code
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - matplotlib
+  - pandas
+  - scipy
+  - scikit-image
+  - pillow
+  - opencv
+  - pip
+  - pip:
+    - -r requirements.txt 

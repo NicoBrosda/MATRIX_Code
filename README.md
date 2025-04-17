@@ -14,6 +14,69 @@ This project needs to be executed from the MATRIX_code folder level, otherwise r
 - Check if any Error is connected to paths not adapted to your computer system.
 - If any imports in this project are not working, note the info from above: The project needs to be executed from the MATRIX_code folder level, otherwise referencing inbetween different code building blocks might not work.
 
+## Environment Setup
+This project uses a conda environment to manage dependencies. Follow these steps to set up the environment:
+
+### Prerequisites
+- [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/) or [Anaconda](https://www.anaconda.com/download) installed
+- Git installed (for cloning the repository)
+
+### Setup Steps
+
+1. Clone the repository:
+```bash
+git clone https://gitlab.ruhr-uni-bochum.de/brosdnkl/matrix_code.git
+cd matrix_code
+```
+
+2. Create and activate the conda environment:
+```bash
+# Create the environment from environment.yml
+conda env create -f environment.yml
+
+# Activate the environment
+conda activate MATRIX_Code
+```
+
+3. Verify the installation:
+```bash
+# Check if Python is using the correct environment
+which python
+# Should point to a path in your conda environment
+
+# Test basic imports
+python -c "import numpy; import matplotlib; import cv2; print('Environment setup successful!')"
+```
+
+### Environment Management
+
+- To update the environment if changes are made to environment.yml:
+```bash
+conda env update -f environment.yml
+```
+
+- To remove the environment:
+```bash
+conda deactivate
+conda env remove -n MATRIX_Code
+```
+
+### Troubleshooting
+
+- If you encounter package conflicts during installation:
+  - Try removing the existing environment and creating it fresh
+  - Check if all required channels are properly configured in environment.yml
+  - Ensure you're using the latest version of conda
+
+- If you get permission errors:
+  - Make sure you have write permissions in the installation directory
+  - Try running the commands with administrator privileges if needed
+
+- If you encounter Python version issues:
+  - The environment is configured for Python 3.12
+  - Make sure your conda installation is up to date
+  - Check if your system supports the required Python version
+
 ## Overview
 On project level only folders, the README and the license should be stored.
 #### AMS_Evaluation
