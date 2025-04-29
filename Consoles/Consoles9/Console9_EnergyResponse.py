@@ -84,6 +84,7 @@ readout, position_parser, voltage_parser, current_parser = (
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/EnergyResponse/')
+results_stem = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/')
 
 # ----------------------- Short summary log of measurements -----------------------
 # Exp 1 : Dark voltage scan ["dark_"]
@@ -147,8 +148,8 @@ norm_array1 = ['exp7_norm1,9V_']
 # norm_array1 = ['2exp76_normday2_P0_']
 
 try:
-    cache_400 = np.load('/Users/nico_brosda/Desktop/Fast_Mode/cache_400.npy')
-    cache_200 = np.load('/Users/nico_brosda/Desktop/Fast_Mode/cache_200.npy')
+    cache_400 = np.load(results_stem / 'Fast_Mode/cache_400.npy')
+    cache_200 = np.load(results_stem / 'Fast_Mode/cache_200.npy')
     A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout,
                  diode_offset=[[0, - 0.25], np.zeros(64)], position_parser=position_parser,
                  voltage_parser=voltage_parser, current_parser=current_parser)
@@ -212,8 +213,8 @@ except FileNotFoundError as _error:
         ax.set_ylabel(f'counts per bin ({bins} bins)')
         format_save(results_path / f'Histograms{diffuser}um/', A.name, legend=True)
     if fast_mode:
-        np.save('/Users/nico_brosda/Desktop/Fast_Mode/cache_400.npy', cache_400)
-        np.save('/Users/nico_brosda/Desktop/Fast_Mode/cache_200.npy', cache_200)
+        np.save(results_stem / 'Fast_Mode/cache_400.npy', cache_400)
+        np.save(results_stem / 'Fast_Mode/cache_200.npy', cache_200)
 
 
 # -------------- Plot 2: Curve signal vs energy for 400 um diffuser--------------
