@@ -11,7 +11,7 @@ readout, position_parser = lambda x, y: ams_channel_assignment_readout(x, y, cha
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
 new_measurements = ['round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um']
 new_measurements = ['Array3_Logo', 'Array3_BeamShape', 'BraggPeak', 'MiscShape', 'round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um', 'BeamScan']
-new_measurements = ['scan_round_aperture_200um']
+new_measurements = ['Array3_Logo']
 
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_230924/')
 
@@ -63,23 +63,17 @@ for k, crit in enumerate(new_measurements):
     A.load_measurement(readout_module=readout)
     A.create_map(inverse=[True, False])
     intensity_limits = None
-    A.plot_map(results_path / 'raw/', pixel=True,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'raw/', pixel='fill',
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'raw/', pixel=False,
-               intensity_limits=intensity_limits)
+    # A.plot_map(results_path / 'raw/', pixel=True, intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'raw/', pixel='fill', intensity_limits=intensity_limits)
+    # A.plot_map(results_path / 'raw/', pixel=False, intensity_limits=intensity_limits)
 
     A.set_dark_measurement(folder_path, dark)
     A.update_measurement(factor=False)
     A.create_map(inverse=[True, False])
     intensity_limits = None
-    A.plot_map(results_path / 'no_norm/', pixel=True,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'no_norm/', pixel='fill',
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'no_norm/', pixel=False,
-               intensity_limits=intensity_limits)
+    # A.plot_map(results_path / 'no_norm/', pixel=True, intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'no_norm/', pixel='fill', intensity_limits=intensity_limits)
+    # A.plot_map(results_path / 'no_norm/', pixel=False, intensity_limits=intensity_limits)
 
     # Normalization - correct assignment
     if 'Array3' in crit:
@@ -91,9 +85,6 @@ for k, crit in enumerate(new_measurements):
     A.update_measurement(dark=False)
     A.create_map(inverse=[True, False])
     intensity_limits = None
-    A.plot_map(results_path / 'maps/', pixel=True,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill',
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel=False,
-               intensity_limits=intensity_limits)
+    # A.plot_map(results_path / 'maps/', pixel=True, intensity_limits=intensity_limits)
+    A.plot_map(results_path / 'maps/', pixel='fill', intensity_limits=intensity_limits)
+    # A.plot_map(results_path / 'maps/', pixel=False, intensity_limits=intensity_limits)

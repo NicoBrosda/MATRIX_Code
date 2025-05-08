@@ -219,42 +219,6 @@ bragg_pos_wedge200 = 56.3
 # But will be validated with synchronizing max signal to 200 um measurement position
 bragg_pos_wedge200_middle = 67.5
 
-# ---------------------------------------------------------------------------------------------------------------------
-# Without correction
-# ---------------------------------------------------------------------------------------------------------------------
-# Extract Bragg curves out of signal maps:
-x_range = (16, 18)
-signal_cache_200 = []
-for data in wedge_200:
-    x_data = data['x']
-    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
-    signal_cache_200.append((data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)))
-
-x_range = (16, 18)
-signal_cache_200_middle = []
-for data in wedge_200_middle:
-    x_data = data['x']
-    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
-    signal_cache_200_middle.append(
-        (data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)))
-
-x_range = (16, 18)
-signal_cache_400 = []
-for data in wedge_400:
-    x_data = data['x']
-    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
-    signal_cache_400.append(
-        (data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)))
-
-# ---------------------------------------------------------------------------------------------------------------------
-# Correcting by the aperture characteristic
-# ---------------------------------------------------------------------------------------------------------------------
-# Dividing the aperture images into signal / no-signal regions (no-signal = mask assigned with 0)
-
-# Assigning the signal regions with a homogenization factor (normed to 1)
-
-# Correcting the wedge measurement by this factor
-
 # ----------------------------------------------------------------------------------------------------------------
 # Plot functions
 # ----------------------------------------------------------------------------------------------------------------
@@ -278,6 +242,7 @@ def plot_maps_and_wedge(save_path, comp_list, map_cache, signal_cache, param_col
         fig, ax = plt.subplots()
         ax2 = ax.twinx()
         A.maps[0]['x'], A.maps[0]['y'], A.maps[0]['z'] = map_cache[i]['y'], map_cache[i]['x'], map_cache[i]['z'].T
+        A.scale = 'atto'
         A.plot_map(None, pixel='fill', ax_in=ax, fig_in=fig, cmap=cmap)
         ax2.plot(y_pos, line, c=color)
         ax2.set_ylim(0, data_max * 1.2)
@@ -318,7 +283,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
 
     fig, ax = plt.subplots()
     ax.set_xlabel('Position y (mm)')
-    ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+    ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
     for i, obj in enumerate(signal_cache):
         line = obj[2]
         y_pos = obj[1]
@@ -351,7 +316,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
 
     fig, ax = plt.subplots()
     ax.set_xlabel('Position y (mm)')
-    ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+    ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
     for i, obj in enumerate(signal_cache):
         line = obj[2]
         y_pos = obj[1]
@@ -404,7 +369,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
     ax2 = ax.twinx()
     ax.set_xlabel('Energy (MeV)')
     ax.set_ylabel(f'Wedge Material Depth (mm)')
-    ax2.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+    ax2.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
 
     for i, obj in enumerate(signal_cache):
         param = comp_list[i]
@@ -416,17 +381,188 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
 
     format_save(save_path, save_name=f'MaterialDepthAndSignalHeightVsWedge', save=True, legend=True, fig=fig)
 
+
+# ----------------------------------------------------------------------------------------------------------------
+# Calculate normed responses (normed to incoming protons)
+#----------------------------------------------------------------------------------------------------------------
+rescale_current = 1e6
+scale_current = 'a'
+currents_400_aperture = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 / e / rescale_current
+currents_200_aperture = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) *1e-9 / e /rescale_current
+
+factor_200 = []
+for i in range(len(currents_200_aperture)):
+    aperture_200[i]['z'] = aperture_200[i]['z'] / currents_200_aperture[i]
+    factor_200.append(aperture_200[i])
+    factor_200[i]['z'] = factor_200[i]['z'] / np.max(factor_200[i]['z'])
+
+factor_400 = []
+for i in range(len(currents_400_aperture)):
+    aperture_400[i]['z'] = aperture_400[i]['z'] / currents_400_aperture[i]
+    factor_400.append(aperture_400[i])
+    factor_400[i]['z'] = factor_400[i]['z'] / np.max(factor_400[i]['z'])
+
+rescale_current = 1e6
+scale_current = 'a'
+# Correctly ordered from P0 (or P12) increasing
+currents_400 = np.array([882.5, 879, 877.5, 877, 874.5, 874, 872, 876.5, 876, 875.5, 873.5, 873.5, 872.5, 872, 870.5, 888, 888.5, 888, 881]) * 1e-12 / e / rescale_current
+currents_200 = np.array([1.74, 1.736, 1.7295, 1.7245, 1.7195, 1.715, 1.7115, 1.7085, 1.710, 1.7345, 1.726, 1.735, 1.7335, 1.731, 1.7265, 1.726, 1.725, 1.7225, 1.7455, 1.7225]) * 1e-9 / e / rescale_current
+currents_200_middle = np.array([1.7815, 1.781, 1.778, 1.778, 1.777, 1.7765, 1.7745, 1.774]) * 1e-9 / e / rescale_current
+
+for i in range(len(currents_200)):
+    wedge_200[i]['z'] = wedge_200[i]['z'] / currents_200[i]
+
+for i in range(len(currents_400)):
+    wedge_400[i]['z'] = wedge_400[i]['z'] / currents_400[i]
+
+for i in range(len(currents_200_middle)):
+    wedge_200_middle[i]['z'] = wedge_200_middle[i]['z'] / currents_200_middle[i]
+
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+
+def correct_wedge_with_aperture(wheel_position, map_set='400', threshold=0.1):
+    """
+    Corrects a wedge map by dividing by aperture map values at matching coordinates.
+
+    Args:
+        wheel_position: Index to access the specific position in the map lists
+        map_set: Which map set to use ('400', '200', or '200_middle')
+        threshold: Signal threshold for aperture map (default: 0.1)
+
+    Returns:
+        Dictionary with 'z', 'x', 'y', 'position' keys for corrected wedge map
+    """
+    # Select the appropriate maps based on the set parameter
+    if map_set == '400':
+        wedge_map = wedge_400[wheel_position]
+        aperture_map = factor_400[wheel_position]
+    elif map_set == '200':
+        wedge_map = wedge_200[wheel_position]
+        aperture_map = factor_200[wheel_position]
+    elif map_set == '200_middle':
+        wedge_map = wedge_200_middle[wheel_position - 12]
+        aperture_map = factor_200[wheel_position]  # Note: using aperture_200 for 200_middle
+    else:
+        raise ValueError(f"Unknown map set: {map_set}. Use '400', '200', or '200_middle'")
+
+    if (map_set == '200_middle' or map_set == '200') and wheel_position == 19:
+        print(f"No valid aperture map for {map_set} at position {wheel_position} existent - Returning a zero map")
+        return {'z': np.zeros(wedge_map['z'].shape), 'x': wedge_map['x'], 'y': wedge_map['y'],
+                'position': wedge_map['position']}
+
+    # Extract data and coordinates from input maps
+    wedge_data = wedge_map['z']
+    x_wedge = wedge_map['x']
+    y_wedge = wedge_map['y']
+
+    aperture_data = aperture_map['z']
+    x_aperture = aperture_map['x']
+    y_aperture = aperture_map['y']
+
+    # Create result dictionary with same structure as input
+    corrected_wedge_map = deepcopy(wedge_map)
+    corrected_wedge_data = corrected_wedge_map['z']
+
+    # Check if both datasets have identical coordinate systems
+    if np.array_equal(x_wedge, x_aperture) and np.array_equal(y_wedge, y_aperture):
+        # Fast path: direct vectorized operation when coordinates match exactly
+        print(f"Using fast path for {map_set} at position {wheel_position}")
+
+        # Create mask for valid aperture signals
+        valid_aperture = aperture_data > threshold
+
+        # Apply correction only where aperture signal is valid
+        # and avoid division by zero
+        valid_division = np.logical_and(valid_aperture, aperture_data != 0)
+        corrected_wedge_data[valid_division] = wedge_data[valid_division] / aperture_data[valid_division]
+
+        # Set values to zero where aperture signal is below threshold
+        corrected_wedge_data[~valid_division] = 0  # or keep original with: wedge_data[~valid_division]
+    else:
+        # Slower path: process only common coordinates
+        print(f"Using slow path for {map_set} at position {wheel_position}")
+
+        # Find common coordinates
+        common_x = np.intersect1d(x_wedge, x_aperture)
+        common_y = np.intersect1d(y_wedge, y_aperture)
+
+        # Process only points that exist in both datasets
+        for x in common_x:
+            for y in common_y:
+                # Find indices for this point in both arrays
+                i_wedge = np.where(x_wedge == x)[0]
+                j_wedge = np.where(y_wedge == y)[0]
+
+                i_aperture = np.where(x_aperture == x)[0]
+                j_aperture = np.where(y_aperture == y)[0]
+
+                # Check if the point exists in both datasets and indices are valid
+                if (i_wedge.size > 0 and j_wedge.size > 0 and
+                        i_aperture.size > 0 and j_aperture.size > 0):
+                    i_w, j_w = i_wedge[0], j_wedge[0]
+                    i_a, j_a = i_aperture[0], j_aperture[0]
+
+                    # Ensure indices are within bounds
+                    if (i_w < wedge_data.shape[1] and j_w < wedge_data.shape[0] and
+                            i_a < aperture_data.shape[1] and j_a < aperture_data.shape[0]):
+                        # Apply correction logic
+                        if aperture_data[j_a, i_a] > threshold and aperture_data[j_a, i_a] != 0:
+                            corrected_wedge_data[j_w, i_w] = wedge_data[j_w, i_w] / aperture_data[j_a, i_a]
+                        else:
+                            # No sufficient signal in aperture map or division by zero
+                            corrected_wedge_data[j_w, i_w] = 0  # or keep original with: wedge_data[i_w, j_w]
+                    else:
+                        pass
+                        # print(f"Warning: Index out of bounds: wedge[{i_w},{j_w}], aperture[{i_a},{j_a}]")
+    return corrected_wedge_map
+
+threshold = 0.3
+for wheel_position in range(19):
+    wedge_200[wheel_position] = correct_wedge_with_aperture(wheel_position, map_set='200', threshold=0.0)
+    wedge_400[wheel_position] = correct_wedge_with_aperture(wheel_position, map_set='400', threshold=0.0)
+    if wheel_position >= 12:
+        wedge_200_middle[wheel_position-12] = correct_wedge_with_aperture(wheel_position, map_set='200_middle', threshold=0.0)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# With correction
+# ---------------------------------------------------------------------------------------------------------------------
+# Extract Bragg curves out of signal maps:
+x_range = (16, 18)
+signal_cache_200 = []
+for data in wedge_200:
+    x_data = data['x']
+    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
+    signal_cache_200.append([data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
+
+x_range = (16, 18)
+signal_cache_200_middle = []
+for data in wedge_200_middle:
+    x_data = data['x']
+    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
+    signal_cache_200_middle.append(
+        [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
+
+x_range = (16, 18)
+signal_cache_400 = []
+for data in wedge_400:
+    x_data = data['x']
+    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
+    signal_cache_400.append(
+        [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
+
 # ----------------------------------------------------------------------------------------------------------------
 # Calls for 200 wedge
 # ----------------------------------------------------------------------------------------------------------------
 # '''
-comp_list = data_wheel_200['energies']
+comp_list = data_wheel_200['energies'].to_numpy()[:-1]
+param_colormapper_200 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
+param_color = lambda param: param_cmap(param_colormapper_200(param))
 param_unit = 'MeV'
-param_color = param_color_200
-signal_cache = signal_cache_200
-map_cache = wedge_200
+signal_cache = signal_cache_200[:len(comp_list)]
+map_cache = wedge_200[:len(comp_list)]
 shape_position = bragg_pos_wedge200
-save_path = results_path / 'Wedge200/'
+save_path = results_path / 'CorrectedII_Wedge200/'
 
 plot_maps_and_wedge(save_path / 'NoWedge/', comp_list, map_cache, signal_cache, param_color,
                     shape_position, param_unit, False, False)
@@ -442,14 +578,14 @@ plots_vs_wedge_position(save_path / 'Results/', comp_list, signal_cache, materia
 # ----------------------------------------------------------------------------------------------------------------
 # Calls for 200 wedge middle
 # ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_200['energies'].to_numpy()[-len(signal_cache_200_middle):]
-print(comp_list)
+comp_list = data_wheel_200['energies'].to_numpy()[-len(signal_cache_200_middle):-1]
+param_colormapper_200 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
+param_color = lambda param: param_cmap(param_colormapper_200(param))
 param_unit = 'MeV'
-param_color = param_color_200
-signal_cache = signal_cache_200_middle
-map_cache = wedge_200_middle
+signal_cache = signal_cache_200_middle[:len(comp_list)]
+map_cache = wedge_200_middle[:len(comp_list)]
 shape_position = bragg_pos_wedge200_middle
-save_path = results_path / 'Wedge200Middle/'
+save_path = results_path / 'CorrectedII_Wedge200Middle/'
 
 plot_maps_and_wedge(save_path / 'NoWedge/', comp_list, map_cache, signal_cache, param_color,
                     shape_position, param_unit, False, False)
@@ -468,10 +604,10 @@ comp_list = data_wheel_400['energies'].to_numpy()[:-1]
 param_colormapper_400 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
 param_unit = 'MeV'
 param_color = param_color_400
-signal_cache = signal_cache_400
-map_cache = wedge_400
+signal_cache = signal_cache_400[:len(comp_list)]
+map_cache = wedge_400[:len(comp_list)]
 shape_position = bragg_pos_wedge400
-save_path = results_path / 'Wedge400/'
+save_path = results_path / 'CorrectedII_Wedge400/'
 
 plot_maps_and_wedge(save_path / 'NoWedge/', comp_list, map_cache, signal_cache, param_color,
                     shape_position, param_unit, False, False)

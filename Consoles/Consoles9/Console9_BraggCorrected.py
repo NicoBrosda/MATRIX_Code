@@ -228,7 +228,7 @@ signal_cache_200 = []
 for data in wedge_200:
     x_data = data['x']
     indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
-    signal_cache_200.append((data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)))
+    signal_cache_200.append([data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
 
 x_range = (16, 18)
 signal_cache_200_middle = []
@@ -236,7 +236,7 @@ for data in wedge_200_middle:
     x_data = data['x']
     indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
     signal_cache_200_middle.append(
-        (data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)))
+        [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
 
 x_range = (16, 18)
 signal_cache_400 = []
@@ -244,7 +244,7 @@ for data in wedge_400:
     x_data = data['x']
     indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
     signal_cache_400.append(
-        (data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)))
+        [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Correcting by the aperture characteristic
@@ -278,6 +278,7 @@ def plot_maps_and_wedge(save_path, comp_list, map_cache, signal_cache, param_col
         fig, ax = plt.subplots()
         ax2 = ax.twinx()
         A.maps[0]['x'], A.maps[0]['y'], A.maps[0]['z'] = map_cache[i]['y'], map_cache[i]['x'], map_cache[i]['z'].T
+        A.scale = 'atto'
         A.plot_map(None, pixel='fill', ax_in=ax, fig_in=fig, cmap=cmap)
         ax2.plot(y_pos, line, c=color)
         ax2.set_ylim(0, data_max * 1.2)
@@ -318,7 +319,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
 
     fig, ax = plt.subplots()
     ax.set_xlabel('Position y (mm)')
-    ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+    ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
     for i, obj in enumerate(signal_cache):
         line = obj[2]
         y_pos = obj[1]
@@ -351,7 +352,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
 
     fig, ax = plt.subplots()
     ax.set_xlabel('Position y (mm)')
-    ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+    ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
     for i, obj in enumerate(signal_cache):
         line = obj[2]
         y_pos = obj[1]
@@ -404,7 +405,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
     ax2 = ax.twinx()
     ax.set_xlabel('Energy (MeV)')
     ax.set_ylabel(f'Wedge Material Depth (mm)')
-    ax2.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+    ax2.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
 
     for i, obj in enumerate(signal_cache):
         param = comp_list[i]
@@ -417,6 +418,38 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
     format_save(save_path, save_name=f'MaterialDepthAndSignalHeightVsWedge', save=True, legend=True, fig=fig)
 
 # ----------------------------------------------------------------------------------------------------------------
+# Calculate normed responses (normed to incoming protons)
+#----------------------------------------------------------------------------------------------------------------
+'''
+rescale_sim = 1e6
+scale_sim = ''
+simn = 1e7 / rescale_sim
+sim_res_200, sim_res_400, sim_std_200, sim_std_400 = (np.array(sim_res_200[:len(cache_200)]) / simn,
+                                                      np.array(sim_res_400[:len(cache_400)]) / simn,
+                                                      np.array(sim_std_200[:len(cache_200)]) / simn,
+                                                      np.array(sim_std_400[:len(cache_400)]) / simn)
+'''
+
+rescale_current = 1e6
+scale_current = 'a'
+# Correctly ordered from P0 (or P12) increasing
+currents_400 = np.array([882.5, 879, 877.5, 877, 874.5, 874, 872, 876.5, 876, 875.5, 873.5, 873.5, 872.5, 872, 870.5, 888, 888.5, 888, 881]) * 1e-12 / e / rescale_current
+currents_200 = np.array([1.74, 1.736, 1.7295, 1.7245, 1.7195, 1.715, 1.7115, 1.7085, 1.710, 1.7345, 1.726, 1.735, 1.7335, 1.731, 1.7265, 1.726, 1.725, 1.7225, 1.7455, 1.7225]) * 1e-9 / e / rescale_current
+currents_200_middle = np.array([1.7815, 1.781, 1.778, 1.778, 1.777, 1.7765, 1.7745, 1.774]) * 1e-9 / e / rescale_current
+
+for i in range(len(currents_200)):
+    signal_cache_200[i][2] = signal_cache_200[i][2] / currents_200[i]
+    wedge_200[i]['z'] = wedge_200[i]['z'] / currents_200[i]
+
+for i in range(len(currents_400)):
+    signal_cache_400[i][2] = signal_cache_400[i][2] / currents_400[i]
+    wedge_400[i]['z'] = wedge_400[i]['z'] / currents_400[i]
+
+for i in range(len(currents_200_middle)):
+    signal_cache_200_middle[i][2] = signal_cache_200_middle[i][2] / currents_200_middle[i]
+    wedge_200_middle[i]['z'] = wedge_200_middle[i]['z'] / currents_200_middle[i]
+
+# ----------------------------------------------------------------------------------------------------------------
 # Calls for 200 wedge
 # ----------------------------------------------------------------------------------------------------------------
 # '''
@@ -426,7 +459,7 @@ param_color = param_color_200
 signal_cache = signal_cache_200
 map_cache = wedge_200
 shape_position = bragg_pos_wedge200
-save_path = results_path / 'Wedge200/'
+save_path = results_path / 'Corrected_Wedge200/'
 
 plot_maps_and_wedge(save_path / 'NoWedge/', comp_list, map_cache, signal_cache, param_color,
                     shape_position, param_unit, False, False)
@@ -449,7 +482,7 @@ param_color = param_color_200
 signal_cache = signal_cache_200_middle
 map_cache = wedge_200_middle
 shape_position = bragg_pos_wedge200_middle
-save_path = results_path / 'Wedge200Middle/'
+save_path = results_path / 'Corrected_Wedge200Middle/'
 
 plot_maps_and_wedge(save_path / 'NoWedge/', comp_list, map_cache, signal_cache, param_color,
                     shape_position, param_unit, False, False)
@@ -471,7 +504,7 @@ param_color = param_color_400
 signal_cache = signal_cache_400
 map_cache = wedge_400
 shape_position = bragg_pos_wedge400
-save_path = results_path / 'Wedge400/'
+save_path = results_path / 'Corrected_Wedge400/'
 
 plot_maps_and_wedge(save_path / 'NoWedge/', comp_list, map_cache, signal_cache, param_color,
                     shape_position, param_unit, False, False)

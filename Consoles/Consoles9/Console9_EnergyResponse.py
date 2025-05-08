@@ -239,17 +239,17 @@ ax.set_xlabel(f'Proton energy (MeV)')
 ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
 ax2.set_ylabel(f'Deposited Energy (MeV)')
 
-
+ax.set_ylim(0, 1.2*np.max([i[1] for i in cache_400]))
+ax2.set_ylim(0, 1.2*np.max(sim_res_400[0:len(cache_400)]))
 ax.set_xlim(ax.get_xlim())
-ax.set_ylim(ax.get_ylim())
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.775]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.645]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.79]),
-        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
-        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path, f'400umResponse', legend=True)
 
@@ -275,15 +275,16 @@ ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
 ax2.set_ylabel(f'Deposited Energy (MeV)')
 
 ax.set_xlim(ax.get_xlim())
-ax.set_ylim(ax.get_ylim())
+ax.set_ylim(0, 1.2*np.max([i[1] for i in cache_200]))
+ax2.set_ylim(0, 1.2*np.max(sim_res_200[0:len(cache_200)]))
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.775]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.645]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.79]),
-        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
-        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path , f'200umResponse', legend=True)
 
@@ -331,15 +332,16 @@ ax2.set_ylabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
 
 
 ax.set_xlim(ax.get_xlim())
-ax.set_ylim(ax.get_ylim())
+ax.set_ylim(0, 1.2*np.max(normed_400))
+ax2.set_ylim(0, 1.2*np.max(sim_res_400[0:len(cache_400)]))
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.775]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.645]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.79]),
-        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
-        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path, f'Normed400umResponse', legend=True)
 
@@ -364,15 +366,16 @@ ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
 ax2.set_ylabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
 
 ax.set_xlim(ax.get_xlim())
-ax.set_ylim(ax.get_ylim())
+ax.set_ylim(0, 1.2*np.max(normed_200))
+ax2.set_ylim(0, 1.2*np.max(sim_res_200[0:len(cache_200)]))
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.775]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.645]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.79]),
-        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
-        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path , f'Normed200umResponse', legend=True)
 
@@ -398,10 +401,10 @@ ax.set_ylim(ax.get_ylim())
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.265]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.135]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.28]),
-        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.05]),
-        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path, f'EnergyCalib400', legend=False)
 
@@ -425,10 +428,10 @@ ax.set_ylim(ax.get_ylim())
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.265]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.135]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.28]),
-        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.05]),
-        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 
 format_save(results_path , f'EnergyCalib200', legend=False)
@@ -478,16 +481,16 @@ ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
-ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), f'Proportional law $\mathrm{"{R}"}^2$ = {r_squared_400:.4f}', fontsize=12)
-ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_400[0]:.3f}$\,${scale_current}A/{scale_sim}eV', fontsize=12)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), f'Proportional law $\\mathrm{"{R}"}^2$ = {r_squared_400:.4f}', fontsize=12)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_400[0]:.3f}$\\,${scale_current}A/{scale_sim}eV', fontsize=12)
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.265]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.135]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.28]),
-        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.05]),
-        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path, f'EnergyCalib400_Fit', legend=False)
 
@@ -509,16 +512,16 @@ ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
-ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), f'Proportional law $\mathrm{"{R}"}^2$ = {r_squared_200:.4f}', fontsize=12)
-ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_200[0]:.3f}$\,${scale_current}A/{scale_sim}eV', fontsize=12)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), f'Proportional law $\\mathrm{"{R}"}^2$ = {r_squared_200:.4f}', fontsize=12)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_200[0]:.3f}$\\,${scale_current}A/{scale_sim}eV', fontsize=12)
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.265]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.135]), cmap=energy_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.28]),
-        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.min(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
 ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.05]),
-        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\,${'MeV'}", fontsize=13,
+        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
         c=energy_color(np.max(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 
 format_save(results_path , f'EnergyCalib200_Fit', legend=False)
