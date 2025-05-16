@@ -7,6 +7,7 @@ import numpy as np
 from Plot_Methods.helper_functions import transform_axis_to_data_coordinates, transform_data_to_axis_coordinates
 import matplotlib.pyplot as plt
 import pandas as pd
+import math
 
 
 def list_check(name, list_):
@@ -423,3 +424,64 @@ def norm_to_one(array, invert=False):
         return (array - np.max(array)) / np.min(array - np.max(array))
     else:
         return (array - np.min(array)) / np.max(array - np.min(array))
+
+
+def format_value_with_error(value, error, format_type='parentheses', error_digits=1):
+    """
+    Formats a value with its error according to scientific standards.
+
+    Args:
+        value: The value to format
+        error: The error of the value (can be a single value or numpy array)
+        format_type: 'parentheses' for format like 4.56(2) or 'pm' for format like 4.56±0.02
+        error_digits: Number of significant digits for the error (typically 1 or 2)
+
+    Returns:
+        Formatted string
+    """
+    # Behandle NumPy-Arrays, indem nur der erste Wert verwendet wird
+    if isinstance(error, np.ndarray):
+        error = error[0]
+
+    if isinstance(value, np.ndarray):
+        value = value[0]
+    
+    if error <= 0:
+        return str(value)
+
+    # Determine the position of the last significant digit in the error
+    if error == 0:
+        sig_digit = 0
+    else:
+        # Calculate number of decimal places for the error
+        sig_digit = -int(math.floor(math.log10(abs(error))))
+
+    # Ensure we have the right number of significant digits in the error
+    # With error_digits=1 we round to the first significant digit
+    error_factor = 10 ** sig_digit
+    rounded_error_sig = round(error * error_factor, error_digits - 1)
+    rounded_error = rounded_error_sig / error_factor
+
+    # Round the value to the same decimal place as the error
+    if sig_digit <= 0:
+        # For errors >= 1
+        decimals = 0
+    else:
+        decimals = sig_digit
+
+    rounded_value = round(value, decimals)
+
+    if format_type == 'parentheses':
+        if sig_digit <= 0:
+            # For errors >= 1
+            error_sig = int(round(rounded_error))
+            return f"{rounded_value:.0f}({error_sig})"
+        else:
+            # Extract only the significant digit(s) of the error for the parentheses
+            error_sig = int(round(rounded_error * 10 ** sig_digit))
+            return f"{rounded_value:.{sig_digit}f}({error_sig})"
+    else:  # format_type == 'pm'
+        if sig_digit <= 0:
+            return f"{rounded_value:.0f}±{rounded_error:.0f}"
+        else:
+            return f"{rounded_value:.{sig_digit}f}±{rounded_error:.{sig_digit}f}"

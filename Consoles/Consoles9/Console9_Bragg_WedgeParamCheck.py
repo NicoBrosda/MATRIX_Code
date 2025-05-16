@@ -1,5 +1,7 @@
 import SimpleITK as sitk
 import h5py
+import numpy as np
+
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from EvaluationSoftware.normalization_modules import normalization_from_translated_array
@@ -240,6 +242,44 @@ realer_bragg_pos_sim = -17 + 2.1
 # ----------------------------------------------------------------------------------------------------------------
 # Plot functions
 # ----------------------------------------------------------------------------------------------------------------
+
+def get_wedge_depth(signal_cache, shape_position, run_name):
+    # Get data of simulation
+    data_cache, line_cache, line_std_cache, data_max = simulation_Bragg(run_name)
+
+    material_depth = []
+    signal_height = []
+    signal_pos = []
+    material_depth_sim = []
+    signal_height_sim = []
+    signal_pos_sim = []
+    for i, obj in enumerate(signal_cache):
+        wheel_position = obj[0]
+        line = obj[2]
+        y_pos = obj[1]
+        line_max = y_pos[np.argmax(line)]
+        signal_pos.append(line_max)
+        signal_height.append(np.max(line))
+
+        data_sim = data_cache[wheel_position]
+        line_sim = line_cache[wheel_position]
+        y_pos_sim = np.arange(0, np.shape(data_sim)[0]) * pixel_size - 25
+        # Align the y-scale of simulation and experiment:
+        y_pos_sim += (shape_position - bragg_pos_sim)
+        line_max_sim = y_pos_sim[np.argmax(line_sim)]
+        signal_pos_sim.append(line_max_sim)
+        signal_height_sim.append(np.max(line_sim))
+
+        shape = LineShape([[0, 1e-9], [wedge_length_exp, wedge_height_exp]], distance_mode=True)
+        shape.position(shape_position, 0)
+        material_depth.append(shape.calculate_value(line_max))
+
+        shape2 = LineShape([[0, 1e-9], [wedge_length_sim, wedge_height_sim]], distance_mode=True)
+        shape2.position(shape_position, 0)
+        material_depth_sim.append(shape2.calculate_value(line_max_sim))
+
+    return material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim
+
 
 def plot_maps_sim(save_path, comp_list, map_cache, signal_cache, param_color, shape_position, run_name,
                   param_unit='MeV', add_wedge=True, keep_scale=True):
@@ -639,61 +679,88 @@ A.scale = 'atto'
 # ----------------------------------------------------------------------------------------------------------------
 # '''
 comp_list = data_wheel_200['energies'].to_numpy()[:-1]
-param_colormapper_200 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_color = lambda param: param_cmap(param_colormapper_200(param))
-param_unit = 'MeV'
 signal_cache = signal_cache_200[:len(comp_list)]
 map_cache = wedge_200[:len(comp_list)]
 shape_position = bragg_pos_wedge200
-save_path = results_path / 'CorrectedIII_Wedge200/'
+save_path = results_path / 'ParamComp_Wedge200/'
 run_name = 'RealerWedge200um1e7_param'
 
+mat = []
+param_list = np.linspace(5, 15, 21)
+param_unit = 'mm'
 material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-    plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                  run_name, param_unit, True, True))
+    get_wedge_depth(signal_cache, shape_position, run_name, ))
 
-plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-               signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
+for wedge_height_exp in param_list:
+    cache, _, _, _, _, _ = get_wedge_depth(signal_cache, shape_position, run_name, )
+    mat.append(cache)
 
-# ----------------------------------------------------------------------------------------------------------------
-# Calls for 200 wedge middle
-# ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_200['energies'].to_numpy()[-len(signal_cache_200_middle):-1]
-param_colormapper_200 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_color = lambda param: param_cmap(param_colormapper_200(param))
-param_unit = 'MeV'
-signal_cache = signal_cache_200_middle[:len(comp_list)]
-map_cache = wedge_200_middle[:len(comp_list)]
-shape_position = bragg_pos_wedge200_middle
-save_path = results_path / 'CorrectedIII_Wedge200Middle/'
-run_name = 'RealerWedge200um1e7_param'
+cmap_param = sns.cubehelix_palette(as_cmap=True)
+fig, ax = plt.subplots()
+ax.set_xlabel('Proton energy (MeV)')
+ax.set_ylabel(f'Max signal wedge material depth (mm)')
+ax.plot(comp_list, material_depth_sim, c='r', marker='x', ls='-', label='Simulation', zorder=1)
+ax.plot(comp_list, material_depth, c='b', marker='x', ls='-', label='Experiment', zorder=1)
 
+for i, param in enumerate(param_list):
+    color = cmap_param(i / len(param_list))
+    ax.plot(comp_list, mat[i], c=color, marker='x', ls='-', zorder=0)
+
+ax.set_ylim(ax.get_ylim())
+ax.set_xlim(ax.get_xlim())
+
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]),
+        f'Wedge height', fontsize=13, c='k', zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+upper_text = 0.88
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, upper_text-0.015]),
+                       transform_axis_to_data_coordinates(ax, [0.1, upper_text-0.145]),
+                   cmap=cmap_param, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, upper_text]),
+        f'{np.min(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0),
+        zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.025, upper_text-0.23]),
+        f'{np.max(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0.99),
+        zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+
+format_save(save_path, save_name=f'ParamWedgeHeight', save=True, legend=True, fig=fig)
+
+# --------------------------------------------------------------------------------------------------------------------
+wedge_height_exp = 10
+mat = []
+param_list = np.linspace(30, 50, 21) - 2.1
+param_unit = 'mm'
 material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-    plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                  run_name, param_unit, True, True))
+    get_wedge_depth(signal_cache, shape_position, run_name, ))
 
-plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-               signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
+for wedge_length_exp in param_list:
+    cache, _, _, _, _, _ = get_wedge_depth(signal_cache, shape_position, run_name, )
+    mat.append(cache)
 
-# ----------------------------------------------------------------------------------------------------------------
-# Calls for 400 wedge
-# ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_400['energies'].to_numpy()[:-1]
-param_colormapper_400 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_unit = 'MeV'
-param_color = param_color_400
-signal_cache = signal_cache_400[:len(comp_list)]
-map_cache = wedge_400[:len(comp_list)]
-shape_position = bragg_pos_wedge400
-save_path = results_path / 'CorrectedIII_Wedge400/'
-run_name = 'RealerWedge400um1e7_param'
+cmap_param = sns.cubehelix_palette(as_cmap=True)
+fig, ax = plt.subplots()
+ax.set_xlabel('Proton energy (MeV)')
+ax.set_ylabel(f'Max signal wedge material depth (mm)')
+ax.plot(comp_list, material_depth_sim, c='r', marker='x', ls='-', label='Simulation', zorder=1)
+ax.plot(comp_list, material_depth, c='b', marker='x', ls='-', label='Experiment', zorder=1)
 
-material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-    plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                  run_name, param_unit, True, True))
+for i, param in enumerate(param_list):
+    color = cmap_param(i / len(param_list))
+    ax.plot(comp_list, mat[i], c=color, marker='x', ls='-', zorder=0)
 
-plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-               signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
+ax.set_ylim(ax.get_ylim())
+ax.set_xlim(ax.get_xlim())
 
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]),
+        f'Wedge length', fontsize=13, c='k', zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+upper_text = 0.88
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, upper_text-0.015]),
+                       transform_axis_to_data_coordinates(ax, [0.1, upper_text-0.145]),
+                   cmap=cmap_param, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, upper_text]),
+        f'{np.min(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0),
+        zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.025, upper_text-0.23]),
+        f'{np.max(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0.99),
+        zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
 
-
+format_save(save_path, save_name=f'ParamWedgeLength', save=True, legend=True, fig=fig)

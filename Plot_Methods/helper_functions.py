@@ -97,12 +97,12 @@ def interpolate(x_given, x_inter, y_given) -> np.array:
 
 
 def transform_data_to_axis_coordinates(axis, data_coordinates) -> 'coordinates referenced to axis':
-    if isinstance(data_coordinates[0], float):
+    if isinstance(data_coordinates[0], (float, int)):
         return axis.transAxes.inverted().transform(axis.transData.transform((data_coordinates[0], data_coordinates[1])))
 
 
 def transform_axis_to_data_coordinates(axis, axis_coordinates: list) -> 'coordinates referenced to data':
-    if isinstance(axis_coordinates[0], float):
+    if isinstance(axis_coordinates[0], (float, int)):
         return axis.transData.inverted().transform(axis.transAxes.transform((axis_coordinates[0], axis_coordinates[1])))
 
 
