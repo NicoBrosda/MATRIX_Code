@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
 
@@ -22,7 +24,7 @@ def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
       From the SciKit Image threshold_otsu implementation:
       https://github.com/scikit-image/scikit-image/blob/70fa904eee9ef370c824427798302551df57afa1/skimage/filters/thresholding.py#L312
       """
-        if np.NaN in x or pd.NA in x:
+        if np.nan in x or pd.NA in x:
             return None
         counts, bin_edges = np.histogram(x, *args, **kwargs)
         bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
@@ -57,7 +59,7 @@ def ams_otsus_readout(path_to_data_file, instance, subtract_background=True):
     data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used+2))
     if len(data2.columns) - len(data1.columns) > 0:
         for i in range(len(data2.columns) - len(data1.columns)):
-            data1['Add' + str(i)] = np.NaN
+            data1['Add' + str(i)] = np.nan
     data1 = data1.set_axis(list(data2.columns), axis=1)
     data = pd.concat([data1, data2])
 
@@ -142,7 +144,7 @@ def ams_constant_signal_readout(path_to_data_file, instance):
     data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used+2))
     if len(data2.columns) - len(data1.columns) > 0:
         for i in range(len(data2.columns) - len(data1.columns)):
-            data1['Add' + str(i)] = np.NaN
+            data1['Add' + str(i)] = np.nan
     data1 = data1.set_axis(list(data2.columns), axis=1)
     data = pd.concat([data1, data2])
 
@@ -269,7 +271,7 @@ def ams_channel_assignment_readout(path_to_data_file, instance, channel_assignme
     data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used+2))
     if len(data2.columns) - len(data1.columns) > 0:
         for i in range(len(data2.columns) - len(data1.columns)):
-            data1['Add' + str(i)] = np.NaN
+            data1['Add' + str(i)] = np.nan
     data1 = data1.set_axis(list(data2.columns), axis=1)
     data = pd.concat([data1, data2])
 
@@ -375,7 +377,7 @@ def ams_2D_assignment_readout(path_to_data_file, instance, channel_assignment=No
     data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used + 2))
     if len(data2.columns) - len(data1.columns) > 0:
         for i in range(len(data2.columns) - len(data1.columns)):
-            data1['Add' + str(i)] = np.NaN
+            data1['Add' + str(i)] = np.nan
     data1 = data1.set_axis(list(data2.columns), axis=1)
     data = pd.concat([data1, data2])
 
@@ -459,7 +461,7 @@ def ams_sample_noise_readout(path_to_data_file, instance, channel_assignment=Non
     data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used+2))
     if len(data2.columns) - len(data1.columns) > 0:
         for i in range(len(data2.columns) - len(data1.columns)):
-            data1['Add' + str(i)] = np.NaN
+            data1['Add' + str(i)] = np.nan
     data1 = data1.set_axis(list(data2.columns), axis=1)
     data = pd.concat([data1, data2])
 
@@ -521,5 +523,442 @@ def ams_sample_noise_readout(path_to_data_file, instance, channel_assignment=Non
             # dark = np.append(dark, 0)
     signals, signal_std = np.array(signals)[:el][channel_assignment], np.array(signal_std)[:el][channel_assignment]
     return {'signal': signals,
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'dict': {}}
+
+
+def ams_2D_assignment_readout_WPE(path_to_data_file, instance, channel_assignment=None, sample_size=None):
+    el = instance.diode_dimension[0] * instance.diode_dimension[1]
+    columns_used = el
+    # '''
+    if channel_assignment is None:
+        channel_assignment = [i for i in range(el)]
+    if not isinstance(channel_assignment, np.ndarray):
+        channel_assignment = np.array(channel_assignment)
+
+    channel_assignment = channel_assignment.flatten()
+
+    # ordering = np.argsort([channel_assignment[i] for i in channel_assignment])
+    # '''
+    detect = len(pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None).columns)
+
+    not_in_assignment = []
+    if np.shape(channel_assignment)[0] < detect - 132:
+        not_in_assignment = [i for i in range(detect - 132) if i not in channel_assignment]
+        columns_used += np.shape(not_in_assignment)[0]
+
+    if columns_used > 128:
+        columns_used = 128
+        if columns_used - (instance.excluded == True).sum() > 128:
+            print(
+                'The ams_readout module is not suitable for arrays with more than 128 diodes, because only 128 channels '
+                'are existent. Check if the array structure was inserted correctly and if the correct readout module was '
+                'picked')
+
+    data1 = pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None, usecols=range(130, detect))
+    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used + 2))
+    if len(data2.columns) - len(data1.columns) > 0:
+        for i in range(len(data2.columns) - len(data1.columns)):
+            data1['Add' + str(i)] = np.nan
+    data1 = data1.set_axis(list(data2.columns), axis=1)
+    data = pd.concat([data1, data2])
+
+    signals = []
+    signal_std = []
+
+
+    # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
+    dark = []
+    '''
+    instance2 = deepcopy(instance)
+    instance2.diode_dimension = [1, 128]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+    for file2 in instance.dark_files:
+        dark.append(ams_constant_signal_readout(file2, instance)['signal'].flatten())
+    dark = np.mean(np.array(dark), axis=0)
+    # '''
+    if np.shape(dark)[0] == 0:
+        dark = np.zeros(columns_used)
+
+
+    for i, col in enumerate(data):
+        # Column 0 is voltage information
+        if i == 0:
+            continue
+        # Column 1 is sample number
+        if i == 1:
+            continue
+        # Column 3 = measurement channel 1 = array reference 0
+        j = i - 2
+
+        if instance.excluded.flatten()[j-np.shape(not_in_assignment)[0]]:
+            signals.append(0)
+            signal_std.append(0)
+        try:
+            if sample_size is None:
+                cache = np.mean(data[col]-dark[j])  # - dark[j]
+                cache_std = np.std(data[col])
+            elif isinstance(sample_size, list):
+                if sample_size[0] < 0:
+                    sample_size = 0
+                if sample_size[1] > len(data[col]):
+                    sample_size = len(data[col])
+                cache = np.mean(data[col][sample_size[0]:sample_size[1]]-dark[j])  # - dark[j]
+                cache_std = np.std(data[col][sample_size[0]:sample_size[1]])
+            else:
+                if sample_size > len(data[col]):
+                    sample_size = len(data[col])
+                cache = np.mean(data[col][0:sample_size]-dark[j])  # - dark[j]
+                cache_std = np.std(data[col][0:sample_size])
+            if not np.isnan(cache):
+                signals.append(cache)
+                signal_std.append(cache_std)
+            else:
+                signals.append(0)
+                signal_std.append(0)
+        except ValueError:
+            signals.append(0)
+            signal_std.append(0)
+    # Now the data needs to be filled in an array structure that resembles: instance.diode_dimension
+    # Check if there are enough values to fill the instance.diode_dimension array, and append 0 otherwise
+    if len(signals) < columns_used:
+        while len(signals) < columns_used:
+            signals.append(0)
+            signal_std.append(0)
+            # dark = np.append(dark, 0)
+    signals, signal_std = np.array(signals)[:columns_used][channel_assignment], np.array(signal_std)[:columns_used][channel_assignment]
+
+    return {'signal': np.reshape(signals, instance.diode_dimension),
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'dict': {}}
+
+
+def ams_2D_assignment_readout_WPE2(path_to_data_file, instance, channel_assignment=None):
+    el = instance.diode_dimension[0] * instance.diode_dimension[1]
+    columns_used = el
+    # '''
+    if channel_assignment is None:
+        channel_assignment = [i for i in range(el)]
+    if not isinstance(channel_assignment, np.ndarray):
+        channel_assignment = np.array(channel_assignment)
+
+    channel_assignment = channel_assignment.flatten()
+
+    # ordering = np.argsort([channel_assignment[i] for i in channel_assignment])
+    # '''
+    detect = len(pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None).columns)
+
+    not_in_assignment = []
+    if np.shape(channel_assignment)[0] < detect - 132:
+        not_in_assignment = [i for i in range(detect - 132) if i not in channel_assignment]
+        columns_used += np.shape(not_in_assignment)[0]
+
+    if columns_used > 128:
+        columns_used = 128
+        if columns_used - (instance.excluded == True).sum() > 128:
+            print(
+                'The ams_readout module is not suitable for arrays with more than 128 diodes, because only 128 channels '
+                'are existent. Check if the array structure was inserted correctly and if the correct readout module was '
+                'picked')
+
+    data1 = pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None, usecols=range(130, detect))
+    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used + 2))
+    if len(data2.columns) - len(data1.columns) > 0:
+        for i in range(len(data2.columns) - len(data1.columns)):
+            data1['Add' + str(i)] = np.nan
+    data1 = data1.set_axis(list(data2.columns), axis=1)
+    data = pd.concat([data1, data2])
+
+    signals = []
+    signal_std = []
+
+    # '''
+    # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
+    dark = []
+    instance2 = deepcopy(instance)
+    instance2.diode_dimension = [1, 128]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+    for file2 in instance.dark_files:
+        dark.append(ams_channel_assignment_readout(file2, instance2)['signal'].flatten())
+    dark = np.mean(np.array(dark), axis=0)
+
+    if np.shape(dark)[0] == 0:
+        dark = np.zeros(columns_used)
+    # '''
+
+    for i, col in enumerate(data):
+        # Column 0 is voltage information
+        if i == 0:
+            continue
+        # Column 1 is sample number
+        if i == 1:
+            continue
+        # Column 3 = measurement channel 1 = array reference 0
+        j = i - 2
+
+        if instance.excluded.flatten()[j-np.shape(not_in_assignment)[0]]:
+            signals.append(0)
+            signal_std.append(0)
+        try:
+            cache = data[col] - dark[j]
+            signals.append(cache)
+
+        except ValueError:
+            signals.append(0)
+            signal_std.append(0)
+    # Now the data needs to be filled in an array structure that resembles: instance.diode_dimension
+    # Check if there are enough values to fill the instance.diode_dimension array, and append 0 otherwise
+    if len(signals) < columns_used:
+        while len(signals) < columns_used:
+            signals.append(0)
+            signal_std.append(0)
+            # dark = np.append(dark, 0)
+    signals = np.array(signals)[:columns_used]
+
+    return signals
+
+
+def ams_2D_assignment_readout_WPE3(path_to_data_file, instance, channel_assignment=None, sample_size=None):
+    el = instance.diode_dimension[0] * instance.diode_dimension[1]
+    columns_used = el
+    # '''
+    if channel_assignment is None:
+        channel_assignment = [i for i in range(el)]
+    if not isinstance(channel_assignment, np.ndarray):
+        channel_assignment = np.array(channel_assignment)
+
+    channel_assignment = channel_assignment.flatten()
+
+    # ordering = np.argsort([channel_assignment[i] for i in channel_assignment])
+    # '''
+    detect = len(pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None).columns)
+
+    not_in_assignment = []
+    if np.shape(channel_assignment)[0] < detect - 132:
+        not_in_assignment = [i for i in range(detect - 132) if i not in channel_assignment]
+        columns_used += np.shape(not_in_assignment)[0]
+
+    if columns_used > 128:
+        columns_used = 128
+        if columns_used - (instance.excluded == True).sum() > 128:
+            print(
+                'The ams_readout module is not suitable for arrays with more than 128 diodes, because only 128 channels '
+                'are existent. Check if the array structure was inserted correctly and if the correct readout module was '
+                'picked')
+
+    data1 = pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None, usecols=range(130, detect))
+    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used + 2))
+    if len(data2.columns) - len(data1.columns) > 0:
+        for i in range(len(data2.columns) - len(data1.columns)):
+            data1['Add' + str(i)] = np.nan
+    data1 = data1.set_axis(list(data2.columns), axis=1)
+    data = pd.concat([data1, data2])
+
+    signals = []
+    signal_std = []
+
+    # '''
+    # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
+    dark = []
+    instance2 = deepcopy(instance)
+    instance2.diode_dimension = [1, 128]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+    for file2 in instance.dark_files:
+        dark.append(ams_channel_assignment_readout(file2, instance2)['signal'].flatten())
+    dark = np.mean(np.array(dark), axis=0)
+
+    if np.shape(dark)[0] == 0:
+        dark = np.zeros(columns_used)
+    # '''
+    instance2.diode_dimension = [11, 11]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+
+    for i, col in enumerate(data):
+        # Column 0 is voltage information
+        if i == 0:
+            continue
+        # Column 1 is sample number
+        if i == 1:
+            continue
+        # Column 3 = measurement channel 1 = array reference 0
+        j = i - 2
+
+        if instance.excluded.flatten()[j-np.shape(not_in_assignment)[0]]:
+            signals.append(0)
+            signal_std.append(0)
+        try:
+            if sample_size is None:
+                cache = np.sum(data[col]-dark[j])  # - dark[j]
+                cache_std = np.std(data[col])
+            elif isinstance(sample_size, list):
+                if sample_size[0] < 0:
+                    sample_size = 0
+                if sample_size[1] > len(data[col]):
+                    sample_size = len(data[col])
+                cache = np.sum(data[col][sample_size[0]:sample_size[1]]-dark[j])  # - dark[j]
+                cache_std = np.std(data[col][sample_size[0]:sample_size[1]])
+            else:
+                if sample_size > len(data[col]):
+                    sample_size = len(data[col])
+                cache = np.sum(data[col][0:sample_size]-dark[j])  # - dark[j]
+                cache_std = np.std(data[col][0:sample_size])
+            if not np.isnan(cache):
+                signals.append(cache)
+                signal_std.append(cache_std)
+            else:
+                signals.append(0)
+                signal_std.append(0)
+        except ValueError:
+            signals.append(0)
+            signal_std.append(0)
+    # Now the data needs to be filled in an array structure that resembles: instance.diode_dimension
+    # Check if there are enough values to fill the instance.diode_dimension array, and append 0 otherwise
+    if len(signals) < columns_used:
+        while len(signals) < columns_used:
+            signals.append(0)
+            signal_std.append(0)
+            # dark = np.append(dark, 0)
+
+    signals, signal_std = np.array(signals)[:columns_used][channel_assignment], np.array(signal_std)[:columns_used][channel_assignment]
+
+    return {'signal': np.reshape(signals, instance.diode_dimension),
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'dict': {}}
+
+
+def ams_2D_assignment_readout_WPE_choice(path_to_data_file, instance, channel_assignment=None, sample_size=None, version='sum', step=100):
+    el = instance.diode_dimension[0] * instance.diode_dimension[1]
+    columns_used = el
+    # '''
+    if channel_assignment is None:
+        channel_assignment = [i for i in range(el)]
+    if not isinstance(channel_assignment, np.ndarray):
+        channel_assignment = np.array(channel_assignment)
+
+    channel_assignment = channel_assignment.flatten()
+
+    # ordering = np.argsort([channel_assignment[i] for i in channel_assignment])
+    # '''
+    detect = len(pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None).columns)
+
+    not_in_assignment = []
+    if np.shape(channel_assignment)[0] < detect - 132:
+        not_in_assignment = [i for i in range(detect - 132) if i not in channel_assignment]
+        columns_used += np.shape(not_in_assignment)[0]
+
+    if columns_used > 128:
+        columns_used = 128
+        if columns_used - (instance.excluded == True).sum() > 128:
+            print(
+                'The ams_readout module is not suitable for arrays with more than 128 diodes, because only 128 channels '
+                'are existent. Check if the array structure was inserted correctly and if the correct readout module was '
+                'picked')
+
+    data1 = pd.read_csv(path_to_data_file, delimiter=',', nrows=1, header=None, usecols=range(130, detect))
+    data2 = pd.read_csv(path_to_data_file, delimiter=',', usecols=range(columns_used + 2))
+    if len(data2.columns) - len(data1.columns) > 0:
+        for i in range(len(data2.columns) - len(data1.columns)):
+            data1['Add' + str(i)] = np.nan
+    data1 = data1.set_axis(list(data2.columns), axis=1)
+    data = pd.concat([data1, data2])
+
+    signals = []
+    signal_std = []
+
+    # '''
+    # Load in one or multiple dark, measurements - calculate their mean - subtract from the signal
+    dark = []
+    instance2 = deepcopy(instance)
+    instance2.diode_dimension = [1, 128]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+    for file2 in instance.dark_files:
+        dark.append(ams_channel_assignment_readout(file2, instance2)['signal'].flatten())
+    dark = np.mean(np.array(dark), axis=0)
+
+    if np.shape(dark)[0] == 0:
+        dark = np.zeros(columns_used)
+    # '''
+    instance2.diode_dimension = [11, 11]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+
+    for i, col in enumerate(data):
+        # Column 0 is voltage information
+        if i == 0:
+            continue
+        # Column 1 is sample number
+        if i == 1:
+            continue
+        # Column 3 = measurement channel 1 = array reference 0
+        j = i - 2
+
+        if instance.excluded.flatten()[j-np.shape(not_in_assignment)[0]]:
+            signals.append(0)
+            signal_std.append(0)
+        try:
+            if sample_size is None:
+                if version == 'sum':
+                    cache = np.sum(data[col]-dark[j])  # - dark[j]
+                elif version == 'mean':
+                    cache = np.mean(data[col] - dark[j])
+                elif version == 'mean_filtered':
+                    max_index = np.argmax(data[col] - dark[j])
+                    cache = np.mean(data[col][max_index-step:max_index+step] - dark[j])
+                elif version == 'max':
+                    cache = np.max(data[col] - dark[j])
+                elif version == 'n_max':
+                    cache = np.mean(np.sort(data[col] - dark[j], axis=None)[-step:])
+                cache_std = np.std(data[col])
+            elif isinstance(sample_size, list):
+                if sample_size[0] < 0:
+                    sample_size = 0
+                if sample_size[1] > len(data[col]):
+                    sample_size = len(data[col])
+                if version == 'sum':
+                    cache = np.sum(data[col][sample_size[0]:sample_size[1]]-dark[j])  # - dark[j]
+                elif version == 'mean':
+                    cache = np.mean(data[col][sample_size[0]:sample_size[1]]-dark[j])
+                elif version == 'mean_filtered':
+                    max_index = np.argmax(data[col][sample_size[0]:sample_size[1]]-dark[j])
+                    cache = np.mean(data[col][sample_size[0]:sample_size[1]][max_index-step:max_index+step] - dark[j])
+                elif version == 'max':
+                    cache = np.max(data[col][sample_size[0]:sample_size[1]]-dark[j])
+                elif version == 'n_max':
+                    cache = np.mean(np.sort(data[col][sample_size[0]:sample_size[1]]-dark[j], axis=None)[-step:])
+                cache_std = np.std(data[col][sample_size[0]:sample_size[1]])
+            else:
+                if sample_size > len(data[col]):
+                    sample_size = len(data[col])
+                if version == 'sum':
+                    cache = np.sum(data[col][0:sample_size]-dark[j])  # - dark[j]
+                elif version == 'mean':
+                    cache = np.mean(data[col][0:sample_size]-dark[j])
+                elif version == 'mean_filtered':
+                    max_index = np.argmax(data[col][0:sample_size]-dark[j])
+                    cache = np.mean(data[col][0:sample_size][max_index-step:max_index+step] - dark[j])
+                elif version == 'max':
+                    cache = np.max(data[col][0:sample_size]-dark[j])
+                elif version == 'n_max':
+                    cache = np.mean(np.sort(data[col][0:sample_size]-dark[j], axis=None)[-step:])
+                cache_std = np.std(data[col][0:sample_size])
+            if not np.isnan(cache):
+                signals.append(cache)
+                signal_std.append(cache_std)
+            else:
+                signals.append(0)
+                signal_std.append(0)
+        except ValueError:
+            signals.append(0)
+            signal_std.append(0)
+    # Now the data needs to be filled in an array structure that resembles: instance.diode_dimension
+    # Check if there are enough values to fill the instance.diode_dimension array, and append 0 otherwise
+    if len(signals) < columns_used:
+        while len(signals) < columns_used:
+            signals.append(0)
+            signal_std.append(0)
+            # dark = np.append(dark, 0)
+
+    signals, signal_std = np.array(signals)[:columns_used][channel_assignment], np.array(signal_std)[:columns_used][channel_assignment]
+
+    return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
             'dict': {}}

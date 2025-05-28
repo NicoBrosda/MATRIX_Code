@@ -240,6 +240,40 @@ class Analyzer:
                     cache.update({'current': self.current_parser(file)})
                 self.measurement_data.append(cache)
 
+    def load_measurement_time(self, readout_module=None, position_parser=None, progress_bar=False):
+        self.measurement_data = []
+        if readout_module is None:
+            readout_module = self.readout
+        else:
+            self.readout = readout_module
+
+        if position_parser is None:
+            position_parser = self.pos_parser
+        else:
+            self.pos_parser = position_parser
+        if progress_bar:
+            for file in tqdm(self.measurement_files):
+                pos = position_parser(file)
+                cache = readout_module(file, self)
+                cache['signal'] = (cache['signal']-self.dark)*self.norm_factor
+                cache.update({'position': pos})
+                if self.voltage_parser is not None:
+                    cache.update({'voltage': self.voltage_parser(file)})
+                if self.current_parser is not None:
+                    cache.update({'current': self.current_parser(file)})
+                self.measurement_data.append(cache)
+        else:
+            for file in self.measurement_files:
+                pos = position_parser(file)
+                cache = readout_module(file, self)
+                cache['signal'] = (cache['signal']-self.dark)*self.norm_factor
+                cache.update({'position': pos})
+                if self.voltage_parser is not None:
+                    cache.update({'voltage': self.voltage_parser(file)})
+                if self.current_parser is not None:
+                    cache.update({'current': self.current_parser(file)})
+                self.measurement_data.append(cache)
+
     def update_measurement(self, dark=True, factor=True):
         if dark and factor:
             for i in tqdm(range(len(self.measurement_data))):

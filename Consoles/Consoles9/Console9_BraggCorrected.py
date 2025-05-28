@@ -312,7 +312,7 @@ def plot_maps_and_wedge(save_path, comp_list, map_cache, signal_cache, param_col
 
 
 def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, signal_height, signal_pos,
-                            param_color, shape_position, param_unit='MeV'):
+                            param_color, param_mapper, shape_position, param_unit='MeV'):
     # ----------------------------------------------------------------------------------------------------------------
     # Plot signal curves comp vs wedge
     # ----------------------------------------------------------------------------------------------------------------
@@ -334,6 +334,7 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
     shape.position(shape_position, 0)
     shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.6, zorder=5, edgecolor='k')
 
+    '''
     gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]),
                        transform_axis_to_data_coordinates(ax, [0.1, 0.795]),
                    cmap=param_cmap, lw=10, zorder=5)
@@ -343,6 +344,8 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
     ax.text(*transform_axis_to_data_coordinates(ax, [0.025, 0.71]),
             f'{np.max(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.max(comp_list)),
             zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+    # '''
+    improved_gradient_scale(comp_list, param_cmap, ax_in=ax, param_unit='MeV', point=[0.1, 0.94], param_mapper=param_mapper)
 
     format_save(save_path, save_name=f'SignalVsWedgeScaled', save=True, legend=False, fig=fig)
 
@@ -369,15 +372,18 @@ def plots_vs_wedge_position(save_path, comp_list, signal_cache, material_depth, 
     shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.6, zorder=5, edgecolor='k')
     ax.set_xlim(xlim_before)
 
-    gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]),
-                   transform_axis_to_data_coordinates(ax, [0.1, 0.795]),
-                   cmap=param_cmap, lw=10, zorder=5)
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]),
-            f'{np.min(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.min(comp_list)),
-            zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.025, 0.71]),
-            f'{np.max(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.max(comp_list)),
-            zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+    '''
+        gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]),
+                           transform_axis_to_data_coordinates(ax, [0.1, 0.795]),
+                       cmap=param_cmap, lw=10, zorder=5)
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]),
+                f'{np.min(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.min(comp_list)),
+                zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.025, 0.71]),
+                f'{np.max(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.max(comp_list)),
+                zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+        '''
+    improved_gradient_scale(comp_list, param_cmap, ax_in=ax, param_unit='MeV', point=[0.1, 0.94], param_mapper=param_mapper)
 
     format_save(save_path, save_name=f'SignalVsWedge', save=True, legend=False, fig=fig)
 
@@ -456,6 +462,7 @@ for i in range(len(currents_200_middle)):
 comp_list = data_wheel_200['energies']
 param_unit = 'MeV'
 param_color = param_color_200
+param_mapper = param_colormapper_200
 signal_cache = signal_cache_200
 map_cache = wedge_200
 shape_position = bragg_pos_wedge200
@@ -469,7 +476,7 @@ material_depth, signal_height, signal_pos = plot_maps_and_wedge(save_path / 'Ori
                                                                 map_cache, signal_cache, param_color, shape_position,
                                                                 param_unit, True, True)
 plots_vs_wedge_position(save_path / 'Results/', comp_list, signal_cache, material_depth, signal_height,
-                          signal_pos, param_color, shape_position, param_unit)
+                          signal_pos, param_color, param_mapper, shape_position, param_unit)
 # '''
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -479,6 +486,7 @@ comp_list = data_wheel_200['energies'].to_numpy()[-len(signal_cache_200_middle):
 print(comp_list)
 param_unit = 'MeV'
 param_color = param_color_200
+param_mapper = param_colormapper_200
 signal_cache = signal_cache_200_middle
 map_cache = wedge_200_middle
 shape_position = bragg_pos_wedge200_middle
@@ -492,7 +500,7 @@ material_depth, signal_height, signal_pos = plot_maps_and_wedge(save_path / 'Ori
                                                                 map_cache, signal_cache, param_color, shape_position,
                                                                 param_unit, True, True)
 plots_vs_wedge_position(save_path / 'Results/', comp_list, signal_cache, material_depth, signal_height,
-                          signal_pos, param_color, shape_position, param_unit)
+                          signal_pos, param_color, param_mapper, shape_position, param_unit)
 
 # ----------------------------------------------------------------------------------------------------------------
 # Calls for 400 wedge
@@ -501,6 +509,7 @@ comp_list = data_wheel_400['energies'].to_numpy()[:-1]
 param_colormapper_400 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
 param_unit = 'MeV'
 param_color = param_color_400
+param_mapper = param_colormapper_400
 signal_cache = signal_cache_400
 map_cache = wedge_400
 shape_position = bragg_pos_wedge400
@@ -514,7 +523,7 @@ material_depth, signal_height, signal_pos = plot_maps_and_wedge(save_path / 'Ori
                                                                 map_cache, signal_cache, param_color, shape_position,
                                                                 param_unit, True, True)
 plots_vs_wedge_position(save_path / 'Results/', comp_list, signal_cache, material_depth, signal_height,
-                          signal_pos, param_color, shape_position, param_unit)
+                          signal_pos, param_color, param_mapper, shape_position, param_unit)
 
 
 

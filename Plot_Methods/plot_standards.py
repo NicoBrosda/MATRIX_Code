@@ -248,26 +248,110 @@ else:
 fmt = ticker.FuncFormatter(format_func)
 
 
-# '''
 def gradient_arrow(ax, start, end, cmap="viridis", n=50, lw=3, *args, **kwargs):
-    cmap = plt.get_cmap(cmap, n)
-    # Arrow shaft: LineCollection
+    # Zuerst die Punkte und Segmente erzeugen
     x = np.linspace(start[0], end[0], n)
     y = np.linspace(start[1], end[1], n)
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
-    lc = LineCollection(segments, cmap=cmap, linewidth=lw, *args, **kwargs)
+
+    # Überprüfen, ob cmap eine Funktion oder ein String ist
+    if callable(cmap):
+        # Wenn cmap eine Funktion ist, erstellen wir ein benutzerdefiniertes Farbschema
+        colors = [cmap(i / n) for i in range(n)]
+        cmap_obj = matplotlib.colors.LinearSegmentedColormap.from_list('custom_cmap', colors, N=n)
+        lc = LineCollection(segments, cmap=cmap_obj, linewidth=lw, *args, **kwargs)
+        # Auch für den Pfeilkopf verwenden
+        arrow_cmap = cmap_obj
+    else:
+        # Wenn cmap ein String ist, rufen wir get_cmap auf
+        cmap_func = plt.get_cmap(cmap, n)
+        lc = LineCollection(segments, cmap=cmap_func, linewidth=lw, *args, **kwargs)
+        # Für den Pfeilkopf verwenden
+        arrow_cmap = cmap_func
+
     lc.set_array(np.linspace(0, 1, n))
     ax.add_collection(lc)
+
     # Arrow head: Triangle
     tricoords = [(0, -0.4), (0.5, 0), (0, 0.4), (0, -0.4)]
-    angle = np.arctan2(end[1]-start[1], end[0]-start[0])
+    angle = np.arctan2(end[1] - start[1], end[0] - start[0])
     rot = matplotlib.transforms.Affine2D().rotate(angle)
     tricoords2 = rot.transform(tricoords)
     tri = matplotlib.path.Path(tricoords2, closed=True)
-    ax.scatter(end[0], end[1], c=1, s=(2*lw)**2, marker=tri, cmap=cmap,vmin=0, *args, **kwargs)
+    ax.scatter(end[0], end[1], c=1, s=(2 * lw) ** 2, marker=tri, cmap=arrow_cmap, vmin=0, *args, **kwargs)
     ax.autoscale_view()
-# '''
+
+
+def gradient_scale(param_list, cmap_param, ax_in=None, param_unit='MeV', point=[0.1, 0.94], ha='left', va='top'):
+    if ax_in is None:
+        ax_in = plt.gca()
+
+    gradient_arrow(ax_in, transform_axis_to_data_coordinates(ax_in, [0.1, point[1]-0.015]),
+                           transform_axis_to_data_coordinates(ax_in, [0.1, point[1]-0.145]),
+                       cmap=cmap_param, lw=10, zorder=5)
+    ax_in.text(*transform_axis_to_data_coordinates(ax_in, [0.035, point[1]]),
+            f'{np.min(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0), ha=ha, va=va,
+               zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+    ax_in.text(*transform_axis_to_data_coordinates(ax_in, [0.025, point[1]-0.23]),
+            f'{np.max(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0.99), ha=ha, va=va,
+               zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+
+
+def improved_gradient_scale(param_list, cmap, ax_in=None, param_unit='MeV',
+                            point=[0.1, 0.94], param_mapper=None, arrow_width=10, text_fontsize=13):
+    """
+    Creates a gradient scale with arrow and text labels with dynamic color mapping.
+    """
+    if ax_in is None:
+        ax_in = plt.gca()
+
+    # Get min/max values
+    param_min = np.min(param_list)
+    param_max = np.max(param_list)
+
+    # Default param_mapper - linear mapping from min to max of param_list
+    if param_mapper is None:
+        param_mapper = lambda p: (p - param_min) / (param_max - param_min) if param_max > param_min else 0.5
+
+    # Get max and min of params in param_mapper
+    param_min_mapper = param_mapper(param_min)
+    param_max_mapper = param_mapper(param_max)
+
+    colors = [cmap(i) for i in np.linspace(param_min_mapper, param_max_mapper, 100)]
+    cmap_handed = matplotlib.colors.LinearSegmentedColormap.from_list('custom_cmap', colors, N=50)
+
+    # Create a one-line function to map parameters to colors
+    param_color = lambda p: cmap(param_mapper(p))
+
+    # Create text strings for minimum and maximum
+    min_text = f'{param_min:.2f}$\\,${param_unit}'
+    max_text = f'{param_max:.2f}$\\,${param_unit}'
+
+    x_base, y_base = point
+
+    arrow_x = x_base
+    arrow_top_y = y_base - 0.02
+    arrow_bottom_y = arrow_top_y - 0.13
+
+    # Transformation zu Datenkoordinaten
+    arrow_start_data = transform_axis_to_data_coordinates(ax_in, [arrow_x, arrow_top_y])
+    arrow_end_data = transform_axis_to_data_coordinates(ax_in, [arrow_x, arrow_bottom_y])
+
+    # Draw the arrow
+    gradient_arrow(ax_in, arrow_start_data, arrow_end_data, cmap=cmap_handed, lw=arrow_width, zorder=5)
+
+    # Texte für Min/Max
+    min_text_pos = transform_axis_to_data_coordinates(ax_in, [arrow_x, arrow_top_y])
+    max_text_pos = transform_axis_to_data_coordinates(ax_in, [arrow_x, arrow_bottom_y - 0.045])
+
+    ax_in.text(*min_text_pos, min_text, fontsize=text_fontsize,
+               c=param_color(param_min), ha='center', va='bottom', zorder=3,
+               bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+
+    ax_in.text(*max_text_pos, max_text, fontsize=text_fontsize,
+               c=param_color(param_max), ha='center', va='top', zorder=3,
+               bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
 
 
 # Now to the interesting part: This function represents an example how to apply settings to a generated plot, without

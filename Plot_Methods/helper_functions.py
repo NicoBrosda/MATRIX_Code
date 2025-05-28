@@ -181,3 +181,5 @@ def group(input_list, group_range):
             groups.append(Group(j))
 
     return [g.mean for g in groups if g.members != 0]
+
+
