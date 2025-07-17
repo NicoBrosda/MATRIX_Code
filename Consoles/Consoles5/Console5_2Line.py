@@ -12,6 +12,7 @@ results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_221024/2LineMaps
 
 new_measurements = ['_GafComp200_', '_GafComp400_', '_GafComp40_', '_GafCompLogo_', '_GafCompMisc_', '_GafCompPEEK_',
                     '_MouseFoot_', '_MouseFoot2_', '2Line_Beam_']
+new_measurements = ['_GafCompMisc']
 live_scan_array1 = [str(round(i+1, 0))+'_live1_' for i in range(9)]
 # new_measurements_array_matrix = ['']
 

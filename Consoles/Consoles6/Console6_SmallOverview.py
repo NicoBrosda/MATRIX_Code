@@ -96,7 +96,7 @@ for k, crit in enumerate(measurements[4 :]):
         format_save(results_path / 'XRay/', 'Hist_' + crit, legend=False, fig=fig, axes=[ax])
         c_map = "Greys_r"
         c_map = sns.color_palette(c_map, as_cmap=True)
-        intensity_limitsXRay = [5000, np.max(A.maps[0]['z'])]
+        intensity_limitsXRay = [A.signal_conversion(5000), np.max(A.maps[0]['z'])]
         A.plot_map(results_path / 'XRay/', pixel='fill', intensity_limits=intensity_limitsXRay, cmap=c_map)
 
     A = Analyzer((11, 11), 0.4, 0.1, readout=readout)

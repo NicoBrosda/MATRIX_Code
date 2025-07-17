@@ -327,7 +327,7 @@ def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit
 
 
 def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit, instance, names=None, normed=False,
-                      channel_range=[0, 128], mark_n=[], save_plot=True, add_plot=False):
+                      channel_range=[0, 128], mark_n=[], save_plot=True, add_plot=False, color_list=None, lw=1):
 
     # Load in the dark data for the comparison:
     if dark_crit is not None:
@@ -378,13 +378,19 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
             std = std / max_sig
         if i in mark_n:
             ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color='m', label=label,
-                        capsize=5, zorder=3)
+                        capsize=5, zorder=3, lw=lw)
+        elif color_list is not None:
+            ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color=color_list[i], label=label,
+                        capsize=5, alpha=0.9, lw=lw)
         else:
             ax.errorbar([k+1 for k in range(len(signal))], signal, yerr=std, color=color, label=label,
-                        capsize=5, alpha=0.9)
+                        capsize=5, alpha=0.9, lw=lw)
 
     ax.set_xlabel(r'$\#$ Channel diode array')
-    ax.set_ylabel(f'Signal Current ({scale_dict[instance.scale][1]}A)')
+    if normed:
+        ax.set_ylabel('Normed signal current')
+    else:
+        ax.set_ylabel(f'Signal Current ({scale_dict[instance.scale][1]}A)')
     # ax.set_yscale('log')
     name = str(list_of_crit)
     if len(str(list_of_crit)) > 40:

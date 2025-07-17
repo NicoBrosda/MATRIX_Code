@@ -57,11 +57,26 @@ times = np.array([time_parser(data_frame['Date'][0]) - time_parser(i) for i in d
 print(data_frame['Date'])
 
 fig, ax = plt.subplots()
-filter = ((data_frame['Mean64'] > 5e4) & (data_frame['Mean64'] < 1.3e5))
+ax2 = ax.twinx()
+filter = ((data_frame['Mean64'] > 4e4) & (data_frame['Mean64'] < 1.3e5))
+times, data = times[filter], data_frame['Mean64'][filter]
 # ax.errorbar(times, data_frame['Mean64'], yerr=data_frame['Sigma64'])
-ax.plot(times[filter], data_frame['Mean64'][filter])
+A = Analyzer((1, 128), 0.4, 0.1)
+A.scale = 'nano'
+ax.plot(times[times < 7.7], A.signal_conversion(data[times < 7.7]), ls='', marker='.', color='k')
+ax.plot(times[times > 22] - 22 + 7.7, A.signal_conversion(data[times > 22]), ls='', marker='.', color='k')
+
+ax2.plot([0, np.max(times[times > 22] - 22 + 7.7)], [0, 3], c='r')
+ax.set_ylim(0, ax.get_ylim()[1])
+
 # ax.plot(times, data_frame['Mean1'])
+
+ax.set_xlabel('Irradiation time (h)')
+ax.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)')
+ax2.set_ylabel('Approximation of cumulated dose (MGy)', color='red')
 
 # ax.set_yscale('log')
 # ax.set_ylim(0, 2e5)
-plt.show()
+
+# plot_size = (21*cm, 16*cm)
+format_save(save_path=results_path, save_name='longterm_irradiation', save_format=save_format, fig=fig)

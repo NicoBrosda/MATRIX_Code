@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from Plot_Methods.plot_standards import *
 from tqdm import tqdm
 from skimage.filters import threshold_otsu as ski_threshold_otsu
+from scipy.ndimage import uniform_filter1d
+from pybaselines import Baseline
 
 
 def simple_normalization(list_of_files, instance):
@@ -405,3 +407,317 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
                 factor_new_cache = factor_new_cache.x[0]
             factor_new[line] = factor_new[line] * factor_new_cache
     return factor_new
+
+
+def normalization_from_translated_array_v4(list_of_files, instance, method='least_squares', align_lines=True,
+                                           remove_background=True, factor_limits=(0.9, 1.1), label=''):
+    # Load in the data from a list of files in a folder; save position and signal
+    position = []
+    signals = []
+    for file in tqdm(list_of_files):
+        # The parsing of the position out of the name and save it
+        position.append(instance.pos_parser(file))
+        signal = instance.readout(file, instance)['signal']
+        signals.append((np.array(signal) - instance.dark))
+
+    # Direction of the measurement: x or y
+    x_pos = np.sort(np.array(list(set([i[0] for i in position]))))
+    y_pos = np.sort(np.array(list(set([i[1] for i in position]))))
+    pos = [x_pos, y_pos]
+
+    # Choose the direction that is considered for normalisation
+    if len(x_pos) > len(y_pos):
+        sp = 0
+    elif len(y_pos) > len(x_pos):
+        sp = 1
+    else:
+        sp = 1
+
+    # If multiple positions in the other directions are given, this version filters for the step with the largest number
+    # of translation steps
+    if len(pos[1-sp]) > 1:
+        pos_choice = []
+        for i in pos[1-sp]:
+            pos_choice.append(len(np.array(list(set([j[sp] for j in position if j[1-sp] == i]))).sort()))
+        choice = x_pos[np.argmax([pos_choice])]
+        signals = [sig for i, sig in enumerate(signals) if position[i][1-sp] == choice]
+        position = [i for i in position if i[1-sp] == choice]
+        pos[sp] = np.array(list(set([i[sp] for i in position]))).sort()
+        pos[1-sp] = np.array([choice])
+
+    # Stop normalization if some easy testable conditions are not met (and normalization is not possible)
+    if len(pos[0]) == 1 and len(pos[1]) == 1:
+        print('This measurement is not usable for this normalization since there is effectively no translation'
+              ' - thus, no factor can be calculated!')
+        return None
+    if instance.diode_dimension[sp] == 1:
+        print('This measurement is not usable for this normalization since no diode overlay will exist for the given '
+              'translation - thus, no factor can be calculated!')
+        return None
+
+    # Some info about steps and step width
+    steps = len(pos[sp])
+    step_width = np.mean([pos[sp][i+1] - pos[sp][i] for i in range(steps-1)])
+    diode_periodicity = instance.diode_size[sp] + instance.diode_spacing[sp]
+    if step_width > instance.diode_dimension[sp]*diode_periodicity:
+        print('This measurement is not usable for a normalization since no diode overlay will exist - '
+              'thus, no factor can be calculated!')
+        return None
+
+    print('Normalization is calculated from translation direction', ['x', 'y'][sp], 'with', steps,
+          'at a mean step width of', step_width, 'mm for a diode periodicity of', diode_periodicity, 'mm.')
+
+    # Sort the arrays by the position
+    indices = np.argsort(np.array(position)[:, sp])
+    signals = np.array(signals)[indices]
+    position = np.array(position)[indices]
+
+    # Main loop: For each diode line orthogonal to translation region calculate a factor
+    factor_new = np.zeros(instance.diode_dimension)
+    diff_new = np.zeros(instance.diode_dimension)
+    mean_cache = []
+
+    # results_path = Path("/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/Process/") / label
+    results_path = Path("/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/Process/")
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # Plot in loop: Baseline Mean Before / after shift
+    # -----------------------------------------------------------------------------------------------------------------
+    line_color = sns.color_palette("tab10")
+    fig, ax = plt.subplots()
+
+    for line in range(instance.diode_dimension[1-sp]):
+        # Recalculate the positions considering the geometry of the diode array
+        positions = []
+        for i in range(instance.diode_dimension[sp]):
+            cache = deepcopy(position)
+            cache[:, sp] = cache[:, sp] + i * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line]
+            positions.append(cache)
+        positions = np.array(positions)
+
+        # Try to detect the signal level
+        threshold = ski_threshold_otsu(signals[:, line])
+        if threshold > np.median(signals[:, line]):
+            threshold = np.median(signals[:, line]) * 0.6
+        mean_over = np.mean(signals[(signals > threshold)])
+        threshold = mean_over * 0.8
+
+        # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
+        group_distance = instance.diode_size[sp]
+        groups = group(positions[:, :, sp].flatten(), group_distance)
+
+        # Calculate the mean for each grouped position, consider only the diode signals that were close to this position
+        mean_new = []
+        mean_x_new = []
+        groups = np.sort(groups)
+        for mean in groups:
+            indices = []
+            for k, channel in enumerate(np.array(positions)[:, :, sp]):
+                index_min = np.argsort(np.abs(channel - mean))[0]
+                if np.abs(channel[index_min] - mean) <= group_distance:
+                    indices.append(index_min)
+                else:
+                    indices.append(None)
+            cache_new = 0
+            j_new = 0
+            for i in range(len(indices)):
+                if indices[i] is not None and threshold <= signals[indices[i], line, i] <= 1.5 * mean_over:
+                    cache_new += signals[indices[i], line, i]
+                    j_new += 1
+            if j_new > 0:
+                mean_new.append(cache_new / j_new)
+                mean_x_new.append(mean)
+
+        mean_x_new, mean_new = np.array(mean_x_new), np.array(mean_new)
+
+        if align_lines:
+            mean_cache.append([mean_x_new, mean_new])
+        # Interpolation
+        factor_cache = []
+        diff_cache = []
+
+        diode_cmap = sns.color_palette("coolwarm", as_cmap=True)
+        diode_colormapper = lambda diode: color_mapper(diode, 0, instance.diode_dimension[sp])
+        diode_color = lambda diode: diode_cmap(diode_colormapper(diode))
+        for channel in range(instance.diode_dimension[sp]):
+            restrained_position = (np.min(mean_x_new) <= positions[channel, :, sp]) & (
+                        positions[channel, :, sp] <= np.max(mean_x_new))
+            mean_interp_new = np.interp(positions[channel, :, sp][restrained_position], mean_x_new, mean_new)
+            ax.plot(positions[channel, :, sp][restrained_position], mean_interp_new, c=line_color[line], zorder=5)
+            ax.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position], c=diode_color(channel), alpha=0.2, zorder=-1)
+            diff = 0
+            if isinstance(method, (float, int, np.float64)):
+                # Method 1: Threshold for range consideration, for each diode channel mean of the factor between points
+                factor_new_cache = mean_interp_new[signals[:, line, channel] > method] / signals[:, line, channel][signals[:, line, channel] > method]
+                factor_new_cache = np.mean(factor_new_cache)
+                if np.isnan(factor_new_cache):
+                    factor_new_cache = 0
+            elif method == 'least_squares':
+                # Method 2: Optimization with least squares method, recommended
+                func_opt_new = lambda a: np.abs(mean_interp_new - signals[:, line, channel][restrained_position] * a)
+                factor_new_cache = least_squares(func_opt_new, 1)
+                if factor_new_cache.nfev == 1 and factor_new_cache.optimality == 0.0:
+                    factor_new_cache = 0
+                else:
+                    diff = np.mean(factor_new_cache.fun)/mean_over
+                    factor_new_cache = factor_new_cache.x[0]
+
+                ax.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position]*factor_new_cache, c=diode_color(channel), alpha=0.8)
+            else:
+                # Standard method: For the moment method 1 with automatic threshold
+                factor_new_cache = mean_interp_new / signals[signals[:, line, channel] > threshold][:, line, channel]
+                factor_new_cache = np.mean(factor_new_cache)
+                if np.isnan(factor_new_cache):
+                    factor_new_cache = 0
+
+            factor_cache.append(factor_new_cache)
+            diff_cache.append(diff)
+        factor_new[line] = np.array(factor_cache).flatten()
+        diff_new[line] = np.array(diff_cache).flatten()
+
+    # -----------------------------------------------------------------------------------------------------------------
+    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+    y1, y2 = ax.get_ylim()
+    if y1 < 0.7 * mean_over:
+        y1 = 0.7 * mean_over
+    if y2 > 1.3 * mean_over:
+        y2 = 1.3 * mean_over
+    ax.set_ylim(y1, y2)
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
+    ax.set_xlabel('Diode channel')
+    ax.set_ylabel('Signal Level (ams unit)')
+    format_save(results_path, f"1NormProcess_{label}", legend=False, fig=fig)
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # Set the mean of each line of the factor to 1
+    line_masks = []
+    for line in range(instance.diode_dimension[1 - sp]):
+        mask = (factor_limits[0] < factor_new[line] ) & (factor_limits[1] > factor_new[line])
+        factor_new[line][mask] = factor_new[line][mask] - np.mean(factor_new[line][mask]) + 1
+        line_masks.append(mask)
+
+    # The module to fit underlying beam instabilities by an n-th order polynomial
+    '''
+    def poly_n(x, *args):
+        args = np.array(args).flatten()
+        print(np.shape(x))
+        print(np.shape(args))
+        print(args)
+        return np.sum([args[i] * x**i for i in range(len(args))], axis=0)
+
+    def cost_func(*args):
+        x = np.arange(0, instance.diode_dimension[sp], 1)
+        poly = poly_n(x, *args).flatten()
+        return np.sum(np.abs([factor_new[i]-poly for i in range(instance.diode_dimension[1-sp])]))
+    '''
+
+    if remove_background:
+        # --------------------------------------------------------------------------------------------------------------
+        # Plot: Comparison Baseline Polynomial orders
+        # --------------------------------------------------------------------------------------------------------------
+        fig, ax = plt.subplots()
+        x = np.arange(0, 64, 1)
+        color = sns.color_palette("Spectral", as_cmap=True)
+        for i in range(1, 9):
+            baseline_fitter = Baseline(x_data=x)
+            baseline_data = np.mean(factor_new, axis=0)
+            baseline_data[((factor_limits[0] > baseline_data) | (factor_limits[1] < baseline_data))] = 1
+            baseline = baseline_fitter.imodpoly(baseline_data, poly_order=i, num_std=0.7)[0]
+            '''
+            if baseline.nfev == 1 and baseline.optimality == 0.0:
+                baseline = [0]
+            else:
+                baseline = baseline.x
+            '''
+            ax.plot(x, baseline, label=f"{i}th order polynom", c=color(i/9))
+
+        for line in range(instance.diode_dimension[1-sp]):
+            ax.plot(factor_new[line], ls='--', zorder=5, c=line_color[line])
+        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+        y1, y2 = ax.get_ylim()
+        if y1 < 0.9:
+            y1 = 0.9
+        if y2 > 1.1:
+            y2 = 1.1
+        ax.set_ylim(y1, y2)
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
+        ax.set_xlabel('Diode channel')
+        ax.set_ylabel('Signal Homogeneity')
+        format_save(results_path, f"2Baseline_Order_{label}", legend=True)
+        # --------------------------------------------------------------------------------------------------------------
+
+        i = 7
+        x = np.arange(0, 64, 1)
+        baseline_fitter = Baseline(x_data=x)
+        baseline_data = np.mean(factor_new, axis=0)
+        baseline_data[((factor_limits[0] > baseline_data) | (factor_limits[1] < baseline_data))] = 1
+        baseline = baseline_fitter.imodpoly(baseline_data, poly_order=i, num_std=0.7)[0]
+
+        # --------------------------------------------------------------------------------------------------------------
+        # Plot: Comparison Factor / Baseline Mean
+        # --------------------------------------------------------------------------------------------------------------
+        fig, ax = plt.subplots()
+        x = np.arange(0, 64, 1)
+        color = sns.color_palette("Spectral", as_cmap=True)
+
+        ax.plot(x, baseline, label=f"{i}th order polynom", c=color(i / 9))
+        ax.axhline(np.mean(baseline), ls='--', c=color(i / 9))
+
+        for line in range(instance.diode_dimension[1 - sp]):
+            ax.plot(factor_new[line][line_masks[line]], ls='-', zorder=5, c=line_color[line])
+            ax.axhline(np.mean(factor_new[line][line_masks[line]]), ls='--', c=line_color[line])
+        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+        y1, y2 = ax.get_ylim()
+        if y1 < 0.9:
+            y1 = 0.9
+        if y2 > 1.1:
+            y2 = 1.1
+        ax.set_ylim(y1, y2)
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
+        ax.set_xlabel('Diode channel')
+        ax.set_ylabel('Signal Homogeneity')
+        format_save(results_path, f"3Baseline_Mean_{label}", legend=True)
+        # --------------------------------------------------------------------------------------------------------------
+
+    if align_lines:
+        # --------------------------------------------------------------------------------------------------------------
+        # Plot: Alignment process
+        # --------------------------------------------------------------------------------------------------------------
+        fig, ax = plt.subplots()
+
+        # Calculate the mean of the mean from the different lines
+        x_mean = mean_cache[0][0]
+        mean_cache = [np.interp(x_mean, mean_cache[i][0], mean_cache[i][1]) for i in range(len(mean_cache))]
+
+        overall_mean = np.mean(mean_cache, axis=0)
+        ax.plot(x_mean, overall_mean, c='k', label='Overall mean')
+
+        for line, m in enumerate(mean_cache):
+            ax.plot(x_mean, m, ls='-', c=line_color[line])
+            func_opt_new = lambda a: np.abs(overall_mean - m * a)
+            factor_new_cache = least_squares(func_opt_new, 1)
+            if factor_new_cache.nfev == 1 and factor_new_cache.optimality == 0.0:
+                factor_new_cache = 1
+            else:
+                factor_new_cache = factor_new_cache.x[0]
+            factor_new[line][line_masks[line]] = factor_new[line][line_masks[line]] * factor_new_cache
+            ax.plot(x_mean, m*factor_new_cache, ls='--', c=line_color[line], label=f"{(1-factor_new_cache)*100:.2f}% offset from common mean")
+        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+        y1, y2 = ax.get_ylim()
+        if y1 < 0.7 * np.mean(overall_mean):
+            y1 = 0.7 * np.mean(overall_mean)
+        if y2 > 1.3 * np.mean(overall_mean):
+            y2 = 1.3 * np.mean(overall_mean)
+        ax.set_ylim(y1, y2)
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
+        ax.set_xlabel('Diode channel')
+        ax.set_ylabel('Signal Level (ams unit)')
+        format_save(results_path, f"4Align procedure_{label}", legend=True, fig=fig)
+        # --------------------------------------------------------------------------------------------------------------
+
+    if remove_background:
+        for line in range(instance.diode_dimension[1 - sp]):
+            factor_new[line][line_masks[line]] = (factor_new[line][line_masks[line]] - baseline[line_masks[line]]
+                                                  + np.mean(baseline))
+
+    return factor_new, diff_new

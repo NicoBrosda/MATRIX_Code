@@ -386,7 +386,7 @@ class Analyzer:
 
     def plot_map(self, save_path=None, pixel=True, intensity_limits=None, ax_in=None, fig_in=None, colorbar=True,
                  cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.pdf', bbox=None, alpha=1.0,
+                 plot_size=fullsize_plot, imshow=False, dpi=300, save_format='.svg', bbox=None, alpha=1.0,
                  insert_txt: bool or list = False, *args, **kwargs):
         if isinstance(pixel, str):
             pixel = pixel.lower()

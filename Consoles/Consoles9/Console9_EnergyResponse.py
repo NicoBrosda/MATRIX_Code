@@ -1,5 +1,7 @@
 import SimpleITK as sitk
 import h5py
+import matplotlib.pyplot as plt
+
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from EvaluationSoftware.normalization_modules import normalization_from_translated_array
@@ -37,7 +39,7 @@ def simulation_response(run_name, comp_list=[], param_info='', gradual_parameter
         response_std = data_std.flatten()[response_ind].mean()
         data_cache.append(data)
         response_cache.append(response.mean())
-        std_cache.append(np.sqrt(response.std()**2 + response_std**2))
+        std_cache.append(np.sqrt((response.std()/np.sqrt(len(response)))**2 + response_std**2))
 
         # ----------------- Load the energy information ----------------------------------
         hdf5_filename = f"{output_path}/{_run_name}.h5"
@@ -70,6 +72,74 @@ def simulation_response(run_name, comp_list=[], param_info='', gradual_parameter
             continue
 
     return response_cache, std_cache, energy_cache, energy_std_cache
+
+pixel_size = 50/200
+
+def simulation_response2(run_name):
+    folder_path = Path('/Users/nico_brosda/GateSimulation/GATE10/Simulation/output/')
+    files = os.listdir(folder_path / f'{run_name[0:run_name.index("_")]}/')
+    files = array_txt_file_search(files, blacklist=['.mhd', '.raw'], searchlist=[run_name], txt_file=False)
+    # ----------------------------------------------------------------------------------------------------------------
+    # Obtaining the data
+    # ----------------------------------------------------------------------------------------------------------------
+    param_list = []
+    data_cache = []
+    response_cache = []
+    std_cache = []
+    for i, file in enumerate(files):
+        try:
+            param = float(file[file.index('_param')+6:])
+        except ValueError:
+            continue
+
+        # ----------------- Load the Dose / Edep image ----------------------------------
+        # img = sitk.ReadImage(str(output_file).replace(".mhd", "_dose.mhd"))
+        try:
+            _run_name = f"{run_name}{param}"
+            output_path = folder_path / f'{run_name[0:run_name.index("_")]}/'
+            output_file = output_path / f"_{_run_name}_dose.mhd"
+
+            img = sitk.ReadImage(str(output_file).replace(".mhd", "_edep.mhd"))
+            img_std = sitk.ReadImage(str(output_file).replace(".mhd", "_edep_uncertainty.mhd"))
+        except RuntimeError:
+            param = int(param)
+            _run_name = f"{run_name}{param}"
+            output_path = folder_path / f'{run_name[0:run_name.index("_")]}/'
+            output_file = output_path / f"_{_run_name}_dose.mhd"
+
+            img = sitk.ReadImage(str(output_file).replace(".mhd", "_edep.mhd"))
+            img_std = sitk.ReadImage(str(output_file).replace(".mhd", "_edep_uncertainty.mhd"))
+
+        param_list.append(param)
+
+        data = np.array(sitk.GetArrayFromImage(img))[0][::-1, :]
+        data_std = np.array(sitk.GetArrayFromImage(img_std))[0][::-1, :]
+        '''
+        if np.max(data) < 0.1:
+            response = 0
+            response_std = 0
+        else:
+            # threshold = threshold_otsu(data)
+            # response = np.mean(data[data > threshold])
+            # response_std = np.sqrt(np.mean(data_std[data > threshold]) ** 2 + np.std(data[data > threshold]) ** 2)
+        '''
+        radius_mm = 8
+        height, width = data.shape
+        center_y, center_x = height // 2, width // 2
+        radius_px = int(radius_mm / pixel_size)
+        y, x = np.ogrid[:height, :width]
+        dist_from_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+        mask = dist_from_center <= radius_px
+        response = np.mean(data[mask])
+        print(np.mean(data_std[mask]), np.std(data[mask]))
+        response_std = np.sqrt(np.mean(data_std[mask]) ** 2 + (np.std(data[mask])/np.sqrt(len(data[mask]))) ** 2)
+
+        data_cache.append(data)
+        response_cache.append(response)
+        std_cache.append(response_std)
+
+    indices = np.argsort(param_list)
+    return np.array(param_list)[indices], np.array(response_cache)[indices], np.array(std_cache)[indices]
 
 
 mapping = Path('../../Files/mapping.xlsx')
@@ -195,7 +265,13 @@ except FileNotFoundError as _error:
 
         signal_indices = np.argsort(signals)[-200:]
         signal_levels = signals[signal_indices]
-        std = np.sqrt(np.mean(stds[signal_indices])**2+np.std(signal_levels)**2)
+        std = np.sqrt((np.mean(stds[signal_indices]))**2+(np.std(signal_levels))**2) / np.sqrt(len(signal_levels))
+
+        print('-----------')
+        print(std)
+        print(np.sqrt(np.mean(stds[signal_indices])**2+(np.std(signal_levels))**2))
+        print('-----------')
+
         signal_level = np.mean(signal_levels)
         if diffuser == 400:
             cache_400.append([wheel_position, signal_level, std])
@@ -227,13 +303,13 @@ sim_res_400, sim_std_400, sim_energy_400, sim_energy_std_400 = simulation_respon
 fig, ax = plt.subplots()
 ax.plot(data_wheel_400['energies'][0:len(cache_400)], [i[1] for i in cache_400], c='b', ls='-', marker='', label='Experiment')
 for i in cache_400:
-    ax.errorbar(data_wheel_400['energies'][i[0]], i[1], i[2], c=energy_color(data_wheel_400['energies'][i[0]]), marker='', capsize=5, markersize=7)
+    ax.errorbar(data_wheel_400['energies'][i[0]], i[1], i[2], c=energy_color(data_wheel_400['energies'][i[0]]), marker='', capsize=4, markersize=7)
 
 ax2 = ax.twinx()
 ax2.plot(sim_energy_400[0:len(cache_400)], sim_res_400[0:len(cache_400)], c='r', ls='--', marker='', label='Simulation', zorder=0)
 for i in range(len(sim_res_400[0:len(cache_400)])):
     ax2.errorbar(sim_energy_400[i], sim_res_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]),
-                marker='', capsize=5, markersize=7)
+                marker='', capsize=4, markersize=7)
 
 ax.set_xlabel(f'Proton energy (MeV)')
 ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
@@ -253,6 +329,31 @@ ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
         c=energy_color(np.max(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path, f'400umResponse', legend=True)
 
+# -------------- Plot 2,5: Curve signal vs energy for 400 um diffuser--------------
+energy_cmap = sns.color_palette("crest_r", as_cmap=True)
+energy_colormapper = lambda energy: color_mapper(energy, np.min(data_wheel_400['energies'][0:len(cache_400)]), np.max(data_wheel_400['energies'][0:len(cache_400)]))
+energy_color = lambda energy: energy_cmap(energy_colormapper(energy))
+
+fig, ax = plt.subplots()
+ax.plot(data_wheel_400['energies'][0:len(cache_400)], [i[1] for i in cache_400], c='b', ls='-', marker='', label='Experiment')
+for i in cache_400:
+    ax.errorbar(data_wheel_400['energies'][i[0]], i[1], i[2], c=energy_color(data_wheel_400['energies'][i[0]]), marker='', capsize=4, markersize=7)
+
+ax.set_xlabel(f'Proton energy (MeV)')
+ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+
+ax.set_ylim(0, 1.2*np.max([i[1] for i in cache_400]))
+ax.set_xlim(ax.get_xlim())
+
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.775]),
+                       transform_axis_to_data_coordinates(ax, [0.9, 0.645]), cmap=energy_cmap, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.79]),
+        f"{np.min(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
+        c=energy_color(np.min(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
+        f"{np.max(data_wheel_400['energies'][0:len(cache_400)]): .2f}$\\,${'MeV'}", fontsize=13,
+        c=energy_color(np.max(data_wheel_400['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+format_save(results_path, f'400umResponse_Exp', legend=True)
 
 # -------------- Plot 3: Curve signal vs energy for 200 um diffuser--------------
 energy_cmap = sns.color_palette("crest_r", as_cmap=True)
@@ -265,10 +366,10 @@ ax2 = ax.twinx()
 ax.plot(data_wheel_200['energies'][0:len(cache_200)], [i[1] for i in cache_200], c='b', ls='-', marker='', label='Experiment', zorder=0)
 ax2.plot(sim_energy_200[0:len(cache_200)], sim_res_200[0:len(cache_200)], c='r', ls='--', marker='', label='Simulation', zorder=0)
 for i in cache_200:
-    ax.errorbar(data_wheel_200['energies'][i[0]], i[1], i[2], c=energy_color(data_wheel_200['energies'][i[0]]), marker='', capsize=5, markersize=7)
+    ax.errorbar(data_wheel_200['energies'][i[0]], i[1], i[2], c=energy_color(data_wheel_200['energies'][i[0]]), marker='', capsize=4, markersize=7)
 for i in range(len(sim_res_200[0:len(cache_200)])):
     ax2.errorbar(sim_energy_200[i], sim_res_200[i], sim_std_200[i], c=energy_color(data_wheel_200['energies'][i]),
-                marker='', capsize=5, markersize=7)
+                marker='', capsize=4, markersize=7)
 
 ax.set_xlabel(f'Proton energy (MeV)')
 ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
@@ -288,24 +389,65 @@ ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
         c=energy_color(np.max(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
 format_save(results_path , f'200umResponse', legend=True)
 
+# -------------- Plot 3,5: Curve signal vs energy for 200 um diffuser--------------
+energy_cmap = sns.color_palette("crest_r", as_cmap=True)
+energy_colormapper = lambda energy: color_mapper(energy, np.min(data_wheel_200['energies'][0:len(cache_200)]), np.max(data_wheel_200['energies'][0:len(cache_200)]))
+energy_color = lambda energy: energy_cmap(energy_colormapper(energy))
+
+fig, ax = plt.subplots()
+ax.plot(data_wheel_200['energies'][0:len(cache_200)], [i[1] for i in cache_200], c='b', ls='-', marker='', label='Experiment', zorder=0)
+for i in cache_200:
+    ax.errorbar(data_wheel_200['energies'][i[0]], i[1], i[2], c=energy_color(data_wheel_200['energies'][i[0]]), marker='', capsize=4, markersize=7)
+
+ax.set_xlabel(f'Proton energy (MeV)')
+ax.set_ylabel(f'Signal Current ({scale_dict[A.scale][1]}A)')
+
+ax.set_xlim(ax.get_xlim())
+ax.set_ylim(0, 1.2*np.max([i[1] for i in cache_200]))
+
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.775]),
+                       transform_axis_to_data_coordinates(ax, [0.9, 0.645]), cmap=energy_cmap, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.82, 0.79]),
+        f"{np.min(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
+        c=energy_color(np.min(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.80, 0.56]),
+        f"{np.max(data_wheel_200['energies'][0:len(cache_200)]): .2f}$\\,${'MeV'}", fontsize=13,
+        c=energy_color(np.max(data_wheel_200['energies'])), zorder=3)  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+format_save(results_path , f'200umResponse_Exp', legend=True)
+
 # ----------------------------------------------------------------------------------------------------------------
 # Calculate normed responses (normed to incoming protons)
 #----------------------------------------------------------------------------------------------------------------
-rescale_sim = 1e6
-scale_sim = ''
-simn = 1e7 / rescale_sim
+rescale_sim = 1e3
+scale_sim = 'k'
+simn = 1e7 / rescale_sim / 5026.548245743669 / 4.965
 sim_res_200, sim_res_400, sim_std_200, sim_std_400 = (np.array(sim_res_200[:len(cache_200)]) / simn,
                                                       np.array(sim_res_400[:len(cache_400)]) / simn,
                                                       np.array(sim_std_200[:len(cache_200)]) / simn,
                                                       np.array(sim_std_400[:len(cache_400)]) / simn)
 
-rescale_current = 1e6
-scale_current = 'a'
+additional_scale = 1/e * 1e-18 * 4417.864669110646
+rescale_current = 1e6 * additional_scale
+scale_current = f'$\\#$electrons'
 currents_400 = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 / e / rescale_current
 currents_200 = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) *1e-9 / e /rescale_current
 
 normed_200, std_200 = np.array([i[1] for i in cache_200]) / currents_200, np.array([i[2] for i in cache_200]) / currents_200
 normed_400, std_400 = np.array([i[1] for i in cache_400]) / currents_400, np.array([i[2] for i in cache_400]) / currents_400
+
+#----------------------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------
+sim_energy, sim_res, sim_std = simulation_response2('EnergyVariation1e6_param')
+
+rescale_sim = 1e3
+scale_sim = 'k'
+simn = 1e6 / rescale_sim / 5026.548245743669
+sim_res, sim_std = sim_res / simn, sim_std / simn
+
+sim_res_400 = np.interp(data_wheel_400['energies'][0:len(cache_400)], sim_energy, sim_res)
+sim_std_400 = np.interp(data_wheel_400['energies'][0:len(cache_400)], sim_energy, sim_std)
+sim_res_200 = np.interp(data_wheel_200['energies'][0:len(cache_200)], sim_energy, sim_res)
+sim_std_200 = np.interp(data_wheel_200['energies'][0:len(cache_200)], sim_energy, sim_std)
 
 #----------------------------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------------------------
@@ -318,17 +460,17 @@ energy_color = lambda energy: energy_cmap(energy_colormapper(energy))
 fig, ax = plt.subplots()
 ax.plot(data_wheel_400['energies'][0:len(cache_400)], normed_400, c='b', ls='-', marker='', label='Experiment')
 for i, object in enumerate(cache_400):
-    ax.errorbar(data_wheel_400['energies'][i], normed_400[i], std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=5, markersize=7)
+    ax.errorbar(data_wheel_400['energies'][i], normed_400[i], std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=4, markersize=7)
 
 ax2 = ax.twinx()
 ax2.plot(sim_energy_400[0:len(cache_400)], sim_res_400[0:len(cache_400)], c='r', ls='--', marker='', label='Simulation', zorder=0)
 for i in range(len(sim_res_400[0:len(cache_400)])):
     ax2.errorbar(sim_energy_400[i], sim_res_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]),
-                marker='', capsize=5, markersize=7)
+                marker='', capsize=4, markersize=7)
 
 ax.set_xlabel(f'Proton energy (MeV)')
-ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
-ax2.set_ylabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
+ax2.set_ylabel(f'Deposited Energy per primary ({scale_sim}eV)')
 
 
 ax.set_xlim(ax.get_xlim())
@@ -356,14 +498,14 @@ ax2 = ax.twinx()
 ax.plot(data_wheel_200['energies'][0:len(cache_200)], normed_200, c='b', ls='-', marker='', label='Experiment', zorder=0)
 ax2.plot(sim_energy_200[0:len(cache_200)], sim_res_200[0:len(cache_200)], c='r', ls='--', marker='', label='Simulation', zorder=0)
 for i, object in enumerate(cache_200):
-    ax.errorbar(data_wheel_200['energies'][i], normed_200[i], std_200[i], c=energy_color(data_wheel_200['energies'][i]), marker='', capsize=5, markersize=7)
+    ax.errorbar(data_wheel_200['energies'][i], normed_200[i], std_200[i], c=energy_color(data_wheel_200['energies'][i]), marker='', capsize=4, markersize=7)
 for i in range(len(sim_res_200[0:len(cache_200)])):
     ax2.errorbar(sim_energy_200[i], sim_res_200[i], sim_std_200[i], c=energy_color(data_wheel_200['energies'][i]),
-                marker='', capsize=5, markersize=7)
+                marker='', capsize=4, markersize=7)
 
 ax.set_xlabel(f'Proton energy (MeV)')
-ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
-ax2.set_ylabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
+ax2.set_ylabel(f'Deposited Energy per primary ({scale_sim}eV)')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(0, 1.2*np.max(normed_200))
@@ -390,10 +532,10 @@ fig, ax = plt.subplots()
 
 ax.plot(sim_res_400[0:len(cache_400)], normed_400, c='k', ls='-', marker='')
 for i, object in enumerate(cache_400):
-    ax.errorbar(sim_res_400[i], normed_400[i], std_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=5, markersize=7, alpha=0.7)
+    ax.errorbar(sim_res_400[i], normed_400[i], std_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=4, markersize=7, alpha=0.7)
 
-ax.set_xlabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
-ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
+ax.set_xlabel(f'Deposited Energy per primary ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
@@ -417,10 +559,10 @@ fig, ax = plt.subplots()
 
 ax.plot(sim_res_200[0:len(cache_200)], normed_200, c='k', ls='-', marker='')
 for i, object in enumerate(cache_200):
-    ax.errorbar(sim_res_200[i], normed_200[i], std_200[i], sim_std_200[i], c=energy_color(data_wheel_200['energies'][i]), marker='', capsize=5, markersize=7, alpha=0.7)
+    ax.errorbar(sim_res_200[i], normed_200[i], std_200[i], sim_std_200[i], c=energy_color(data_wheel_200['energies'][i]), marker='', capsize=4, markersize=7, alpha=0.7)
 
-ax.set_xlabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
-ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
+ax.set_xlabel(f'Deposited Energy per primary ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
@@ -473,16 +615,16 @@ fig, ax = plt.subplots()
 ax.plot(sim_res_400[0:len(cache_400)], normed_400, c='k', ls='-', marker='')
 ax.plot(sim_res_400[0:len(cache_400)], proportional(sim_res_400[0:len(cache_400)], *popt_400), c='r', ls='--')
 for i, object in enumerate(cache_400):
-    ax.errorbar(sim_res_400[i], normed_400[i], std_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=5, markersize=7, zorder=-1, alpha=0.7)
+    ax.errorbar(sim_res_400[i], normed_400[i], std_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=4, markersize=7, zorder=-1, alpha=0.7)
 
-ax.set_xlabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
-ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
+ax.set_xlabel(f'Deposited Energy per primary ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
 ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), f'Proportional law $\\mathrm{"{R}"}^2$ = {r_squared_400:.4f}', fontsize=12)
-ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_400[0]:.3f}$\\,${scale_current}A/{scale_sim}eV', fontsize=12)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_400[0]:.3f}$\\,${scale_current}/{scale_sim}eV', fontsize=12)
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.265]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.135]), cmap=energy_cmap, lw=10, zorder=5)
@@ -504,16 +646,16 @@ fig, ax = plt.subplots()
 ax.plot(sim_res_200[0:len(cache_200)], normed_200, c='k', ls='-', marker='')
 ax.plot(sim_res_200[0:len(cache_200)], proportional(sim_res_200[0:len(cache_200)], *popt_200), c='r', ls='--')
 for i, object in enumerate(cache_200):
-    ax.errorbar(sim_res_200[i], normed_200[i], std_200[i], sim_std_200[i], c=energy_color(data_wheel_200['energies'][i]), marker='', capsize=5, markersize=7, zorder=-1, alpha=0.7)
+    ax.errorbar(sim_res_200[i], normed_200[i], std_200[i], sim_std_200[i], c=energy_color(data_wheel_200['energies'][i]), marker='', capsize=4, markersize=7, zorder=-1, alpha=0.7)
 
-ax.set_xlabel(f'Deposited Energy per incoming proton ({scale_sim}eV)')
-ax.set_ylabel(f'Signal Current per incoming proton ({scale_current}A)')
+ax.set_xlabel(f'Deposited Energy per primary ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
 ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), f'Proportional law $\\mathrm{"{R}"}^2$ = {r_squared_200:.4f}', fontsize=12)
-ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_200[0]:.3f}$\\,${scale_current}A/{scale_sim}eV', fontsize=12)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.88]), f'Effectivity C = {popt_200[0]:.3f}$\\,${scale_current}/{scale_sim}eV', fontsize=12)
 
 gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.9, 0.265]),
                        transform_axis_to_data_coordinates(ax, [0.9, 0.135]), cmap=energy_cmap, lw=10, zorder=5)

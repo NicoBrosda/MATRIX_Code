@@ -13,7 +13,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import BoundaryNorm
 
 # Standard save format for plots
-save_format = '.png'
+save_format = '.svg'
 
 # Tex or no Tex?
 use_LaTeX = True
@@ -74,13 +74,14 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 poster = False
 if poster:
-    plt.rc('font', size=24)  # controls default text sizes
-    plt.rc('axes', titlesize=28)  # fontsize of the axes title
-    plt.rc('axes', labelsize=28)  # fontsize of the x and y labels
-    plt.rc('xtick', labelsize=24)  # fontsize of the tick labels
-    plt.rc('ytick', labelsize=24)  # fontsize of the tick labels
-    plt.rc('legend', fontsize=24)  # legend fontsize
-    plt.rc('figure', titlesize=32)  # fontsize of the figure title
+    posterfont = 20
+    plt.rc('font', size=posterfont)  # controls default text sizes
+    plt.rc('axes', titlesize=posterfont)  # fontsize of the axes title
+    plt.rc('axes', labelsize=posterfont)  # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=posterfont-4)  # fontsize of the tick labels
+    plt.rc('ytick', labelsize=posterfont-4)  # fontsize of the tick labels
+    plt.rc('legend', fontsize=posterfont)  # legend fontsize
+    plt.rc('figure', titlesize=posterfont+4)  # fontsize of the figure title
     fullsize_plot = (28 * cm, 28 * cm / 1.2419)
 
 if use_LaTeX:
@@ -299,7 +300,7 @@ def gradient_scale(param_list, cmap_param, ax_in=None, param_unit='MeV', point=[
 
 
 def improved_gradient_scale(param_list, cmap, ax_in=None, param_unit='MeV',
-                            point=[0.1, 0.94], param_mapper=None, arrow_width=10, text_fontsize=13):
+                            point=[0.1, 0.94], param_mapper=None, arrow_width=10, text_fontsize=13, param_format='.2f'):
     """
     Creates a gradient scale with arrow and text labels with dynamic color mapping.
     """
@@ -325,8 +326,8 @@ def improved_gradient_scale(param_list, cmap, ax_in=None, param_unit='MeV',
     param_color = lambda p: cmap(param_mapper(p))
 
     # Create text strings for minimum and maximum
-    min_text = f'{param_min:.2f}$\\,${param_unit}'
-    max_text = f'{param_max:.2f}$\\,${param_unit}'
+    min_text = f'{param_min:{param_format}}$\\,${param_unit}'
+    max_text = f'{param_max:{param_format}}$\\,${param_unit}'
 
     x_base, y_base = point
 

@@ -7,7 +7,6 @@ from EvaluationSoftware.main import *
 from skimage.filters import threshold_multiotsu
 import time
 from Concept8GafMeasurementComparison import GafImage, estimate_distribution_center, evaluate_methods
-from Console8GafCompTests import resample_image
 
 color_cycle = sns.color_palette("tab10")
 
@@ -22,8 +21,10 @@ gafimages2 = os.listdir(path2)
 
 gafimages = gafimages1 + gafimages2
 
-for i, gafimage in enumerate(gafimages[0:]):
+for i, gafimage in enumerate(gafimages):
 
+    if not 'gafchromic_matrix211024_007' in gafimage:
+        continue
     print(gafimage, gafimage[-4:])
     if not gafimage[-4:] == '.bmp':
         continue

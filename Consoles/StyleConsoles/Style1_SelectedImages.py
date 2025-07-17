@@ -6,20 +6,20 @@ background_subtraction = True
 normalization = True
 x_limits = [2, 34]
 y_limits = [85, 115]
-y_limits = [95, 125]
+# y_limits = [95, 125]
 intensity_limits = None
 pixel = 'fill'
 
 plot_size = fullsize_plot
 dpi = 300
-format = '.pdf'
+format = '.svg'
 
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
 # Selection of the image (automatic assigning of the Analyzer)
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
 image = 'Logo'
-image = 'Array3_Logo'
+# image = 'Array3_Logo'
 position = '85.0'
 
 A = load_image(folder_path, image, background_subtraction=background_subtraction, normalization=normalization,

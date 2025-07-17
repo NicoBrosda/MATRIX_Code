@@ -11,7 +11,8 @@ readout, position_parser = lambda x, y: ams_channel_assignment_readout(x, y, cha
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
 new_measurements = ['round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um']
 new_measurements = ['Array3_Logo', 'Array3_BeamShape', 'BraggPeak', 'MiscShape', 'round_aperture_2_3scans', 'Logo', 'scan_round_aperture_200um', 'BeamScan']
-new_measurements = ['Array3_Logo']
+# new_measurements = ['Array3_Logo']
+new_measurements = ['Array3_BeamShape', 'BeamScan']
 
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_230924/')
 

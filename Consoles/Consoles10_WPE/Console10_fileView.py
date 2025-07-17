@@ -96,12 +96,13 @@ for k, crit in enumerate(measurements[14:]):
     ax2.set_ylim(ax2.get_ylim())
 
     comp_list = [i for i in range(128)]
-    improved_gradient_scale(comp_list, param_cmap, ax_in=ax, param_unit='$\\#$Diode', point=[0.85, 0.94], param_mapper=param_colormapper)
-    improved_gradient_scale(comp_list, param_cmap, ax_in=ax2, param_unit='$\\#$Diode', point=[0.85, 0.94], param_mapper=param_colormapper)
+    improved_gradient_scale(comp_list, param_cmap, ax_in=ax, param_unit='$\\#$Diode', point=[0.85, 0.94], param_mapper=param_colormapper, param_format='.0f')
+    improved_gradient_scale(comp_list, param_cmap, ax_in=ax2, param_unit='$\\#$Diode', point=[0.85, 0.94], param_mapper=param_colormapper, param_format='.0f')
 
     format_save(results_path / 'Time', crit, save=True, legend=False, fig=fig)
     format_save(results_path / 'Time', crit+'_Zoom', save=True, legend=False, fig=fig2)
 
+    continue
     A = Analyzer((11, 11), 0.4, 0.1, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser, position_parser=position_parser)
     A.set_measurement(folder_path, crit)
     for i in tqdm(range(max_time-100, max_time+100)):

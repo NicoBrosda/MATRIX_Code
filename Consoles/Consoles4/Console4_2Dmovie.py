@@ -29,7 +29,7 @@ results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_111024/MatrixArr
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
 matrix_dark = ['2DLarge_dark_200_um_0_nA__nA_1.9_x_21.0_y_70.35.csv']
 
-'''
+# '''
 crit = '2DLarge_movieScan_'
 files = os.listdir(folder_path)
 map_storage = []
@@ -50,9 +50,9 @@ for i, image_map in tqdm(enumerate(map_storage)):
     A.name = names[i]
     A.maps = map_storage[i]
     A.maps[0]['z'] = zero_pixel_replace(A.maps[0]['z'])
-    A.plot_map(results_path / 'pixel/', pixel='fill',
+    A.plot_map(results_path / 'pixel/', pixel='fill', save_format='png',
                intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'contour/', pixel=False,
+    A.plot_map(results_path / 'contour/', pixel=False, save_format='png',
                intensity_limits=intensity_limits)
 # '''
 import cv2

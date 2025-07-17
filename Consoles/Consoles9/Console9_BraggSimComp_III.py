@@ -54,7 +54,7 @@ readout, position_parser, voltage_parser, current_parser = (
 )
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/Bragg/')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/Bragg_NewCyrce/')
 results_stem = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/')
 
 # ----------------------- Short summary log of measurements -----------------------
@@ -225,7 +225,8 @@ bragg_pos_wedge200_middle = 67.5
 
 # Bragg position in the simulation is at y = -17 respectively -17 + 2.1 for the shortened version
 # bragg_pos_sim = -17
-realer_bragg_pos_sim = -17 + 2.1
+# realer_bragg_pos_sim = -17 + 2.1
+realer_bragg_pos_sim = -20 + (20 - 11.2)
 bragg_pos_sim = realer_bragg_pos_sim
 # To compare with measurement I will align the y-scale, so that it begins at 0
 
@@ -639,7 +640,8 @@ signal_cache = signal_cache_200[:len(comp_list)]
 map_cache = wedge_200[:len(comp_list)]
 shape_position = bragg_pos_wedge200
 save_path = results_path / 'CorrectedIII_Wedge200/'
-run_name = 'RealerWedge200um1e7_param'
+# run_name = 'RealerWedge200um1e7_param'
+run_name = '1e7IdealWedge200diff_param'
 
 material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
     plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
@@ -659,7 +661,8 @@ signal_cache = signal_cache_200_middle[:len(comp_list)]
 map_cache = wedge_200_middle[:len(comp_list)]
 shape_position = bragg_pos_wedge200_middle
 save_path = results_path / 'CorrectedIII_Wedge200Middle/'
-run_name = 'RealerWedge200um1e7_param'
+# run_name = 'RealerWedge200um1e7_param'
+run_name = '1e7IdealWedge200diff_param'
 
 material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
     plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
@@ -668,6 +671,7 @@ material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim
 plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
                signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
 
+plt.error
 # ----------------------------------------------------------------------------------------------------------------
 # Calls for 400 wedge
 # ----------------------------------------------------------------------------------------------------------------

@@ -39,7 +39,7 @@ def simulation_response(run_name, comp_list=[], param_info='', gradual_parameter
         response_std = data_std.flatten()[response_ind].mean()
         data_cache.append(data)
         response_cache.append(response.mean())
-        std_cache.append(np.sqrt(response.std()**2 + response_std**2))
+        std_cache.append(np.sqrt((response.std()/np.sqrt(len(response)))**2 + response_std**2))
 
         # ----------------- Load the energy information ----------------------------------
         hdf5_filename = f"{output_path}/{_run_name}.h5"
@@ -130,7 +130,7 @@ def simulation_response2(run_name):
         dist_from_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
         mask = dist_from_center <= radius_px
         response = np.mean(data[mask])
-        response_std = np.sqrt(np.mean(data_std[mask]) ** 2 + np.std(data[mask]) ** 2)
+        response_std = np.sqrt(np.mean(data_std[mask]) ** 2 + (np.std(data[mask]) / np.sqrt(len(data[mask]))) ** 2)
 
         data_cache.append(data)
         response_cache.append(response)
@@ -263,7 +263,7 @@ except FileNotFoundError as _error:
 
         signal_indices = np.argsort(signals)[-200:]
         signal_levels = signals[signal_indices]
-        std = np.sqrt(np.mean(stds[signal_indices])**2+np.std(signal_levels)**2)
+        std = np.sqrt(np.mean(stds[signal_indices])**2+(np.std(signal_levels)/np.sqrt(len(signal_levels)))**2)
         signal_level = np.mean(signal_levels)
         if diffuser == 400:
             cache_400.append([wheel_position, signal_level, std])
@@ -291,15 +291,15 @@ except FileNotFoundError as _error:
 sim_res_400, sim_std_400, sim_energy_400, sim_energy_std_400 = simulation_response('EnergyResponse400um2,73Al_param', diff=400)
 sim_res_200, sim_std_200, sim_energy_200, sim_energy_std_200 = simulation_response('EnergyResponse200um2,73Al_param', diff=200)
 
-rescale_sim = 1e6
-scale_sim = ''
-simn = 1e7 / rescale_sim
+rescale_sim = 1e3
+scale_sim = 'k'
+simn = 1e7 / rescale_sim / 5026.548245743669
 sim_res_200, sim_res_400, sim_std_200, sim_std_400 = (np.array(sim_res_200[:len(cache_200)]) / simn,
                                                       np.array(sim_res_400[:len(cache_400)]) / simn,
                                                       np.array(sim_std_200[:len(cache_200)]) / simn,
                                                       np.array(sim_std_400[:len(cache_400)]) / simn)
 
-additional_scale = 1/e * 1e-18
+additional_scale = 1/e * 1e-18 * 4417.864669110646
 rescale_current = 1e6 * additional_scale
 scale_current = f'$\\#$electrons'
 currents_400 = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 / e / rescale_current
@@ -312,12 +312,11 @@ normed_400, std_400 = np.array([i[1] for i in cache_400]) / currents_400, np.arr
 # Extrapolated energies
 #----------------------------------------------------------------------------------------------------------------
 sim_energy, sim_res, sim_std = simulation_response2('EnergyVariation1e6_param')
-print(sim_energy)
-rescale_sim = 1e6
-scale_sim = ''
-simn = 1e6 / rescale_sim
-sim_res, sim_std = sim_res / simn, sim_std / simn
 
+rescale_sim = 1e3
+scale_sim = 'k'
+simn = 1e6 / rescale_sim / 5026.548245743669
+sim_res, sim_std = sim_res / simn, sim_std / simn
 # ----------------------------------------------------------------------------------------------------------------
 
 # ---------------- Plot 1: Overview deposited energy simulation --------------------
@@ -331,7 +330,7 @@ for i, object in enumerate(sim_energy):
     # ax.errorbar(sim_energy[i], sim_res[i], sim_std[i], c=energy_color(object), marker='', capsize=2, markersize=5, alpha=0.7)
     ax.plot(sim_energy[i], sim_res[i], c=energy_color(object), marker='x', markersize=5,alpha=0.7)
 ax.set_xlabel(f'Initial proton energy (MeV)')
-ax.set_ylabel(f'Deposited energy per incident proton ({scale_sim}eV)')
+ax.set_ylabel(f'Deposited energy per primary ({scale_sim}eV)')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 format_save(results_path, f'EnergyExtrapolation_Plain', legend=False, fig=fig, axes=[ax])
@@ -344,14 +343,16 @@ for i, object in enumerate(sim_energy):
     ax.plot(sim_energy[i], sim_res[i], c=energy_color(object), marker='x', markersize=5,alpha=0.7)
 
 ax.set_xlabel(f'Initial proton energy (MeV)')
-ax.set_ylabel(f'Deposited energy per incident proton ({scale_sim}eV)')
+ax.set_ylabel(f'Deposited energy per primary ({scale_sim}eV)')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
+"""
 ax.text(transform_axis_to_data_coordinates(ax, [0.7, 0.2])[0], 3.8,
         f'Bandgap i-GaN', fontsize=13, c='m', zorder=3)
 ax.axhline(3.4, c='m', ls='--', alpha=0.7, zorder=3)
+"""
 
 axins = ax.inset_axes([0.25, 0.25, 0.65, 0.65])
 axins.plot(sim_energy, sim_res, c='k', ls='-', marker='')
@@ -359,7 +360,7 @@ for i, object in enumerate(sim_energy):
     # ax.errorbar(sim_energy[i], sim_res[i], sim_std[i], c=energy_color(object), marker='', capsize=2, markersize=5, alpha=0.7)
     axins.plot(sim_energy[i], sim_res[i], c=energy_color(object), marker='x', markersize=5,alpha=0.7)
 
-x1, x2, y1, y2 = 0.5, 4, 6, ax.get_ylim()[1]
+x1, x2, y1, y2 = 0.5, 4, 30, ax.get_ylim()[1]
 axins.set_xlim(x1, x2)
 axins.set_ylim(y1, y2)
 axins.axvline(sim_energy[np.argmax(sim_res)], c='red', ls='-', alpha=1)
@@ -399,12 +400,12 @@ ax.plot(sim_energy_200[0:len(cache_200)], sim_res_200[0:len(cache_200)], c='r', 
 
 
 ax.set_xlabel(f'Initial proton energy (MeV)')
-ax.set_ylabel(f'Deposited energy per incident proton ({scale_sim}eV)')
+ax.set_ylabel(f'Deposited energy per primary ({scale_sim}eV)')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
-x1, x2, y1, y2 = 2, 25, 0, 20
+x1, x2, y1, y2 = 2, 25, 0, 20 * 5026.548245743669 / 1e3
 axins = ax.inset_axes([0.3, 0.25, 0.65, 0.65])
 axins.plot(sim_energy, sim_res, c='k', ls='-', marker='')
 for i, object in enumerate(sim_energy):
@@ -470,7 +471,7 @@ energy_colormapper = lambda energy: color_mapper(energy, np.min(sim_energy), np.
 energy_color = lambda energy: energy_cmap(energy_colormapper(energy))
 
 fig, ax = plt.subplots()
-x1, x2, y1, y2 = 2, 25, 0, 20
+x1, x2, y1, y2 = 2, 25, 0, 20 * 5026.548245743669 / 1e3
 
 
 ax.plot(sim_energy, sim_res, c='k', ls='-', marker='')
@@ -485,7 +486,7 @@ ax.plot(sim_energy_200[0:len(cache_200)], sim_res_200[0:len(cache_200)], c='r', 
 
 
 ax.set_xlabel(f'Initial proton energy (MeV)')
-ax.set_ylabel(f'Deposited energy per incident proton ({scale_sim}eV)')
+ax.set_ylabel(f'Deposited energy per primary ({scale_sim}eV)')
 
 ax.set_xlim(x1, x2)
 ax.set_ylim(y1, y2)
@@ -549,7 +550,7 @@ ax.set_ylabel(f'Signal Current per incident proton ({scale_current})')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
-x1, x2, y1, y2 = 3, 9, 0.007*additional_scale, 0.020*additional_scale
+x1, x2, y1, y2 = 3 * 5026.548245743669 / 1e3, 9 * 5026.548245743669 / 1e3, 0.007*additional_scale, 0.020*additional_scale
 axins = ax.inset_axes([0.6, 0.05, 0.35, 0.4])
 axins.plot(simII_res_200, normed_200, c='r', ls='-', marker='')
 axins.plot(simII_res_400, normed_400, c='b', ls='-', marker='')
@@ -595,8 +596,8 @@ print(f'The loss is caluclated to be {c_400II/(1/10.5)} respectively {1/10.5 / c
 # might allow assessing K for the response processes of the SC, even though the conversion within the electrical circuit
 # is also still part of K.
 
-c_400II_cut, dc_400II_cut, r2_400II_cut = check_prop(simII_res_400[simII_res_400 < 8], normed_400[simII_res_400 < 8], sigma_y=std_400[simII_res_400 < 8])
-c_200II_cut, dc_200II_cut, r2_200II_cut = check_prop(simII_res_200[simII_res_200 < 8], normed_200[simII_res_200 < 8], sigma_y=std_200[simII_res_200 < 8])
+c_400II_cut, dc_400II_cut, r2_400II_cut = check_prop(simII_res_400[simII_res_400 < 8 * 5026.548245743669 / 1e3], normed_400[simII_res_400 < 8 * 5026.548245743669 / 1e3], sigma_y=std_400[simII_res_400 < 8 * 5026.548245743669 / 1e3])
+c_200II_cut, dc_200II_cut, r2_200II_cut = check_prop(simII_res_200[simII_res_200 < 8 * 5026.548245743669 / 1e3], normed_200[simII_res_200 < 8 * 5026.548245743669 / 1e3], sigma_y=std_200[simII_res_200 < 8 * 5026.548245743669 / 1e3])
 print(f'SimII: Effectiveness 400 um diffuser (cut): {c_400II_cut} +/- {dc_400II_cut} with R$^2$ of {r2_400II_cut}')
 print(f'SimII: Effectiveness 200 um diffuser (cut): {c_200II_cut} +/- {dc_200II_cut} with R$^2$ of {r2_200II_cut}')
 
@@ -634,7 +635,7 @@ ax.set_ylabel(f'Signal Current per incident proton ({scale_current})')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
-x1, x2, y1, y2 = 3, 9, 0.007*additional_scale, 0.020*additional_scale
+x1, x2, y1, y2 = 3 * 5026.548245743669 / 1e3, 9 * 5026.548245743669 / 1e3, 0.007*additional_scale, 0.020*additional_scale
 axins = ax.inset_axes([0.6, 0.05, 0.35, 0.4])
 axins.plot(simII_res_200, normed_200, c='r', ls='-', marker='')
 axins.plot(simII_res_400, normed_400, c='b', ls='-', marker='')
@@ -676,8 +677,8 @@ for i, object in enumerate(cache_400):
     ax.plot(simII_res_400[i], normed_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='|', alpha=1)
 '''
 
-ax.set_xlabel(f'Deposited Energy per incident proton ({scale_sim}eV)')
-ax.set_ylabel(f'Signal Current per incident proton ({scale_current})')
+ax.set_xlabel(f'Deposited Energy per primary ({scale_sim}eV)')
+ax.set_ylabel(f'Signal Current per primary ({scale_current})')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
@@ -757,7 +758,7 @@ energy_color = lambda energy: energy_cmap(energy_colormapper(energy))
 
 fig, ax = plt.subplots()
 ax.set_xlim(20, 230)
-ax.set_ylim(0, 0.06)
+ax.set_ylim(0, 0.06 * 4417.864669110646)
 
 # ax.plot(data_wheel_200['energies'][0:len(normed_200)], normed_200, c='r', ls='-', marker='|', label='CYRCé 200$\\,$µm diffuser data')
 # ax.plot(data_wheel_400['energies'][0:len(normed_400)], normed_400, c='b', ls='-', marker='|', label='CYRCé 400$\\,$µm diffuser data')
@@ -800,7 +801,7 @@ for i, object in enumerate(cache_400):
 '''
 
 ax.set_xlabel(f'Energy of incident proton (MeV)')
-ax.set_ylabel(f'Signal Current per incident proton ({scale_current})')
+ax.set_ylabel(f'Pixel Current per primary ({scale_current})')
 
 '''
 x1, x2, y1, y2 = 3, 9, 0.007*additional_scale, 0.020*additional_scale
