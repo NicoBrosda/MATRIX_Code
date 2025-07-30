@@ -6,8 +6,8 @@ background_subtraction = True
 normalization = True
 
 # Axis limits
-x_limits = np.array([2, 34])
-y_limits = [84, 116]
+x_limits = np.array([20-16, 20+16])
+y_limits = [66.5-16, 66.5+16]
 # y_limits = np.array([94, 126])
 zero_scale = True
 
@@ -23,13 +23,16 @@ format = '.svg'
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
 # Selection of the image (automatic assigning of the Analyzer)
-folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
-image = 'Logo'
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
+image = '_GafCompLogo_'
 # image = 'Array3_Logo'
-position = '85.0'
+position = None
+
 
 A = load_image(folder_path, image, background_subtraction=background_subtraction, normalization=normalization,
                position=position)
+for i, image_map in enumerate(A.maps):
+    A.maps[i]['z'] = simple_zero_replace(image_map['z'])
 
 fig, ax = plt.subplots()
 

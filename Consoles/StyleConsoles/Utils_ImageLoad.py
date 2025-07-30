@@ -1,10 +1,23 @@
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
+from Consoles.Consoles8Gafchromic.Concept8GafMeasurementComparison import GafImage
 
 
 def load_image(folder_path, image, background_subtraction=True, normalization=True, position=None):
     # Automatic assigning of Analyzer, background, normalization
-    if '_230924' in folder_path.name:
+    if image[-4:] == '.bmp':
+        OriginalGaf = GafImage(folder_path / image)
+        OriginalGaf.load_image()
+        # '''
+        if 'matrix211024_006.bmp' in image:
+            print('yes')
+            OriginalGaf.image = OriginalGaf.image[::-1]
+            OriginalGaf.image = OriginalGaf.image[:, ::-1]
+        # '''
+        OriginalGaf.transform_to_normed(max_n=1e5)
+        print('Gafchromic Image detected and loaded - note that no Analyzer instance will be returned!')
+        return OriginalGaf
+    elif '_230924' in folder_path.name:
         mapping = Path('../../Files/mapping.xlsx')
         data = pd.read_excel(mapping, header=1)
         channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
@@ -43,11 +56,45 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
     elif '_211024' in folder_path.name:
         pass
     elif '_221024' in folder_path.name:
-        pass
+        mapping = Path('../../Files/mapping.xlsx')
+        data = pd.read_excel(mapping, header=1)
+        channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
+        readout = lambda x, y: ams_2line_readout(x, y, channel_assignment=channel_assignment)
+
+        A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout,
+                     diode_offset=[[0, - 0.25], np.zeros(64)], position_parser=standard_position,
+                     voltage_parser=standard_voltage, current_parser=standard_current)
+        dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
+
+        dark = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.csv']
+
+        norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
+        norm = ['2Line_YScan_']
+        norm_module = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
+            list_of_files, instance, method, align_lines=True)
+
     elif '_211124' in folder_path.name:
         pass
     elif '_260325' in folder_path.name:
         pass
+    elif '_19062024' in folder_path.name:
+        readout, position_parser = ams_constant_signal_readout, standard_position
+
+        A = Analyzer((1, 64), 0.4, 0.1, readout=readout,
+                     position_parser=position_parser, voltage_parser=standard_voltage)
+
+        # Dark Subtraction - correct file assignment
+        dark_path = folder_path
+        dark = ['d2_1n_3s_beam_all_without_diffuser_dark.csv']
+
+        # Norm Assignment
+        norm_path = folder_path
+        norm = ['5s_flat_calib_']
+
+        norm_module = simple_normalization
+    else:
+        print('The given measurement / path combination is not registered. Please recheck the input!')
+        return None
 
     # Filtering for correct files - Logo would be found in Array3_Logo...
     if image == 'Logo':
@@ -64,7 +111,10 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
 
     A.update_measurement(dark=background_subtraction, factor=normalization)
 
-    A.create_map(inverse=[True, False])
+    if '_19062024' in folder_path.name:
+        A.create_map(inverse=[False, False])
+    else:
+        A.create_map(inverse=[True, False])
 
     if len(A.maps) > 1 and position is None:
         A.maps = [A.maps[0]]

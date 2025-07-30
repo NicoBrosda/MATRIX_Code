@@ -66,7 +66,13 @@ voltage_range = [0.8, 2.0]
 factor_cache = []
 factorna_cache = []
 
+color = sns.color_palette("hls", len(shortlabels))
+
 for i, measurement in enumerate(new_measurements):
+    if 'exp13' not in measurement:
+        pass
+    c = color[i]
+
     results_path = Path("/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/Process/")
 
     instance = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout,
@@ -81,11 +87,11 @@ for i, measurement in enumerate(new_measurements):
         print(voltage)
         instance.set_dark_measurement(dark_path, dark_voltage(voltage))
 
-    factor, diff = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=True, label=labels[i], remove_background=True)
-    factor_, diff_ = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=True, label=labels[i], remove_background=False)
+    factor, diff = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=True, label=labels[i], color=c, remove_background=True)
+    factor_, diff_ = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=True, label=labels[i], color=c, remove_background=False)
 
-    factor2, diff2 = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=False, label=labels[i], remove_background=True)
-    factor2_, diff2_ = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=False, label=labels[i], remove_background=False)
+    factor2, diff2 = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=False, label=labels[i], color=c, remove_background=True)
+    factor2_, diff2_ = normalization_from_translated_array_v4(instance.measurement_files, instance, align_lines=False, label=labels[i], color=c, remove_background=False)
 
     factor_cache.append([factor, diff])
     factorna_cache.append([factor2, diff2])
@@ -120,7 +126,9 @@ for i, measurement in enumerate(new_measurements):
                         color=obj[0].get_color(), alpha=0.3)
     ax.axvline(22, c='k', alpha=0.3)
     ax.set_xlim(ax.get_xlim()), fast_yscale([0.9, 1.1])
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), labels[i], fontsize=12)
+    text = labels[i]
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
     ax.set_xlabel('Diode channel')
     ax.set_ylabel('Signal Homogeneity')
     format_save(results_path, f"5AfterProcess_BackgroundRemoved_Align_{labels[i]}", legend=False, fig=fig)
@@ -134,7 +142,9 @@ for i, measurement in enumerate(new_measurements):
                         y2=factor2[line] + diff2[line], color=obj[0].get_color(), alpha=0.3)
     ax.axvline(22, c='k', alpha=0.3)
     ax.set_xlim(ax.get_xlim()), fast_yscale([0.9, 1.1])
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), labels[i], fontsize=12)
+    text = labels[i]
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
     ax.set_xlabel('Diode channel')
     ax.set_ylabel('Signal Homogeneity')
     format_save(results_path, f"6AfterProcess_BackgroundRemoved_NoAlign_{labels[i]}", legend=False, fig=fig)
@@ -148,7 +158,11 @@ for i, measurement in enumerate(new_measurements):
     ax.set_xlim(ax.get_xlim()), fast_yscale([0.9, 1.1])
     ax.set_xlabel('Diode channel')
     ax.set_ylabel('Signal Homogeneity')
-    format_save(results_path, f"7AfterProcess_CompBackground_Align_{labels[i]}", legend=True, fig=fig)
+    text = labels[i]
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    ax.legend(loc=4)
+    format_save(results_path, f"7AfterProcess_CompBackground_Align_{labels[i]}", legend=False, fig=fig)
 
     # --------------------------------------------------------------------------------------------------------------
 
@@ -159,7 +173,11 @@ for i, measurement in enumerate(new_measurements):
     ax.set_xlim(ax.get_xlim()), fast_yscale([0.9, 1.1])
     ax.set_xlabel('Diode channel')
     ax.set_ylabel('Signal Homogeneity')
-    format_save(results_path, f"8AfterProcess_CompBackground_NoAlign_{labels[i]}", legend=True, fig=fig)
+    text = labels[i]
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    ax.legend(loc=4)
+    format_save(results_path, f"8AfterProcess_CompBackground_NoAlign_{labels[i]}", legend=False, fig=fig)
 
     # --------------------------------------------------------------------------------------------------------------
 
@@ -172,7 +190,11 @@ for i, measurement in enumerate(new_measurements):
     ax.set_xlim(ax.get_xlim()), fast_yscale([0.9, 1.1])
     ax.set_xlabel('Diode channel')
     ax.set_ylabel('Signal Homogeneity')
-    format_save(results_path, f"9AfterProcess_CompAlign_BackgroundRemoved_{labels[i]}", legend=True, fig=fig)
+    text = labels[i]
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    ax.legend(loc=4)
+    format_save(results_path, f"9AfterProcess_CompAlign_BackgroundRemoved_{labels[i]}", legend=False, fig=fig)
 
     # --------------------------------------------------------------------------------------------------------------
 
@@ -186,7 +208,11 @@ for i, measurement in enumerate(new_measurements):
     ax.set_xlim(ax.get_xlim()), fast_yscale([0.9, 1.1])
     ax.set_xlabel('Diode channel')
     ax.set_ylabel('Signal Homogeneity')
-    format_save(results_path, f"10AfterProcess_CompAlign_NotRemoved_{labels[i]}", legend=True, fig=fig)
+    text = labels[i]
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    ax.legend(loc=4)
+    format_save(results_path, f"10AfterProcess_CompAlign_NotRemoved_{labels[i]}", legend=False, fig=fig)
 
     # --------------------------------------------------------------------------------------------------------------
     # --------------------------------------------------------------------------------------------------------------
@@ -194,21 +220,30 @@ for i, measurement in enumerate(new_measurements):
 # --------------------------------------------------------------------------------------------------------------
 # Factor Comp
 # --------------------------------------------------------------------------------------------------------------
-color = sns.color_palette("Spectral", as_cmap=True)
+color = sns.color_palette("hls", len(shortlabels))
+
 fig, ax = plt.subplots()
 for i, obj in enumerate(factor_cache):
-    ax.plot(np.concatenate((obj[0][0], obj[0][1]), axis=0), label=labels[i], color=color(i/len(factor_cache)))
+    ax.plot(np.concatenate((obj[0][0], obj[0][1]), axis=0), label=labels[i], color=color[i])
 ax.set_xlim(ax.get_xlim()), fast_yscale([0.95, 1.05])
 ax.set_xlabel('Diode channel')
 ax.set_ylabel('Signal Homogeneity')
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+text = "Comparison of aligned \n normalization factors"
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+        va='top', color='k', bbox={'facecolor': 'white', 'edgecolor': 'k', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
 format_save(results_path, f"11AlignFactorComp", legend=False, fig=fig)
 
 fig, ax = plt.subplots()
 for i, obj in enumerate(factorna_cache):
-    ax.plot(np.concatenate((obj[0][0], obj[0][1]), axis=0), label=labels[i], color=color(i/len(factorna_cache)))
+    ax.plot(np.concatenate((obj[0][0], obj[0][1]), axis=0), label=labels[i], color=color[i])
 ax.set_xlim(ax.get_xlim()), fast_yscale([0.95, 1.05])
 ax.set_xlabel('Diode channel')
 ax.set_ylabel('Signal Homogeneity')
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+text = "Comparison of not aligned \n normalization factors"
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+        va='top', color='k', bbox={'facecolor': 'white', 'edgecolor': 'k', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
 format_save(results_path, f"11NoAlignFactorComp", legend=False, fig=fig)
 
 fig, ax = plt.subplots()
@@ -219,7 +254,12 @@ ax.plot(np.concatenate((factor_cache[-2][0][0], factor_cache[-2][0][1]), axis=0)
 ax.set_xlim(ax.get_xlim()), fast_yscale([0.975, 1.025])
 ax.set_xlabel('Diode channel')
 ax.set_ylabel('Signal Homogeneity')
-format_save(results_path, f"11LongTimeComp", legend=True, fig=fig)
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+text = "Long term normalization deviation"
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+        va='top', color='k', bbox={'facecolor': 'white', 'edgecolor': 'k', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+ax.legend(loc=4)
+format_save(results_path, f"11LongTimeComp", legend=False, fig=fig)
 
 # --------------------------------------------------------------------------------------------------------------
 # Hist
@@ -228,19 +268,19 @@ align_std = []
 na_std = []
 diffs = []
 for i, obj in enumerate(factor_cache):
-    c = color(i / (len(factor_cache)-1))
+    c = color[i]
     fig, ax = plt.subplots()
     data = np.append(obj[0][0][line_masks[0]], obj[0][1][line_masks[1]])
     bin_size = 0.0025
     data_min, data_max = 0.95, 1.05
     bins = np.arange(start=data_min, stop=data_max + bin_size, step=bin_size)
     ax.hist(data, bins=bins, edgecolor='k', color=c)
-    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-    text = (f"Line Align - {labels[i]} \n"
+    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*1.2)
+    text = (f"Line Align - {shortlabels[i]} \n"
             f"Std of response homogeneity {np.std(data)*100:.2f}$\\,$\\% \n"
             f"Average difference from mean signal {np.mean(obj[1])*100:.2f}±{np.std(obj[1])*100:.2f}$\\,$\\%")
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left', va='top',
-            bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 0.7, 'pad': 2, 'zorder': 10})
     ax.set_xlabel('Signal Homogeneity')
     ax.set_ylabel('Counts per homogeneity bin')
     format_save(results_path, f"12HistAlign_{labels[i]}", legend=False, fig=fig)
@@ -254,12 +294,12 @@ for i, obj in enumerate(factor_cache):
     data_min, data_max = 0.95, 1.05
     bins = np.arange(start=data_min, stop=data_max + bin_size, step=bin_size)
     ax.hist(data, bins=bins, edgecolor='k', color=c)
-    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-    text = (f"No Line Align - {labels[i]} \n"
+    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*1.2)
+    text = (f"No Line Align - {shortlabels[i]} \n"
             f"Std of response homogeneity {np.std(data) * 100:.2f}$\\,$\\% \n"
             f"Average difference from mean signal {np.mean(obj[1]) * 100:.2f}±{np.std(obj[1]) * 100:.2f}$\\,$\\%")
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left', va='top',
-            bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 0.7, 'pad': 2, 'zorder': 10})
     ax.set_xlabel('Signal Homogeneity')
     ax.set_ylabel('Counts per homogeneity bin')
     format_save(results_path, f"13HistNoAlign_{labels[i]}", legend=False, fig=fig)
@@ -268,7 +308,7 @@ for i, obj in enumerate(factor_cache):
 
 fig, ax = plt.subplots()
 for i, obj in enumerate(factor_cache):
-    c = color(i / (len(factor_cache))-1)
+    c = color[i]
     data = np.append(obj[0][0][line_masks[0]], obj[0][1][line_masks[1]])
     bin_size = 0.0025
     data_min, data_max = 0.95, 1.05
@@ -276,11 +316,15 @@ for i, obj in enumerate(factor_cache):
     ax.hist(data, bins=bins, color=c, alpha=0.3)
 ax.set_xlabel('Signal Homogeneity')
 ax.set_ylabel('Counts per homogeneity bin')
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+text = "Aligned homogeneity \n histograms"
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+        va='top', color='k', bbox={'facecolor': 'white', 'edgecolor': 'k', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
 format_save(results_path, f"12HistAlignComp", legend=False, fig=fig)
 
 fig, ax = plt.subplots()
 for i, obj in enumerate(factorna_cache):
-    c = color(i / (len(factorna_cache)-1))
+    c = color[i]
     data = np.append(obj[0][0][line_masks[0]], obj[0][1][line_masks[1]])
     bin_size = 0.0025
     data_min, data_max = 0.95, 1.05
@@ -288,6 +332,10 @@ for i, obj in enumerate(factorna_cache):
     ax.hist(data, bins=bins, color=c, alpha=0.3)
 ax.set_xlabel('Signal Homogeneity')
 ax.set_ylabel('Counts per homogeneity bin')
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+text = "Not aligned homogeneity \n histograms"
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+        va='top', color='k', bbox={'facecolor': 'white', 'edgecolor': 'k', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
 format_save(results_path, f"13HistNoAlignComp", legend=False, fig=fig)
 
 # --------------------------------------------------------------------------------------------------------------
@@ -317,7 +365,7 @@ fig, ax = plt.subplots()
 for i, obj in enumerate(factor_cache):
     if i == 0 or i >= len(factor_cache)-1:
         continue
-    y = np.mean(obj[0][0])-np.mean(obj[0][1]) * 100
+    y = (np.mean(obj[0][0])-np.mean(obj[0][1])) * 100
     ax.plot(voltages[i], y, label=labels[i], color=param_color(energies[i]), marker='x')
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 ax.set_xlabel('ams voltage (V)')
@@ -342,7 +390,7 @@ fig, ax = plt.subplots()
 for i, obj in enumerate(factor_cache):
     if i == 0 or i >= len(factor_cache)-1:
         continue
-    y = np.mean(obj[0][0])-np.mean(obj[0][1]) * 100
+    y = (np.mean(obj[0][0])-np.mean(obj[0][1])) * 100
     ax.plot(energies[i], y, label=labels[i], color=param_colorv(voltages[i]), marker='x')
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 ax.set_xlabel('Incident Proton Energy (MeV)')
@@ -358,33 +406,35 @@ align_std, na_std, diffs = np.array(align_std)*100, np.array(na_std)*100, np.arr
 
 fig, ax = plt.subplots()
 for i, label in enumerate(labels):
-    c = color(i / (len(labels)-1))
+    c = color[i]
     if i == 0:
-        ax.plot(shortlabels[i], align_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
+        ax.plot(i, align_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
         ax.plot([i - 0.5, i + 0.5], [diffs[i], diffs[i]], ls='--', color=c, label='Average Signal Spread')
     else:
-        ax.plot(shortlabels[i], align_std[i], marker='x', color=c)
+        ax.plot(i, align_std[i], marker='x', color=c)
         ax.plot([i-0.5, i+0.5], [diffs[i], diffs[i]], ls='--', color=c)
 ax.set_ylabel('Response Homogeneity (\\%)')
-ax.set_xticklabels(ax.get_xticklabels(), rotation=90, ha='center')
+ax.set_xticks([i for i in range(len(labels))])
+ax.set_xticklabels(shortlabels, rotation=90, ha='center')
 just_save(results_path, f"16AlignResponseHomogeneityComp", legend=True,)
 
 fig, ax = plt.subplots()
 for i, label in enumerate(labels):
-    c = color(i / (len(labels)-1))
+    c = color[i]
     if i == 0:
-        ax.plot(shortlabels[i], na_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
+        ax.plot(i, na_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
         ax.plot([i - 0.5, i + 0.5], [diffs[i], diffs[i]], ls='--', color=c, label='Average Signal Spread')
     else:
-        ax.plot(shortlabels[i], na_std[i], marker='x', color=c)
+        ax.plot(i, na_std[i], marker='x', color=c)
         ax.plot([i-0.5, i+0.5], [diffs[i], diffs[i]], ls='--', color=c)
 ax.set_ylabel('Response Homogeneity (\\%)')
-ax.set_xticklabels(ax.get_xticklabels(), rotation=90, ha='center')
+ax.set_xticks([i for i in range(len(labels))])
+ax.set_xticklabels(shortlabels, rotation=90, ha='center')
 just_save(results_path, f"16NoAlignResponseHomogeneityComp", legend=True)
 
 fig, ax = plt.subplots()
 for i, label in enumerate(labels):
-    c = color(i / (len(labels)-1))
+    c = color[i]
     if i == 0:
         ax.plot(energies[i], align_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
         ax.plot([energies[i] - 0.8, energies[i] + 0.8], [diffs[i], diffs[i]], ls='--', color=c, label='Average Signal Spread')
@@ -397,7 +447,7 @@ format_save(results_path, f"16AlignEnergyComp", legend=True, fig=fig)
 
 fig, ax = plt.subplots()
 for i, label in enumerate(labels):
-    c = color(i / (len(labels)-1))
+    c = color[i]
     if i == 0:
         ax.plot(energies[i], na_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
         ax.plot([energies[i] - 0.8, energies[i] + 0.8], [diffs[i], diffs[i]], ls='--', color=c, label='Average Signal Spread')
@@ -410,7 +460,7 @@ format_save(results_path, f"16NoAlignEnergyComp", legend=True, fig=fig)
 
 fig, ax = plt.subplots()
 for i, label in enumerate(labels):
-    c = color(i / (len(labels)-1))
+    c = color[i]
     if i == 0:
         ax.plot(voltages[i], align_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
         ax.plot([voltages[i] - 0.1, voltages[i] + 0.1], [diffs[i], diffs[i]], ls='--', color=c, label='Average Signal Spread')
@@ -423,7 +473,7 @@ format_save(results_path, f"16AlignVoltageComp", legend=True, fig=fig)
 
 fig, ax = plt.subplots()
 for i, label in enumerate(labels):
-    c = color(i / (len(labels)-1))
+    c = color[i]
     if i == 0:
         ax.plot(voltages[i], na_std[i], marker='x', color=c, label='Std of Signal Response Distribution')
         ax.plot([voltages[i] - 0.1, voltages[i] + 0.1], [diffs[i], diffs[i]], ls='--', color=c, label='Average Signal Spread')

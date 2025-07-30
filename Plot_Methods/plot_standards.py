@@ -420,6 +420,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
     for k in range(len(axes)):
         ax = axes[k]
         # set ticks automatic:
+
         ax.yaxis.set_major_locator(ticker.AutoLocator())
         if minor_yticks:
             ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
@@ -503,7 +504,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
 def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, legend_separator=None, x_after=0,
                 y_after=0, x_fmt=format_func, y_fmt=format_func, second_axis=False, minor_xticks=True,
                 minor_yticks=True, english=language_english, legend_position=0, plot_size=fullsize_plot, x_rotation=0,
-                plot_variant='PL_spectrum', save_format=save_format, bbox=None, *args) -> None:
+                plot_variant='PL_spectrum', save_format=save_format, dpi=300, fig=None, axes=None, bbox=None, *args) -> None:
     """
     :param save_path: The path where the plot is saved. The standard path just uses (or creates) a folder in the folder
     of this python script ("./Plots/")
@@ -534,9 +535,11 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
     """
 
     # get current plot
-    axes = plt.gcf().get_axes()
-    ax = plt.gca()
-    fig = plt.gcf()
+    if axes is None:
+        axes = plt.gcf().get_axes()
+        ax = plt.gca()
+    if fig is None:
+        fig = plt.gcf()
 
     # If x_after is not a list, make it one -> This allows x formatting of every axis alone
     if not isinstance(x_after, (list, tuple, np.ndarray)):
@@ -632,8 +635,8 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
         os.makedirs(save_path)
     if save:
         if save_name == '':
-            fig.savefig(Path(save_path) / (str(time.asctime()) + save_format), *args, dpi=300, bbox_inches=bb)
+            fig.savefig(Path(save_path) / (str(time.asctime()) + save_format), *args, dpi=dpi, bbox_inches=bb)
         else:
-            fig.savefig(Path(save_path) / (save_name + save_format), *args, dpi=300, bbox_inches=bb)
+            fig.savefig(Path(save_path) / (save_name + save_format), *args, dpi=dpi, bbox_inches=bb)
 
         plt.close(fig=fig)

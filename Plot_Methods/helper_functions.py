@@ -4,6 +4,7 @@ from pathlib import Path
 import pathlib
 import os
 import numpy as np  # v. 1.25.1
+import matplotlib.colors as mcolors
 
 
 def wv_to_e(wv):
@@ -182,4 +183,57 @@ def group(input_list, group_range):
 
     return [g.mean for g in groups if g.members != 0]
 
+
+def detect_color_format(color):
+    if isinstance(color, str):
+        if color.startswith('#'):
+            return 'hex'
+        else:
+            return 'named'
+    elif isinstance(color, (list, tuple)):
+        if all(isinstance(v, float) and 0.0 <= v <= 1.0 for v in color):
+            if len(color) == 3:
+                return 'rgb'
+            elif len(color) == 4:
+                return 'rgba'
+    raise ValueError(f"Unknown color format: {color}")
+
+
+def color_to_rgb_float(color):
+    """Convert any matplotlib/seaborn color to RGB float tuple"""
+    return mcolors.to_rgb(color)  # Always gives (r,g,b)
+
+
+def rgb_float_to_format(rgb, fmt, original_alpha=None):
+    """Convert RGB float back to original format"""
+    if fmt == 'hex':
+        return mcolors.to_hex(rgb)
+    elif fmt == 'named':
+        # Use hex, because real named color might not exist
+        return mcolors.to_hex(rgb)
+    elif fmt == 'rgb':
+        return rgb
+    elif fmt == 'rgba':
+        return (*rgb, original_alpha)
+    else:
+        raise ValueError(f"Unknown format: {fmt}")
+
+
+def complement_color(rgb):
+    """Compute complementary color by shifting hue by 180°"""
+    import colorsys
+    h, l, s = colorsys.rgb_to_hls(*rgb)
+    h = (h + 0.5) % 1.0
+    return colorsys.hls_to_rgb(h, l, s)
+
+
+def process_color(color):
+    fmt = detect_color_format(color)
+    if fmt == 'rgba':
+        original_alpha = color[3]
+    else:
+        original_alpha = None
+    rgb = color_to_rgb_float(color)
+    comp_rgb = complement_color(rgb)
+    return rgb_float_to_format(comp_rgb, fmt, original_alpha)
 

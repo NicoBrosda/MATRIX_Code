@@ -255,7 +255,7 @@ def super_resolution_matrix(size):
         else:
             line[i] = 1
         matrix.append(line)
-
+    print(matrix)
     return np.linalg.inv(matrix)
 
 
@@ -268,7 +268,7 @@ def super_resolution_matrix2(size):
         else:
             line[[i-1, i]] = 1
         matrix.append(line)
-
+    print(matrix)
     return np.linalg.inv(matrix)
 
 
@@ -278,7 +278,6 @@ def apply_super_resolution(input_array, m1=None, m2=None):
     super_resolved_array = np.zeros_like(input_array)
     print(np.shape(input_array))
     print(np.shape(m1))
-    print(m1)
     if m1 is None:
         super_resolved_array1 = np.dot(super_resolution_matrix(np.shape(input_array)[1]), input_array)
     else:
@@ -293,7 +292,7 @@ def apply_super_resolution(input_array, m1=None, m2=None):
     return super_resolved_array
 
 
-def apply_super_resolution(input_array, m1=None, m2=None):
+def apply_super_resolution2(input_array, m1=None, m2=None):
     super_resolved_array = np.zeros_like(input_array)
 
     for i, el in enumerate(input_array):
@@ -325,8 +324,10 @@ def overlap_treatment(map_el, instance, pixelize=True, super_res=False):
             y_overlap = True
 
     if not x_overlap and not y_overlap:
+        print('No overlap')
         pass
     elif x_overlap and not y_overlap:
+        print('X overlap')
         if super_res:
             x_m1, x_m2 = super_resolution_matrix(np.shape(map_el['z'])[1]), super_resolution_matrix2(
                 np.shape(map_el['z'])[1])
@@ -335,15 +336,21 @@ def overlap_treatment(map_el, instance, pixelize=True, super_res=False):
         else:
             pass
     elif not x_overlap and y_overlap:
+        print('Y overlap')
         if super_res:
             y_m1, y_m2 = super_resolution_matrix(np.shape(map_el['z'])[0]), super_resolution_matrix2(
                 np.shape(map_el['z'])[0])
-            print(np.shape(y_m1), np.shape(y_m2))
             for i, col in enumerate(map_el['z'].T):
+                print('-'*50)
+                print(i, np.mean(map_el['z'][:, i]), np.max(map_el['z'][:, i]), np.min(map_el['z'][:, i]))
                 map_el['z'][:, i] = apply_super_resolution(col, y_m1, y_m2)
+                print(i, np.mean(map_el['z'][:, i]), np.max(map_el['z'][:, i]), np.min(map_el['z'][:, i]))
+
+            print('Done')
         else:
             pass
     else:
+        print('X and Y overlap')
         if super_res:
             x_m1, x_m2 = super_resolution_matrix(np.shape(map_el['z'])[1]), super_resolution_matrix2(np.shape(map_el['z'])[1])
             y_m1, y_m2 = super_resolution_matrix(np.shape(map_el['z'])[0]), super_resolution_matrix2(np.shape(map_el['z'])[0])

@@ -11,6 +11,15 @@ def resample_image(image, original_pixel_size, target_pixel_size):
     output_shape = (np.array(image.shape) * scale_factor).astype(int)
     return resize(image, output_shape, mode='reflect', anti_aliasing=True)
 
+def transform_image(image, rotation, center_shift):
+    # Rotate the image without reshape and apply center shift
+    rotated_image = rotate(image, rotation, order=1, mode='reflect')
+    shift_matrix = np.eye(3)
+    shift_matrix[:2, 2] = center_shift
+    transformed_image = affine_transform(
+        rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=1
+    )
+    return transformed_image
 
 def align_and_compare_images(
     image_low_res,

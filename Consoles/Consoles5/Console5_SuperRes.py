@@ -22,7 +22,7 @@ dark_paths_array1 = ['2Line_DarkVoltageScan_200_ um_0_nA_nA_1.9_x_22.0_y_66.625.
 norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 norm_array1 = ['2Line_YScan_']
 
-for k, crit in enumerate(new_measurements[0:]):
+for k, crit in enumerate(new_measurements[0:1]):
     print('-'*50)
     print(crit)
     print('-'*50)
@@ -48,21 +48,15 @@ for k, crit in enumerate(new_measurements[0:]):
     print(A.maps[0]['z'][:, 0])
     print(A.maps[0]['z'][:, -1])
     intensity_limits = None
-    A.plot_map(results_path / 'maps/', pixel=True,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel='fill',
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps/', pixel=False,
-               intensity_limits=intensity_limits)
+
+    A.plot_map(results_path / 'maps/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
 
     A.create_map(inverse=[True, False])
     for i, image_map in enumerate(A.maps):
         A.maps[i]['z'] = simple_zero_replace(image_map['z'])
-    A.maps[0] = overlap_treatment(A.maps[0], A, True, super_res=True)
 
-    A.plot_map(results_path / 'maps_plus/', pixel=True,
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps_plus/', pixel='fill',
-               intensity_limits=intensity_limits)
-    A.plot_map(results_path / 'maps_plus/', pixel=False,
-               intensity_limits=intensity_limits)
+
+    A.maps[0] = overlap_treatment(A.maps[0], A, False, super_res=True)
+
+    A.plot_map(results_path / 'maps_plus/', pixel='fill', intensity_limits=intensity_limits, imshow=True)
+

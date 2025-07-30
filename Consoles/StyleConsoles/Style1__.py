@@ -7,7 +7,7 @@ normalization = True
 
 # Axis limits
 x_limits = np.array([2, 34])
-y_limits = [84, 116]
+y_limits = [69, 101]
 # y_limits = np.array([94, 126])
 zero_scale = True
 
@@ -23,10 +23,10 @@ format = '.svg'
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 
 # Selection of the image (automatic assigning of the Analyzer)
-folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
-image = 'Logo'
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_19062024/')
+image = '10s_iphcmatrixcrhea_'
 # image = 'Array3_Logo'
-position = '85.0'
+position = None
 
 A = load_image(folder_path, image, background_subtraction=background_subtraction, normalization=normalization,
                position=position)
@@ -40,6 +40,7 @@ if zero_scale:
     x_limits = x_limits - np.min(x_limits)
     y_limits = y_limits - np.min(y_limits)
 
+print(np.shape(A.maps[0]['z']))
 A.plot_map(None, pixel=pixel, intensity_limits=intensity_limits, ax_in=ax, fig_in=fig, cmap=cmap, imshow=True)
 
 if x_limits is None:

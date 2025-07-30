@@ -192,7 +192,6 @@ def normalization_from_translated_array_v2(list_of_files, instance, method='leas
 
     # Try to detect the signal level
     threshold = ski_threshold_otsu(signals)
-    print(threshold)
 
     # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
     group_distance = instance.diode_size[sp]
@@ -410,7 +409,7 @@ def normalization_from_translated_array_v3(list_of_files, instance, method='leas
 
 
 def normalization_from_translated_array_v4(list_of_files, instance, method='least_squares', align_lines=True,
-                                           remove_background=True, factor_limits=(0.9, 1.1), label=''):
+                                           remove_background=True, factor_limits=(0.9, 1.1), label='', color='k'):
     # Load in the data from a list of files in a folder; save position and signal
     position = []
     signals = []
@@ -485,13 +484,14 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
     # -----------------------------------------------------------------------------------------------------------------
     line_color = sns.color_palette("tab10")
     fig, ax = plt.subplots()
-
     for line in range(instance.diode_dimension[1-sp]):
+        fig2, ax2 = plt.subplots()
+
         # Recalculate the positions considering the geometry of the diode array
         positions = []
         for i in range(instance.diode_dimension[sp]):
             cache = deepcopy(position)
-            cache[:, sp] = cache[:, sp] + i * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line]
+            cache[:, sp] = cache[:, sp] + (i - (instance.diode_dimension[sp]-1)/2) * (instance.diode_size[sp] + instance.diode_spacing[sp]) + instance.diode_offset[1-sp][line]
             positions.append(cache)
         positions = np.array(positions)
 
@@ -509,6 +509,7 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
         # Calculate the mean for each grouped position, consider only the diode signals that were close to this position
         mean_new = []
         mean_x_new = []
+        test = []
         groups = np.sort(groups)
         for mean in groups:
             indices = []
@@ -521,6 +522,8 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
             cache_new = 0
             j_new = 0
             for i in range(len(indices)):
+                if indices[i] is not None:
+                    test.append(signals[indices[i], line, i])
                 if indices[i] is not None and threshold <= signals[indices[i], line, i] <= 1.5 * mean_over:
                     cache_new += signals[indices[i], line, i]
                     j_new += 1
@@ -543,8 +546,11 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
             restrained_position = (np.min(mean_x_new) <= positions[channel, :, sp]) & (
                         positions[channel, :, sp] <= np.max(mean_x_new))
             mean_interp_new = np.interp(positions[channel, :, sp][restrained_position], mean_x_new, mean_new)
-            ax.plot(positions[channel, :, sp][restrained_position], mean_interp_new, c=line_color[line], zorder=5)
+            ax.plot(positions[channel, :, sp][restrained_position], mean_interp_new, c=line_color[line], zorder=0)
             ax.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position], c=diode_color(channel), alpha=0.2, zorder=-1)
+            ax2.plot(positions[channel, :, sp][restrained_position], mean_interp_new, c=line_color[line], zorder=0)
+            ax2.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position],
+                    c=diode_color(channel), alpha=0.5, zorder=-1)
             diff = 0
             if isinstance(method, (float, int, np.float64)):
                 # Method 1: Threshold for range consideration, for each diode channel mean of the factor between points
@@ -562,7 +568,9 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
                     diff = np.mean(factor_new_cache.fun)/mean_over
                     factor_new_cache = factor_new_cache.x[0]
 
-                ax.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position]*factor_new_cache, c=diode_color(channel), alpha=0.8)
+                ax.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position]*factor_new_cache, c=diode_color(channel), alpha=0.8, zorder=-1)
+                # ax2.plot(positions[channel, :, sp][restrained_position], signals[:, line, channel][restrained_position]*factor_new_cache, c=diode_color(channel), alpha=0.8, zorder=-1)
+
             else:
                 # Standard method: For the moment method 1 with automatic threshold
                 factor_new_cache = mean_interp_new / signals[signals[:, line, channel] > threshold][:, line, channel]
@@ -575,16 +583,40 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
         factor_new[line] = np.array(factor_cache).flatten()
         diff_new[line] = np.array(diff_cache).flatten()
 
+        ax2.set_xlim(ax2.get_xlim()), ax2.set_ylim(ax2.get_ylim())
+        y1, y2 = ax2.get_ylim()
+        if y1 < 0.7 * mean_over:
+            y1 = 0.7 * mean_over
+        elif y1 > 0.9 * mean_over:
+            y1 = 0.9 * mean_over
+        if y2 > 1.7 * mean_over:
+            y2 = 1.7 * mean_over
+        elif y2 < 1.2 * mean_over:
+            y2 = 1.2 * mean_over
+        ax2.set_ylim(y1, y2)
+        text = label
+        ax2.text(*transform_axis_to_data_coordinates(ax2, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=color,
+                bbox={'facecolor': 'white', 'edgecolor': color, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+        ax2.set_xlabel('Translation position (mm)')
+        ax2.set_ylabel('Signal Level (ams unit)')
+        format_save(results_path, f"0_Linewise{line}_NormProcess_{label}", legend=False, fig=fig2)
     # -----------------------------------------------------------------------------------------------------------------
     ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
     y1, y2 = ax.get_ylim()
     if y1 < 0.7 * mean_over:
         y1 = 0.7 * mean_over
-    if y2 > 1.3 * mean_over:
-        y2 = 1.3 * mean_over
+    elif y1 > 0.9 * mean_over:
+        y1 = 0.9 * mean_over
+    if y2 > 1.7 * mean_over:
+        y2 = 1.7 * mean_over
+    elif y2 < 1.2 * mean_over:
+        y2 = 1.2 * mean_over
     ax.set_ylim(y1, y2)
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
-    ax.set_xlabel('Diode channel')
+    text = label
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color=color, bbox={'facecolor': 'white', 'edgecolor': color, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    ax.set_xlabel('Translation position (mm)')
     ax.set_ylabel('Signal Level (ams unit)')
     format_save(results_path, f"1NormProcess_{label}", legend=False, fig=fig)
     # -----------------------------------------------------------------------------------------------------------------
@@ -617,7 +649,7 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
         # --------------------------------------------------------------------------------------------------------------
         fig, ax = plt.subplots()
         x = np.arange(0, 64, 1)
-        color = sns.color_palette("Spectral", as_cmap=True)
+        fit_color = sns.color_palette("deep")
         for i in range(1, 9):
             baseline_fitter = Baseline(x_data=x)
             baseline_data = np.mean(factor_new, axis=0)
@@ -629,7 +661,7 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
             else:
                 baseline = baseline.x
             '''
-            ax.plot(x, baseline, label=f"{i}th order polynom", c=color(i/9))
+            ax.plot(x, baseline, label=f"{i}th order polynom", c=fit_color[i])
 
         for line in range(instance.diode_dimension[1-sp]):
             ax.plot(factor_new[line], ls='--', zorder=5, c=line_color[line])
@@ -637,13 +669,20 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
         y1, y2 = ax.get_ylim()
         if y1 < 0.9:
             y1 = 0.9
+        elif y1 > 0.98:
+            y1 = 0.98
         if y2 > 1.1:
             y2 = 1.1
+        elif y2 < 1.02:
+            y2 = 1.02
         ax.set_ylim(y1, y2)
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
+        text = label
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=color, bbox={'facecolor': 'white', 'edgecolor': color, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
         ax.set_xlabel('Diode channel')
         ax.set_ylabel('Signal Homogeneity')
-        format_save(results_path, f"2Baseline_Order_{label}", legend=True)
+        ax.legend(loc=4)
+        format_save(results_path, f"2Baseline_Order_{label}", legend=False)
         # --------------------------------------------------------------------------------------------------------------
 
         i = 7
@@ -658,10 +697,8 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
         # --------------------------------------------------------------------------------------------------------------
         fig, ax = plt.subplots()
         x = np.arange(0, 64, 1)
-        color = sns.color_palette("Spectral", as_cmap=True)
-
-        ax.plot(x, baseline, label=f"{i}th order polynom", c=color(i / 9))
-        ax.axhline(np.mean(baseline), ls='--', c=color(i / 9))
+        ax.plot(x, baseline, label=f"{i}th order polynom", c=fit_color[i])
+        ax.axhline(np.mean(baseline), ls='--', c=fit_color[i])
 
         for line in range(instance.diode_dimension[1 - sp]):
             ax.plot(factor_new[line][line_masks[line]], ls='-', zorder=5, c=line_color[line])
@@ -670,13 +707,20 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
         y1, y2 = ax.get_ylim()
         if y1 < 0.9:
             y1 = 0.9
+        elif y1 > 0.98 :
+            y1 = 0.98
         if y2 > 1.1:
             y2 = 1.1
+        elif y2 < 1.02:
+            y2 = 1.02
         ax.set_ylim(y1, y2)
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
+        text = label
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=color, bbox={'facecolor': 'white', 'edgecolor': color, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
         ax.set_xlabel('Diode channel')
         ax.set_ylabel('Signal Homogeneity')
-        format_save(results_path, f"3Baseline_Mean_{label}", legend=True)
+        ax.legend(loc=4)
+        format_save(results_path, f"3Baseline_Mean_{label}", legend=False)
         # --------------------------------------------------------------------------------------------------------------
 
     if align_lines:
@@ -687,32 +731,43 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
 
         # Calculate the mean of the mean from the different lines
         x_mean = mean_cache[0][0]
+        ar = [len(x_mean)//5, 4*len(x_mean)//5]
+        # ar = [0, len(x_mean)]
+
         mean_cache = [np.interp(x_mean, mean_cache[i][0], mean_cache[i][1]) for i in range(len(mean_cache))]
 
         overall_mean = np.mean(mean_cache, axis=0)
-        ax.plot(x_mean, overall_mean, c='k', label='Overall mean')
+        ax.plot(x_mean[ar[0]:ar[1]], overall_mean[ar[0]:ar[1]], c='k', label='Overall mean')
 
         for line, m in enumerate(mean_cache):
-            ax.plot(x_mean, m, ls='-', c=line_color[line])
-            func_opt_new = lambda a: np.abs(overall_mean - m * a)
+            ax.plot(x_mean[ar[0]:ar[1]], m[ar[0]:ar[1]], ls='-', c=line_color[line])
+            func_opt_new = lambda a: np.abs(overall_mean[ar[0]:ar[1]] - m[ar[0]:ar[1]] * a)
             factor_new_cache = least_squares(func_opt_new, 1)
             if factor_new_cache.nfev == 1 and factor_new_cache.optimality == 0.0:
                 factor_new_cache = 1
             else:
                 factor_new_cache = factor_new_cache.x[0]
             factor_new[line][line_masks[line]] = factor_new[line][line_masks[line]] * factor_new_cache
-            ax.plot(x_mean, m*factor_new_cache, ls='--', c=line_color[line], label=f"{(1-factor_new_cache)*100:.2f}% offset from common mean")
+            ax.plot(x_mean[ar[0]:ar[1]], m[ar[0]:ar[1]]*factor_new_cache, ls='--', c=line_color[line], label=f"{(1-factor_new_cache)*100:.2f}% offset from common mean")
         ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
         y1, y2 = ax.get_ylim()
-        if y1 < 0.7 * np.mean(overall_mean):
-            y1 = 0.7 * np.mean(overall_mean)
-        if y2 > 1.3 * np.mean(overall_mean):
-            y2 = 1.3 * np.mean(overall_mean)
+        scale = np.mean(overall_mean[ar[0]:ar[1]])
+        if y1 < 0.7 * scale:
+            y1 = 0.7 * scale
+        elif y1 > 0.9 * scale:
+            y1 = 0.9 * scale
+        if y2 > 1.7 * scale:
+            y2 = 1.7 * scale
+        elif y2 < 1.2 * scale:
+            y2 = 1.2 * scale
         ax.set_ylim(y1, y2)
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.04, 0.93]), label, fontsize=12)
-        ax.set_xlabel('Diode channel')
+        text = label
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=color, bbox={'facecolor': 'white', 'edgecolor': color, 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+        ax.set_xlabel('Tranlsation position (mm)')
         ax.set_ylabel('Signal Level (ams unit)')
-        format_save(results_path, f"4Align procedure_{label}", legend=True, fig=fig)
+        ax.legend(loc=4)
+        format_save(results_path, f"4Align procedure_{label}", legend=False, fig=fig)
         # --------------------------------------------------------------------------------------------------------------
 
     if remove_background:
@@ -894,12 +949,13 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
     if align_lines:
         # Calculate the mean of the mean from the different lines
         x_mean = mean_cache[0][0]
+        ar = [len(x_mean) // 5, 4 * len(x_mean) // 5]
         mean_cache = [np.interp(x_mean, mean_cache[i][0], mean_cache[i][1]) for i in range(len(mean_cache))]
 
         overall_mean = np.mean(mean_cache, axis=0)
 
         for line, m in enumerate(mean_cache):
-            func_opt_new = lambda a: np.abs(overall_mean - m * a)
+            func_opt_new = lambda a: np.abs(overall_mean[ar[0]:ar[1]] - m[ar[0]:ar[1]] * a)
             factor_new_cache = least_squares(func_opt_new, 1)
             if factor_new_cache.nfev == 1 and factor_new_cache.optimality == 0.0:
                 factor_new_cache = 1

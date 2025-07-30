@@ -14,10 +14,12 @@ readout, position_parser, voltage_parser, current_parser = (
     current5
 )
 
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/ImageComp')
+results_stem = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/ImageComp')
 
 new_measurements = []
-new_measurements += ['exp14_']
+new_measurements += ['exp14_energydiffmap_P0_', 'exp15_energydiffmap_P1_', 'exp21_energydiffmap_P7_',
+                     'exp26_energydiffmap_P12_', 'exp30_energydiffmap_P16_', 'exp32_energydiffmap_P18_',
+                     'exp77_energyDep_P0_', 'exp95_energyDep_P18_']
 
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
 dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
@@ -45,7 +47,7 @@ for k, crit in enumerate(new_measurements[0:]):
     print('-'*50)
     print(crit)
     print('-'*50)
-
+    results_path = results_stem / crit
     instance = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout,
                  diode_offset=[[0, - 0.25], np.zeros(64)], position_parser=position_parser,
                  voltage_parser=voltage_parser, current_parser=current_parser)
@@ -59,37 +61,82 @@ for k, crit in enumerate(new_measurements[0:]):
     instance.name = "_NoNormalization"
 
     # --------------------------------------------------------------------------------------------------------------
-
-    fig, ax = plt.subplots()
-    instance.plot_map(None, pixel='fill', intensity_limits=intensity_limits, fig_in=fig, ax_in=ax)
-    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-    text = f"No Normalization"
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left',
-            va='top')  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
-    format_save(results_path, instance.name, legend=False, fig=fig)
-
-    # --------------------------------------------------------------------------------------------------------------
     print(np.shape(instance.maps[0]['x']), np.shape(instance.maps[0]['y']), np.shape(instance.maps[0]['z']))
     x_range = (instance.maps[0]['x'] > 15) & (instance.maps[0]['x'] < 25)
     y_range = (instance.maps[0]['y'] > 60) & (instance.maps[0]['y'] < 75)
     print(np.shape(x_range), np.shape(y_range))
+    data = instance.maps[0]['z'][y_range][:, x_range].flatten()
+
+    # Circle center and radius
+    x1, y1 = 18, 67.5
+    r = 7
+
+    X, Y = np.meshgrid(instance.maps[0]['x'], instance.maps[0]['y'])
+    distance = np.sqrt((X - x1) ** 2 + (Y - y1) ** 2)
+    mask = (distance <= r)
+    data = instance.maps[0]['z'][mask]
+    print(np.mean(data), np.std(data))
+    print(np.std(data)/np.mean(data)*100)
+    if np.std(data)/np.mean(data) >= 0.02:
+        il_zoom = [np.mean(data)-np.std(data), np.mean(data)+np.std(data)]
+    else:
+        il_zoom = [np.mean(data)-3*np.std(data), np.mean(data)+3*np.std(data)]
+    mask2 = (distance >= r)
+    Z = deepcopy(instance.maps[0]['z'])
+
+    # --------------------------------------------------------------------------------------------------------------
+
+    intensity_limits = [0, np.max(instance.maps[0]['z'])]
+    fig, ax = plt.subplots()
+    instance.maps[0]['z'][mask2] = 0
+    instance.plot_map(None, pixel='fill', intensity_limits=intensity_limits, fig_in=fig, ax_in=ax, colorbar=False)
+    instance.maps[0]['z'] = Z
+    instance.plot_map(None, pixel='fill', intensity_limits=intensity_limits, fig_in=fig, ax_in=ax, alpha=0.5)
+    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+    text = f"Area choosen for hists \n {crit}"
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top')  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    format_save(results_stem, f'ChoosenArea_{crit}', legend=False, fig=fig)
+
+    # --------------------------------------------------------------------------------------------------------------
 
     fig, ax = plt.subplots()
-    data = instance.maps[0]['z'][y_range][:, x_range].flatten()
-    ax.hist(data, bins=50, edgecolor='black', color='k')
+    instance.plot_map(None, pixel='fill', intensity_limits=intensity_limits, fig_in=fig, ax_in=ax)
     ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-    text = f"No Normalization \n Std of signal {np.std(data)*100:.2f}$\\,$\\%"
-    ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left',
-            va='top', color='k')  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+    text = f"No Normalization \n Std of signal {np.std(data) / np.mean(data) * 100:.2f}$\\,$\\%"
+
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top')  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    format_save(results_path, instance.name, legend=False, fig=fig)
+
+    # --------------------------------------------------------------------------------------------------------------
+    fig, ax = plt.subplots()
+    ax.hist(data, bins=50, edgecolor='black', color='k')
+    ax.set_xlim(il_zoom), ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1] * 1.2)
+    text = f"No Normalization \n Std of signal {np.std(data)/np.mean(data)*100:.2f}$\\,$\\%"
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top', color='k', bbox={'facecolor': 'white', 'edgecolor': 'k', 'alpha': 0.7, 'pad': 2, 'zorder': 10})
     format_save(results_path, f"HistAlign_{instance.name}", legend=False, fig=fig)
 
     # --------------------------------------------------------------------------------------------------------------
-    color = sns.color_palette("Spectral", as_cmap=True)
+
+    fig, ax = plt.subplots()
+
+    instance.plot_map(None, pixel='fill', intensity_limits=il_zoom, fig_in=fig, ax_in=ax)
+    ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+    text = f"No Normalization \n Std of signal {np.std(data) / np.mean(data) * 100:.2f}$\\,$\\%"
+
+    ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+            va='top')  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+    format_save(results_path, '_ZoomedWindow_'+instance.name, legend=False, fig=fig)
+
+    # --------------------------------------------------------------------------------------------------------------
+    color = sns.color_palette("hls", len(shortlabels))
 
     for i, norm in enumerate([f'exp7_', f'exp8_', f'exp9_', f'exp10_', f'exp11_', f'exp12_', f'exp13_', f'exp33_',
                               f'exp34', f'exp35', f'exp76', '2Line_YScan_']):
 
-        c = color(i / (len(shortlabels) - 1))
+        c = color[i]
 
         instance2 = deepcopy(instance)
         if i > len(shortlabels) - 2:
@@ -120,25 +167,41 @@ for k, crit in enumerate(new_measurements[0:]):
         instance.create_map(inverse=[True, False])
         intensity_limits = [0, np.max(instance.maps[0]['z'])]
         instance.name = f"{norm}_Align"
-        data = instance.maps[0]['z'][y_range][:, x_range].flatten()
+        # data = instance.maps[0]['z'][y_range][:, x_range].flatten()
+        data = instance.maps[0]['z'][mask]
+        if np.std(data) / np.mean(data) >= 0.02:
+            il_zoom = [np.mean(data) - np.std(data), np.mean(data) + np.std(data)]
+        else:
+            il_zoom = [np.mean(data) - 3 * np.std(data), np.mean(data) + 3 * np.std(data)]
 
         fig, ax = plt.subplots()
         instance.plot_map(None, pixel='fill', intensity_limits=intensity_limits, fig_in=fig, ax_in=ax)
         ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-        text = f"{shortlabels[i]} Lines Aligned \n Std of signal {np.std(data)*100:.2f}$\\,$\\%"
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left',
-                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+        text = f"{shortlabels[i]} Lines Aligned \n Std of signal {np.std(data)/np.mean(data)*100:.2f}$\\,$\\%"
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
         format_save(results_path, instance.name, legend=False, fig=fig)
 
         # --------------------------------------------------------------------------------------------------------------
 
         fig, ax = plt.subplots()
         ax.hist(data, bins=50, edgecolor='black', color=c)
-        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-        text = f"{shortlabels[i]} Lines Aligned \n Std of signal {np.std(data)*100:.2f}$\\,$\\%"
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left',
-                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+        ax.set_xlim(il_zoom), ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*1.2)
+        text = f"{shortlabels[i]} Lines Aligned \n Std of signal {np.std(data)/np.mean(data)*100:.2f}$\\,$\\%"
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 0.7, 'pad': 2, 'zorder': 10})
         format_save(results_path, f"HistAlign_{instance.name}", legend=False, fig=fig)
+
+        # --------------------------------------------------------------------------------------------------------------
+
+        fig, ax = plt.subplots()
+        instance.plot_map(None, pixel='fill', intensity_limits=il_zoom, fig_in=fig, ax_in=ax)
+        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+        text = f"{shortlabels[i]} \n Std of signal {np.std(data) / np.mean(data) * 100:.2f}$\\,$\\%"
+
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+        format_save(results_path, '_ZoomedWindow_' + instance.name, legend=False, fig=fig)
 
         # --------------------------------------------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
@@ -149,25 +212,41 @@ for k, crit in enumerate(new_measurements[0:]):
         instance.create_map(inverse=[True, False])
         intensity_limits = [0, np.max(instance.maps[0]['z'])]
         instance.name = f"{norm}_noAlign"
-        data = instance.maps[0]['z'][y_range][:, x_range].flatten()
+        # data = instance.maps[0]['z'][y_range][:, x_range].flatten()
+        data = instance.maps[0]['z'][mask]
+        if np.std(data) / np.mean(data) >= 0.02:
+            il_zoom = [np.mean(data) - np.std(data), np.mean(data) + np.std(data)]
+        else:
+            il_zoom = [np.mean(data) - 3 * np.std(data), np.mean(data) + 3 * np.std(data)]
 
         fig, ax = plt.subplots()
         instance.plot_map(None, pixel='fill', intensity_limits=intensity_limits, fig_in=fig, ax_in=ax)
         ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-        text = f"{shortlabels[i]} \n Std of signal {np.std(data)*100:.2f}$\\,$\\%"
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left',
-                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+        text = f"{shortlabels[i]} \n Std of signal {np.std(data)/np.mean(data)*100:.2f}$\\,$\\%"
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
         format_save(results_path, instance.name, legend=False, fig=fig)
 
         # --------------------------------------------------------------------------------------------------------------
 
         fig, ax = plt.subplots()
         ax.hist(data, bins=50, edgecolor='black', color=c)
-        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
-        text = f"{shortlabels[i]} \n Std of signal {np.std(data)*100:.2f}$\\,$\\%"
-        ax.text(*transform_axis_to_data_coordinates(ax, [0.01, 0.99]), text, fontsize=12, ha='left',
-                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.7, 'pad': 2})
+        ax.set_xlim(il_zoom), ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*1.2)
+        text = f"{shortlabels[i]} \n Std of signal {np.std(data)/np.mean(data)*100:.2f}$\\,$\\%"
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=c, bbox={'facecolor': 'white', 'edgecolor': c, 'alpha': 0.7, 'pad': 2, 'zorder': 10})
         format_save(results_path, f"HistNoAlign_{instance.name}", legend=False, fig=fig)
+
+        # --------------------------------------------------------------------------------------------------------------
+
+        fig, ax = plt.subplots()
+        instance.plot_map(None, pixel='fill', intensity_limits=il_zoom, fig_in=fig, ax_in=ax)
+        ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+        text = f"{shortlabels[i]} \n Std of signal {np.std(data) / np.mean(data) * 100:.2f}$\\,$\\%"
+
+        ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.97]), text, fontsize=12, ha='left',
+                va='top', color=c)  # , bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 1.0, 'pad': 2, 'zorder': 10})
+        format_save(results_path, '_ZoomedWindow_' + instance.name, legend=False, fig=fig)
 
         # --------------------------------------------------------------------------------------------------------------
         # --------------------------------------------------------------------------------------------------------------
