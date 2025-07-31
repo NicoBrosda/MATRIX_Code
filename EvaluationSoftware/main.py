@@ -12,21 +12,25 @@ from EvaluationSoftware.parameter_parsing_modules import *
 class DiodeGeometry:
     def __set_name__(self, owner, name):
         self.name = name
+        self.private_name = f'_{name}'
 
     def __get__(self, instance, owner):
-        return self.instance
+        if instance is None:
+            return self
+        return instance.__dict__[self.private_name]
 
     def __set__(self, instance, value):
         if isinstance(value, (list, tuple, np.ndarray)) and len(value) >= 2:
-            self.instance = (value[0], value[1])
+           val = (value[0], value[1])
         elif isinstance(value, (list, tuple, np.ndarray)) and len(value) == 1:
-            self.instance = (value[0], value[0])
+            val = (value[0], value[0])
         elif isinstance(value, (float, int, complex)) and not isinstance(value, bool):
-            self.instance = (value, value)
+            val = (value, value)
         else:
-            print('No suited input value given for the '+str(self.name)+'. Before further proceeding is possible set '
+            print('No suited input value given for the '+str(self.private_name)+'. Before further proceeding is possible set '
                                                                         'a regular value!')
-            self.instance = None
+            val = None
+        instance.__dict__[self.private_name] = val
 
 
 scale_dict = {'tera': [1e12, 'T'],
