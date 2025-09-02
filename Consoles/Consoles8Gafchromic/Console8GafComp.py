@@ -33,6 +33,9 @@ norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 norm_array1 = ['2Line_YScan_']
 
 for k, crit in enumerate(new_measurements[0:]):
+    if k != 3:
+        continue
+
     print('-' * 50)
     print(crit)
     print('-' * 50)
@@ -49,6 +52,8 @@ for k, crit in enumerate(new_measurements[0:]):
     A.create_map(inverse=[False, False])
     for i, image_map in enumerate(A.maps):
         A.maps[i]['z'] = simple_zero_replace(image_map['z'])
+
+    A.maps[0] = overlap_treatment(A.maps[0], A, True)
 
     print(np.shape(A.maps[0]['z']))
     print(A.maps[0]['x'][1] - A.maps[0]['x'][0])
@@ -144,10 +149,37 @@ for k, crit in enumerate(new_measurements[0:]):
     else:
         bounds = (-3, 3)
 
+    print(np.std(down_samp), np.std(OriginalGaf.image))
+
+    fig, [ax1, ax2] = plt.subplots(1, 2)
+    _z = A.maps[0]['z']
+    ax1.imshow(down_samp, cmap=cmap, vmin=0, vmax=1, extent=(0, np.shape(down_samp)[1] * low_pixel_size, 0, np.shape(down_samp)[0] * low_pixel_size))
+    ax2.imshow(_z, cmap=cmap, vmin=0, vmax=1, extent=(0, np.shape(_z)[1] * low_pixel_size, 0, np.shape(_z)[0] * low_pixel_size))
+    plt.show()
     diff2, score2, addition2 = align_and_compare_images(A.maps[0]['z'], OriginalGaf.image, low_pixel_size, OriginalGaf.pixel_size,
                                                optimize_alignment=True, bounds=bounds, ev_max_iter=500, ev_pop_size=10,
                                                optimization_method='evolutionary', image_down_sampled=down_samp)
 
+    print(np.shape(diff2))
+    print(score, score2)
+    # -------------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------------------------------
+
+    fig, ax = plt.subplots()
+    color_map = ax.imshow(diff2, vmin=0, vmax=1,
+                          extent=(0, np.shape(diff2)[1] * low_pixel_size, 0, np.shape(diff2)[0] * low_pixel_size))
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+    sm.set_array([])
+    bar = fig.colorbar(sm, ax=ax, extend='max')
+    ax.set_xlabel('Position x (mm)')
+    ax.set_ylabel('Position y (mm)')
+    ax.set_title(f'Alignment Score = {score2: .4f}')
+    bar.set_label('Difference between images')
+    name = A.name + '_DiffMap_'
+    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig)
+
+    continue
     # -------------------------------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------------------------------
 
@@ -243,23 +275,6 @@ for k, crit in enumerate(new_measurements[0:]):
     name = A.name + '_overview_'
     format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig, plot_size=plot_size)
     # plt.show()
-
-    # -------------------------------------------------------------------------------------------------------------------
-    # -------------------------------------------------------------------------------------------------------------------
-
-    fig, ax = plt.subplots()
-    color_map = ax.imshow(diff2, vmin=0, vmax=1,
-                          extent=(0, np.shape(diff2)[1] * low_pixel_size, 0, np.shape(diff2)[0] * low_pixel_size))
-    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-    sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
-    sm.set_array([])
-    bar = fig.colorbar(sm, ax=ax, extend='max')
-    ax.set_xlabel('Position x (mm)')
-    ax.set_ylabel('Position y (mm)')
-    ax.set_title(f'Alignment Score = {score2: .4f}')
-    bar.set_label('Difference between images')
-    name = A.name + '_DiffMap_'
-    format_save(results_path / A.name, save_name=name, save=True, legend=False, fig=fig)
 
     # -------------------------------------------------------------------------------------------------------------------
     # -------------------------------------------------------------------------------------------------------------------

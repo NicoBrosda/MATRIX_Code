@@ -2,12 +2,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.colors as mcolors
 from Consoles.StyleConsoles.Utils_ImageLoad import *
-import time
+
 # Save path and options for the map
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/ImageSandbox/Matilde')
 background_subtraction = True
 normalization = True
 
+print(super_resolution_matrix(4))
+
+print(super_resolution_matrix2(4))
 # Axis limits
 x_limits = np.array([20-16, 20+16])
 y_limits = [66.5-16, 66.5+16]
@@ -50,50 +53,17 @@ array1 = A.maps[i]['z'].T[row, 0::2]
 array2 = A.maps[i]['z'].T[row, 1::2]
 input_array = A.maps[i]['z'].T[row]
 
-N = len(input_array) // 2
-super_res = np.zeros(2 * N - 1)
+print(np.shape(super_resolution_matrix_correct(np.shape(input_array)[0])))
+super_res, res, rank, s = np.linalg.lstsq(super_resolution_matrix_correct(np.shape(input_array)[0]), input_array, rcond=None)
 
-start = time.time()
-for n in range(N):
-    if n == 0:
-        super_res[2*n] = array1[n] + array2[n]
-    else:
-        super_res[2*n] = array1[n] + array2[n]
-        super_res[2*n-1] = array1[n] + array2[n-1]
-end = time.time()
-print(end - start)
-super_res = super_res / 2
 # Middle row: 2N+2 elements, simulate same Gaussian sampled at higher resolution
 
-super_resolved_array = np.zeros(len(input_array) + 1)
-
-print(len(input_array))
-print(len(input_array[0::2]))
-print(len(input_array[1::2]))
-print(len(super_resolved_array[1:-1][1::2]))
-print(len(super_resolved_array[1:-1][0::2]))
-
-start = time.time()
-super_resolved_array[1:-1][1::2] = (input_array[2::2] + input_array[0:-1][1::2]) / 2
-super_resolved_array[1:-1][0::2] = (input_array[0::2] + input_array[1::2]) / 2
-
-super_resolved_array[0] = input_array[0]
-super_resolved_array[-1] = input_array[-1]
-end = time.time()
-print(end - start)
+middle_array = A.maps[i]['z'].T[row]
 
 # Normalize data to [0,1] for coloring
 norm = mcolors.Normalize(vmin=np.min(A.maps[i]['z']), vmax=np.max(A.maps[i]['z']))
 
-fig, ax = plt.subplots(figsize=(2*N/4, 4))  # wider figure
-
-# Super Res
-num_small_boxes = 2*N+1
-for i in range(num_small_boxes):
-    color = cmap(norm(super_resolved_array[i]))
-    rect = plt.Rectangle(((i)*(box_size/2), 3), box_size/2, box_size,
-                         facecolor=color, edgecolor='black')
-    ax.add_patch(rect)
+fig, ax = plt.subplots(figsize=(2*N/4, 3))  # wider figure
 
 # Top row
 for i in range(N):
@@ -141,4 +111,4 @@ ax.text(center, 0.5, 'Array 2', fontsize=13, va='center', ha='center', bbox={'fa
 # '''
 
 plot_size = [fullsize_plot[0] * 3, fullsize_plot[1]]
-just_save(Path('/Users/nico_brosda/Cyrce_Messungen/Style') / 'SuperRes', 'SuperResSimple', plot_size=plot_size)
+just_save(Path('/Users/nico_brosda/Cyrce_Messungen/Style') / 'SuperRes', 'SuperResCorrected2', plot_size=plot_size)

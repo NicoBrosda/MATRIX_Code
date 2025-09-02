@@ -18,7 +18,7 @@ A = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage
 readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position, standard_voltage, lambda c: current3(c, conversion_factor=0.688)
 B = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage_parser, current_parser)
 
-#linearity(folder_path, results_path, crit, dark_crit, A)
+linearity(folder_path, results_path, crit, dark_crit, A)
 
 # signal_comparison_voltage(folder_path, results_path, ['test_nA_', 'exp7_', 'exp8_'], None, A, names=['before linearity', 'after with cup', 'after without cup'], )
 
@@ -42,7 +42,7 @@ cmap = plt.get_cmap("tab10")
 colors = [cmap(i) for i in range(0, cmap.N)]
 B.scale = A.scale = 'nano'
 
-signal_comparison_channel(folder_path2, results_path, ['exp6_25nA_nA_1.9_x_0_y_0', 'exp12_25nA_12_12_2024_16_04_42'],
+fig, ax = signal_comparison_channel(folder_path2, results_path, ['exp6_25nA_nA_1.9_x_0_y_0', 'exp12_25nA_12_12_2024_16_04_42'],
                   'exp8_dark_without_cup_nA_1.9_x_0_y_0', B, names=['Before Irradiation', 'After irradiation'], normed=True, mark_n=[], save_plot=False, lw=1.5, color_list=colors[0:])
 signal_comparison_channel(folder_path, results_path, ['exp3_nA_1.9_x_28.25_y_0.0'], 'exp2_nA_1.9_x_28.25_y_0.0', A, names=['Months later'], add_plot=True, normed=True, lw=1.5, color_list=colors[2:])
 

@@ -940,7 +940,7 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
 
     if remove_background:
         i = 7
-        x = np.arange(0, 64, 1)
+        x = np.arange(0, instance.diode_dimension[sp], 1)
         baseline_fitter = Baseline(x_data=x)
         baseline_data = np.mean(factor_new, axis=0)
         baseline_data[((factor_limits[0] > baseline_data) | (factor_limits[1] < baseline_data))] = 1
