@@ -47,7 +47,7 @@ low_pixel_size = A.maps[0]['x'][1] - A.maps[0]['x'][0]
 
 DownSampGaf = GafImage(folder_path / image)
 quick_load = ((folder_path / image).parent / 'QuickLoads') / (image[:-4] + '.npy')
-print(quick_load)
+
 if os.path.isfile(quick_load):
     DownSampGaf.load_image(quick=True)
     down_samp = DownSampGaf.image
@@ -59,8 +59,6 @@ else:
 diff, score, addition = align_and_compare_images(A.maps[0]['z'], gaf.image, low_pixel_size, gaf.pixel_size,
                                                optimize_alignment=True, bounds=(-3, 3), ev_max_iter=500, ev_pop_size=10,
                                                optimization_method='evolutionary', image_down_sampled=down_samp)
-
-print(addition[0], addition[1])
 
 gaf.image = transform_image(down_samp, rotation=np.array(-2.5), center_shift=[0, 0])
 gaf.pixel_size = low_pixel_size
@@ -79,6 +77,7 @@ else:
 
 color_map2 = ax.imshow(gaf.image, cmap=cmap, vmin=0, vmax=1, extent=(
     ext_x, np.shape(gaf.image)[1] * gaf.pixel_size + ext_x, ext_y, np.shape(gaf.image)[0] * gaf.pixel_size + ext_y))
+
 norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map2.cmap)
 sm.set_array([])
@@ -98,8 +97,6 @@ ax.set_ylim(y_limits)
 
 # '''
 # Scale the axis true to scale
-print(ax.get_xlim())
-print(ax.get_ylim())
 x_scale = ax.get_xlim()
 y_scale = ax.get_ylim()
 if x_scale[1] - x_scale[0] < y_scale[1] - y_scale[0]:
@@ -112,8 +109,6 @@ elif x_scale[1] - x_scale[0] > y_scale[1] - y_scale[0]:
 
 # Insert after ax.set_aspect('equal'):
 # add_diode_geometry_indicator(ax, A, position='upper right', fig=fig)
-print(ax.get_xlim())
-print(ax.get_ylim())
 
 for ax in fig.axes:
     if is_colorbar(ax):

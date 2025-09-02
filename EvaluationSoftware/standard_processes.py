@@ -266,6 +266,134 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     plt.close('all')
 
 
+def linearity_return(folder_path, crit, dark_crit, instance, set_voltage=1.9):
+    def linear_func2(x, a, b):
+        return a*x + b
+
+    def linear_func(x, a):
+        return a*x
+
+    def exp_func(x, a, b):
+        return a * (x**1/2) + b
+
+    # Load in all the data for the linearity measurement
+    instance.set_measurement(folder_path, crit)
+    instance.load_measurement()
+    # Signal conversion:
+    for i in range(len(instance.measurement_data)):
+        instance.measurement_data[i]['signal'] = instance.signal_conversion(instance.measurement_data[i]['signal'])
+        instance.measurement_data[i]['std'] = instance.signal_conversion(instance.measurement_data[i]['std'])
+    signal = instance.measurement_data
+
+    # Find the different currents available from this data
+    currents = np.sort(np.array(list(set([i['current'] for i in signal]))))
+
+    cache_currents = [[] for i in currents]
+    for sig in signal:
+        cache_currents[np.argwhere(currents == sig['current']).flatten()[0]].append(sig)
+
+    # Load and sort the dark measurements
+    instance.set_measurement(folder_path, dark_crit)
+    instance.load_measurement()
+    # Signal conversion:
+    for i in range(len(instance.measurement_data)):
+        instance.measurement_data[i]['signal'] = instance.signal_conversion(instance.measurement_data[i]['signal'])
+        instance.measurement_data[i]['std'] = instance.signal_conversion(instance.measurement_data[i]['std'])
+    dark = instance.measurement_data
+
+    _dark_voltage = np.array([i['voltage'] for i in dark])
+    sorting_d = np.argsort(_dark_voltage)
+
+    _dark_current = np.array([i['signal'].flatten() for i in dark])
+    _dark_std = np.array([i['std'].flatten() for i in dark])
+    _dark_voltage, _dark_current, _dark_std = _dark_voltage[sorting_d], _dark_current[sorting_d], _dark_std[sorting_d]
+
+    # For each current filter the signal and dark current for the signal diodes and matching voltages
+    for j, sig in enumerate(cache_currents[::-1]):
+        if currents[len(cache_currents)-1-j] is None:
+            continue
+        signal = sig
+        signal_voltage = np.array([i['voltage'] for i in signal])
+        sorting_s = np.argsort(signal_voltage)
+        signal_current = np.array([i['signal'].flatten() for i in signal])
+        signal_std = np.array([i['std'].flatten() for i in signal])
+        signal_voltage, signal_current, signal_std = signal_voltage[sorting_s], signal_current[sorting_s], signal_std[
+            sorting_s]
+
+        if len(_dark_voltage) < len(signal_voltage):
+            dark_voltage, dark_current, dark_std = signal_voltage, np.zeros_like(signal_current), np.zeros_like(signal_std)
+            linear_func = linear_func2
+        else:
+            fvp = [np.argwhere(_dark_voltage == i)[0][0] for i in signal_voltage]
+            dark_voltage, dark_current, dark_std = _dark_voltage[fvp], _dark_current[fvp], _dark_std[fvp]
+
+        if j == 0:
+            track = filter_signal_diodes(signal_voltage, signal_current, signal_std, dark_voltage, dark_current,
+                                         dark_std, return_mean='track')
+
+        cache_currents[len(cache_currents)-1-j] = [[signal_voltage[i], signal_current[i][track], signal_std[i][track],
+                                                    dark_current[i][track],
+                                                    dark_std[i][track]] for i in range(len(signal_voltage))]
+
+    # Reduce the used voltages to the minimum intersection
+    sets = [set([cache_currents[i][j][0] for j, voltage in enumerate(cache_currents[i])]) for i, current in enumerate(currents)]
+    intersection = set.intersection(*sets)
+    # print(intersection)
+    for i in range(len(cache_currents)):
+        if len(cache_currents[i][0]) > len(intersection):
+            cache = []
+            for j in range(len(cache_currents[i])):
+                if cache_currents[i][j][0] in intersection:
+                    cache.append(cache_currents[i][j])
+            cache_currents[i] = cache
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # Plotting
+    # -----------------------------------------------------------------------------------------------------------------
+    # Plot netto signal mean - signal std mean - dark std mean vs proton current / logarithmic scale per voltage
+    r2s_lin = []
+    r2s_std = []
+    spread = []
+    for j, voltage in enumerate(cache_currents[0]):
+        voltage = voltage[0]
+        if voltage != set_voltage:
+            continue
+        netto_signals = np.array([cache_currents[i][j][1]-cache_currents[i][j][3] for i, cur in enumerate(currents)])
+        signal_std = np.array([np.mean(cache_currents[i][j][2]) for i, cur in enumerate(currents)])
+        dark_std = np.array([np.mean(cache_currents[i][j][4]) for i, cur in enumerate(currents)])
+
+        # linear fit for each single diode
+        r2s = []
+        params = []
+        for k in range(np.shape(netto_signals)[1]):
+            y_data = netto_signals[:, k]
+            popt, pcov = curve_fit(linear_func, currents, y_data)
+            residuals = y_data - linear_func(currents, *popt)
+            ss_res = np.sum(residuals ** 2)
+            ss_tot = np.sum((y_data - np.mean(y_data)) ** 2)
+            if ss_tot == 0:
+                continue
+            r_squared = 1 - (ss_res / ss_tot)
+            r2s.append(r_squared)
+            params.append([popt, pcov])
+
+        r2s_st = []
+        params_std = []
+        for k in range(np.shape(netto_signals)[1]):
+            y_data = np.array(signal_std)
+            popt, pcov = curve_fit((lambda x, a: exp_func(x, a, b=dark_std)), currents, y_data)
+            residuals = y_data - exp_func(currents, *popt, b=dark_std)
+            ss_res = np.sum(residuals ** 2)
+            ss_tot = np.sum((y_data - np.mean(y_data)) ** 2)
+            if ss_tot == 0:
+                continue
+            r_squared = 1 - (ss_res / ss_tot)
+            r2s_st.append(r_squared)
+            params_std.append([popt, pcov])
+
+    currents2 = np.linspace(np.min(currents), np.max(currents), 1000)
+    return currents, currents2, np.mean(netto_signals, axis=1), linear_func(currents2, np.mean([i[0] for i in params])), signal_std, exp_func(currents2, np.mean([i[0][0] for i in params_std]), np.mean(dark_std)), np.mean(r2s), np.mean(r2s_st)
+
 def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit, instance, names=None,
                       voltage_range=[0.9, 2.0]):
     # Load in the dark data for the comparison:
@@ -337,7 +465,7 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
     # Result plot
     if add_plot:
         fig = plt.gcf()
-        ax = plt.gca()
+        ax = add_plot
     else:
         fig, ax = plt.subplots()
 
@@ -377,16 +505,17 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
             signal = signal / max_sig
             std = std / max_sig
         if i in mark_n:
-            ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color='m', label=label,
-                        capsize=5, zorder=3, lw=lw)
+            # ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color='m', label=label, capsize=5, zorder=3, lw=lw)
+            ax.plot([k + 1 for k in range(len(signal))], signal, color='m', label=label, markersize=5, marker='_', zorder=3, lw=lw)
         elif color_list is not None:
-            ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color=color_list[i], label=label,
-                        capsize=5, alpha=0.9, lw=lw)
+            # ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color=color_list[i], label=label, capsize=5, alpha=0.9, lw=lw)
+            ax.plot([k + 1 for k in range(len(signal))], signal, color=color_list[i], label=label, markersize=5, marker='_', zorder=3, lw=lw)
         else:
-            ax.errorbar([k+1 for k in range(len(signal))], signal, yerr=std, color=color, label=label,
-                        capsize=5, alpha=0.9, lw=lw)
+            # ax.errorbar([k+1 for k in range(len(signal))], signal, yerr=std, color=color, label=label, capsize=5, alpha=0.9, lw=lw)
+            ax.plot([k + 1 for k in range(len(signal))], signal, color=color, label=label, markersize=5, marker='_', zorder=3, lw=lw)
 
-    ax.set_xlabel(r'$\#$ Channel diode array')
+
+    ax.set_xlabel(r'$\#$ Channel of diode array')
     if normed:
         ax.set_ylabel('Normed signal current')
     else:
@@ -400,3 +529,6 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
     if save_plot:
         format_save(results_path / 'SignalComp/Channel/', name, legend=True)
         plt.close('all')
+
+    return fig, ax
+

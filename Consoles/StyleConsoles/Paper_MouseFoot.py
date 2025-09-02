@@ -1,30 +1,30 @@
 from Consoles.StyleConsoles.Utils_ImageLoad import *
 
 # Save path and options for the map
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/ImageSandbox/Matilde')
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/Paper/')
 background_subtraction = True
 normalization = True
 
 # Axis limits
-x_limits = np.array([20-16, 20+16])
-y_limits = [66.5-16, 66.5+16]
+x_limits = np.array([22.5-11, 22.5+11])
+y_limits = [66.5-11, 66.5+11]
 # y_limits = np.array([94, 126])
 zero_scale = True
 
-intensity_limits = None
+intensity_limits = np.array([75, 105]) * (2/1.995) / 0.82
 pixel = 'fill'
 
 plot_size = fullsize_plot
-plot_size = (6 * cm, 6 / 1.2419 * cm)
+plot_size = (8.9 * cm, 8.9 / 1.2419 * cm)
 
 dpi = 300
-format = '.svg'
+format = '.pdf'
 
-cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
+cmap = sns.color_palette("Greys_r", as_cmap=True)
 
 # Selection of the image (automatic assigning of the Analyzer)
-folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
-image = '_GafCompLogo_'
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
+image = '17_2DSmall_foot_xyscan_'
 # image = 'Array3_Logo'
 position = None
 
@@ -34,7 +34,9 @@ A = load_image(folder_path, image, background_subtraction=background_subtraction
 for i, image_map in enumerate(A.maps):
     A.maps[i]['z'] = simple_zero_replace(image_map['z'])
 
-fig, ax = plt.subplots()
+A.maps[0]['z'] = A.maps[0]['z'] * (2/1.995) / 0.82
+
+fig, ax = plt.subplots(figsize=plot_size)
 
 if zero_scale:
     A.maps[0]['x'] = A.maps[0]['x'] - np.min(x_limits)
@@ -73,6 +75,12 @@ elif x_scale[1] - x_scale[0] > y_scale[1] - y_scale[0]:
 print(ax.get_xlim())
 print(ax.get_ylim())
 
+add_png_icon(ax, A, 'top left', zoom=0.1, translation=['x', 'y'], background=True)
+x0, y0, x1, y1 = add_image(ax, Path('/Users/nico_brosda/Cyrce_Messungen/3D_Files/Foot_Setup.jpg'), location=(0.02, 0.02), zoom=0.04, align_corner=(0, 0))
+ax.text(*transform_axis_to_data_coordinates(ax, (x0, y0)), 'Measurement Setup', fontsize=5, ha='left', va='bottom', color='red', bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.1'))
+x0, y0, x1, y1 = add_image(ax, Path('/Users/nico_brosda/Cyrce_Messungen/3D_Files/Mouse_Phantom.jpg'), location=(0.02, y1 + 0.02), zoom=0.05, align_corner=(0, 0))
+ax.text(*transform_axis_to_data_coordinates(ax, (x0, y0)), 'Phantom', fontsize=5, ha='left', va='bottom', color='red', bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.1'))
+
 for ax in fig.axes:
     if is_colorbar(ax):
         ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
@@ -85,7 +93,10 @@ for ax in fig.axes:
 
 just_save(save_path=results_path, save_name=f"{image}", dpi=dpi, plot_size=plot_size, save_format=format, fig=fig)
 
-fig, ax = plt.subplots()
+# ----------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+
+fig, ax = plt.subplots(figsize=plot_size)
 
 A.maps[0] = overlap_treatment(A.maps[0], A, True)
 
@@ -125,6 +136,10 @@ elif x_scale[1] - x_scale[0] > y_scale[1] - y_scale[0]:
 # add_diode_geometry_indicator(ax, A, position='upper right', fig=fig)
 print(ax.get_xlim())
 print(ax.get_ylim())
+
+add_png_icon(ax, A, 'top left', zoom=0.1, translation=['x', 'y'], background=True)
+x0, y0, x1, y1 = add_image(ax, Path('/Users/nico_brosda/Cyrce_Messungen/3D_Files/Foot_Setup.jpg'), location=(0.02, 0.02), zoom=0.04, align_corner=(0, 0))
+add_image(ax, Path('/Users/nico_brosda/Cyrce_Messungen/3D_Files/Mouse_Phantom.jpg'), location=(0.02, y1 + 0.02), zoom=0.05, align_corner=(0, 0))
 
 for ax in fig.axes:
     if is_colorbar(ax):

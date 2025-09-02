@@ -8,6 +8,8 @@ from Plot_Methods.helper_functions import transform_axis_to_data_coordinates, tr
 import matplotlib.pyplot as plt
 import pandas as pd
 import math
+import csv
+import re
 
 
 def list_check(name, list_):
@@ -272,7 +274,27 @@ def super_resolution_matrix2(size):
     return np.linalg.inv(matrix)
 
 
-def apply_super_resolution(input_array, m1=None, m2=None):
+def super_resolution_matrix_correct(size):
+    matrix = []
+    for i in range(size):
+        line = np.zeros(size+1)
+        line[[i, i + 1]] = 0.5
+        matrix.append(line)
+    return np.array(matrix)
+
+def super_resolution_matrix_correct_red(size):
+    matrix = []
+    for i in range(size-1):
+        line = np.zeros(size)
+        if i < size - 1:
+            line[[i, i + 1]] = 1
+        else:
+            line[i] = 1
+        matrix.append(line)
+    return np.array(matrix)
+
+
+def apply_super_resolution_wrong(input_array, m1=None, m2=None):
     super_resolved_array1 = np.zeros_like(input_array)
     super_resolved_array2 = np.zeros_like(input_array)
     super_resolved_array = np.zeros_like(input_array)
@@ -292,77 +314,106 @@ def apply_super_resolution(input_array, m1=None, m2=None):
     return super_resolved_array
 
 
-def apply_super_resolution2(input_array, m1=None, m2=None):
-    super_resolved_array = np.zeros_like(input_array)
-
-    for i, el in enumerate(input_array):
-        if i == 0:
-            super_resolved_array[i] = input_array[i]
-        else:
-            super_resolved_array[i] = (input_array[i] + input_array[i-1])/2
+def apply_super_resolution(input_array):
+    print(len(input_array))
+    super_resolved_array = np.zeros(len(input_array)+1)
+    super_resolved_array[1:-1][1::2] = (input_array[2::2] + input_array[0:-1][1::2])/2
+    super_resolved_array[1:-1][0::2] = (input_array[0::2] + input_array[1::2])/2
+    super_resolved_array[0] = input_array[0]
+    super_resolved_array[-1] = input_array[-1]
     return super_resolved_array
 
 
-def overlap_treatment(map_el, instance, pixelize=True, super_res=False):
+def apply_super_resolution(input_array):
+    n = len(input_array)
+    output = np.zeros(n + 1, dtype=input_array.dtype)
+
+    output[0] = input_array[0]
+    output[-1] = input_array[-1]
+
+    if n < 2:
+        output[1:-1] = input_array[0]
+        return output
+
+    inner_even_idx = np.arange(0, n - 1, 2)
+    output[1:-1][::2] = (input_array[inner_even_idx] + input_array[inner_even_idx + 1]) / 2
+
+    inner_odd_idx = np.arange(1, n - 1, 2)
+    output[2:-1][::2] = (input_array[inner_odd_idx] + input_array[inner_odd_idx + 1]) / 2
+
+    return output
+
+
+def overlap_treatment(map_el, instance, super_res=True):
     # What the pixeling of the map should do
     # 1. Recognize for overlap:
     x_steps = np.array([map_el['x'][i + 1] - map_el['x'][i] for i in range(np.shape(map_el['x'])[0] - 1)])
     y_steps = np.array([map_el['y'][i + 1] - map_el['y'][i] for i in range(np.shape(map_el['y'])[0] - 1)])
-    # Check if the steps are varying for the measurements (needs a special treatment)
-    if x_steps.std() != 0:
-        x_overlap = False
-    else:
-        x_overlap = False
-        if x_steps.mean() < instance.diode_size[0]:
-            x_overlap = True
 
-    if y_steps.std() != 0:
-        y_overlap = False
+    xs = np.sort(np.array(list(set(x_steps))))
+    ys = np.sort(np.array(list(set(y_steps))))
+
+    pitch_x = instance.diode_size[0] + instance.diode_spacing[0]
+    pitch_y = instance.diode_size[1] + instance.diode_spacing[1]
+
+    # Check if the steps are varying for the measurements (needs a special treatment)
+    if np.min(xs) >= pitch_x:
+        x_overlap = False
+    elif len(xs) > 1:
+        x_overlap = True
+        start_x = np.sort(np.argwhere(x_steps[0:len(x_steps) // 2] != np.min(xs)))[-1] + 1
+        end_x = np.sort(np.argwhere(x_steps[len(x_steps) // 2:] != np.min(xs)))[0]
     else:
+        x_overlap = True
+        start_x = 0
+        end_x = len(map_el['x']+1)
+
+    if np.min(ys) >= pitch_y:
         y_overlap = False
-        if y_steps.mean() < instance.diode_size[1]:
-            y_overlap = True
+    elif len(ys) > 1:
+        y_overlap = True
+        start_y = np.sort(np.argwhere(y_steps[0:len(y_steps) // 2] != np.min(ys)))[-1] + 1
+        end_y = np.sort(np.argwhere(y_steps[len(y_steps) // 2:] != np.min(ys)))[0]
+    else:
+        y_overlap = True
+        start_y = 0
+        end_y = len(map_el['y'] + 1)
 
     if not x_overlap and not y_overlap:
         print('No overlap')
         pass
     elif x_overlap and not y_overlap:
         print('X overlap')
-        if super_res:
-            x_m1, x_m2 = super_resolution_matrix(np.shape(map_el['z'])[1]), super_resolution_matrix2(
-                np.shape(map_el['z'])[1])
-            for j, row in enumerate(map_el['z']):
-                map_el['z'][j] = apply_super_resolution(row, x_m1, x_m2)
+        if super_res and x_steps[0] == pitch_x/2:
+            map_el['z'] = np.apply_along_axis(apply_super_resolution, axis=1, arr=map_el['z'])
+            map_el['x'] = np.append(map_el['x'], map_el['x'][-1])
+        elif super_res and x_steps[0] == pitch_x/4:
+            pass
+        elif super_res:
+            print(f'X Overlap of {pitch_x/x_steps[0]} currently not supported')
         else:
             pass
     elif not x_overlap and y_overlap:
         print('Y overlap')
-        if super_res:
-            y_m1, y_m2 = super_resolution_matrix(np.shape(map_el['z'])[0]), super_resolution_matrix2(
-                np.shape(map_el['z'])[0])
-            for i, col in enumerate(map_el['z'].T):
-                print('-'*50)
-                print(i, np.mean(map_el['z'][:, i]), np.max(map_el['z'][:, i]), np.min(map_el['z'][:, i]))
-                map_el['z'][:, i] = apply_super_resolution(col, y_m1, y_m2)
-                print(i, np.mean(map_el['z'][:, i]), np.max(map_el['z'][:, i]), np.min(map_el['z'][:, i]))
-
-            print('Done')
+        if super_res and y_steps[0] == pitch_y/2:
+            map_el['z'] = np.apply_along_axis(apply_super_resolution, axis=0, arr=map_el['z'])
+            map_el['y'] = np.append(map_el['y'], map_el['y'][-1])
+        elif super_res and y_steps[0] == pitch_y / 4:
+            pass
+        elif super_res:
+            print(f'Y Overlap of {pitch_y / y_steps[0]} currently not supported')
         else:
             pass
     else:
         print('X and Y overlap')
         if super_res:
-            x_m1, x_m2 = super_resolution_matrix(np.shape(map_el['z'])[1]), super_resolution_matrix2(np.shape(map_el['z'])[1])
-            y_m1, y_m2 = super_resolution_matrix(np.shape(map_el['z'])[0]), super_resolution_matrix2(np.shape(map_el['z'])[0])
-            for i, col in enumerate(map_el['z'].T):
-                map_el['z'][:, i] = apply_super_resolution(col, y_m1, y_m2)
-            for j, row in enumerate(map_el['z']):
-                map_el['z'][j] = apply_super_resolution(row, x_m1, x_m2)
+
+            map_el['z'] = np.apply_along_axis(apply_super_resolution, axis=0, arr=map_el['z'])
+            map_el['z'] = np.apply_along_axis(apply_super_resolution, axis=1, arr=map_el['z'])
+            map_el['x'] = np.append(map_el['x'], map_el['x'][-1])
+            map_el['y'] = np.append(map_el['y'], map_el['y'][-1])
         else:
             pass
-
-    if pixelize:
-        pass
 
     return map_el
 
@@ -492,3 +543,149 @@ def format_value_with_error(value, error, format_type='parentheses', error_digit
             return f"{rounded_value:.0f}±{rounded_error:.0f}"
         else:
             return f"{rounded_value:.{sig_digit}f}±{rounded_error:.{sig_digit}f}"
+
+
+def clean_label(label, idx):
+    """Make auto-generated labels more readable."""
+    if not label or label.startswith("_child"):
+        return f"_dataset{idx}_"
+    return re.sub("child", "dataset", label)
+
+
+def export_plot_data(ax=None, filename="plot_data.csv"):
+    """
+    Export data from a matplotlib Axes to CSV.
+
+    - Line/scatter: each labeled dataset becomes an x/y column pair
+    - imshow/pcolormesh: saved as 2D matrix with x header, y in first column
+    - contourf: falls back to x,y table
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes, optional
+        The axes to export. If None, uses current axes.
+    filename : str
+        Output CSV filename.
+    """
+    if ax is None:
+        ax = plt.gca()
+
+    xlabel = ax.get_xlabel() or "x"
+    ylabel = ax.get_ylabel() or "y"
+
+    # --- 1) Line plots ---
+    lines = ax.get_lines()
+    if lines:
+        datasets = []
+        maxlen = 0
+        for idx, line in enumerate(lines):
+            xdata, ydata = line.get_xdata(), line.get_ydata()
+            print(line.get_label())
+            label = clean_label(line.get_label(), idx)
+            datasets.append((xdata, ydata, label))
+            maxlen = max(maxlen, len(xdata))
+
+        header_labels = []
+        header_axes = []
+        for _, _, label in datasets:
+            header_labels += [label + "_x", label + "_y"]
+            header_axes += [xlabel, ylabel]
+
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(header_labels)  # first row = labels
+            writer.writerow(header_axes)  # second row = axis names
+            for i in range(maxlen):
+                row = []
+                for xdata, ydata, _ in datasets:
+                    if i < len(xdata):
+                        row += [xdata[i], ydata[i]]
+                    else:
+                        row += ["", ""]
+                writer.writerow(row)
+        print(f"Exported line data to {filename}")
+        return
+
+    # --- 2) Scatter plots ---
+    if ax.collections:
+        datasets = []
+        maxlen = 0
+        for idx, coll in enumerate(ax.collections):
+            offsets = coll.get_offsets()
+            label = clean_label(coll.get_label(), idx)
+            datasets.append((offsets[:, 0], offsets[:, 1], label))
+            maxlen = max(maxlen, len(offsets))
+
+        header_labels = []
+        header_axes = []
+        for _, _, label in datasets:
+            header_labels += [label + "_x", label + "_y"]
+            header_axes += [xlabel, ylabel]
+
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(header_labels)  # first row = labels
+            writer.writerow(header_axes)  # second row = axis names
+            for i in range(maxlen):
+                row = []
+                for xdata, ydata, _ in datasets:
+                    if i < len(xdata):
+                        row += [xdata[i], ydata[i]]
+                    else:
+                        row += ["", ""]
+                writer.writerow(row)
+        print(f"Exported scatter data to {filename}")
+        return
+
+    # --- 3) imshow ---
+    for im in ax.get_images():
+        Z = im.get_array().data
+        extent = im.get_extent()  # (xmin, xmax, ymin, ymax)
+        nx, ny = Z.shape[1], Z.shape[0]
+        x = np.linspace(extent[0], extent[1], nx)
+        y = np.linspace(extent[2], extent[3], ny)
+
+        with open(filename, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([xlabel + "\\" + ylabel] + list(x))
+            writer.writerow(["signal"] * (len(x) + 1))  # row of dataset names
+            for yi, row in zip(y, Z):
+                writer.writerow([yi] + list(row))
+        print(f"Exported image data to {filename}")
+        return
+
+    # --- 4) pcolormesh ---
+    for pc in ax.collections:
+        try:
+            Z = pc.get_array().data.reshape(pc._meshHeight, pc._meshWidth)
+            X = pc._coordinates[:, :, 0]
+            Y = pc._coordinates[:, :, 1]
+
+            with open(filename, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([xlabel + "\\" + ylabel] + list(X[0]))
+                writer.writerow(["signal"] * (X.shape[1] + 1))
+                for yi, row in zip(Y[:, 0], Z):
+                    writer.writerow([yi] + list(row))
+            print(f"Exported pcolormesh data to {filename}")
+            return
+        except Exception:
+            pass
+
+    # --- 5) contourf fallback ---
+    if ax.collections:
+        print("Contourf export: writing X,Y table (not full Z grid).")
+        cf = ax.collections[0]
+        paths = cf.get_paths()
+        if paths:
+            verts = paths[0].vertices
+            with open(filename, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["dataset_x", "dataset_y"])
+                writer.writerow([xlabel, ylabel])
+                for xv, yv in verts:
+                    writer.writerow([xv, yv])
+        return
+
+    print("No exportable data found in this axes.")
+

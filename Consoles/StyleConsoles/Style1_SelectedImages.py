@@ -66,7 +66,7 @@ elif x_scale[1] - x_scale[0] > y_scale[1] - y_scale[0]:
 # '''
 
 # Insert after ax.set_aspect('equal'):
-# add_diode_geometry_indicator(ax, A, position='upper right', fig=fig)
+add_diode_geometry_indicator(ax, A, position='upper right', fig=fig)
 print(ax.get_xlim())
 print(ax.get_ylim())
 

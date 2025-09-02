@@ -84,6 +84,22 @@ if poster:
     plt.rc('figure', titlesize=posterfont+4)  # fontsize of the figure title
     fullsize_plot = (28 * cm, 28 * cm / 1.2419)
 
+paper = True
+if paper:
+    if use_LaTeX:
+        plt.rcParams["font.family"] = ["sans-serif"]
+        plt.rcParams["font.sans-serif"] = ["Helvetica"]
+
+    paperfont = 7
+    plt.rc('font', size=paperfont)  # controls default text sizes
+    plt.rc('axes', titlesize=paperfont)  # fontsize of the axes title
+    plt.rc('axes', labelsize=paperfont)  # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=paperfont)  # fontsize of the tick labels
+    plt.rc('ytick', labelsize=paperfont)  # fontsize of the tick labels
+    plt.rc('legend', fontsize=paperfont-2)  # legend fontsize
+    plt.rc('figure', titlesize=paperfont)  # fontsize of the figure title
+    fullsize_plot = (18 * cm, 18 * cm / 1.2419)
+
 if use_LaTeX:
     plt.rcParams.update({'mathtext.default':  'regular'})  # No cursive text in math environment!
 
@@ -116,7 +132,32 @@ def afp_layout(axes=None, second_axis=False, *arg, **kwarg):
     for i, ax in enumerate(axes):
         if i in formatted:
             continue
+        for j, ax2 in enumerate(axes):
+            if i == j:
+                continue
+            if j in formatted:
+                continue
+            if share_x_axis(ax, ax2):
+                ax.grid(which='both', visible=False)
+                ax.tick_params(which='both', direction='in', top=True, right=False, left=True, bottom=True)
+                ax2.grid(which='both', visible=False)
+                ax2.tick_params(which='both', direction='in', top=True, right=True, left=False, bottom=True)
+                formatted.append(i)
+                formatted.append(j)
+            elif share_y_axis(ax, ax2):
+                ax.grid(which='both', visible=False)
+                ax.tick_params(which='both', direction='in', top=False, right=True, left=True, bottom=True)
+                ax2.grid(which='both', visible=False)
+                ax2.tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=False)
+                formatted.append(i)
+                formatted.append(j)
+        if i not in formatted:
+            ax.grid(which='both', visible=False)
+            ax.tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
+            formatted.append(i)
+        '''
         if i < len(axes)-1 and share_x_axis(ax, axes[i+1]):
+            print('Yes')
             ax.grid(which='both', visible=False)
             ax.tick_params(which='both', direction='in', top=True, right=False, left=True, bottom=True)
             axes[i+1].grid(which='both', visible=False)
@@ -134,6 +175,7 @@ def afp_layout(axes=None, second_axis=False, *arg, **kwarg):
             ax.grid(which='both', visible=False)
             ax.tick_params(which='both', direction='in', top=True, right=True, left=True, bottom=True)
             formatted.append(i)
+        '''
 
 # I wrapped the afp_layout in another functions that allows deviations from the layout without touching the standards
 # from our chair
@@ -421,13 +463,20 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
         ax = axes[k]
         # set ticks automatic:
 
-        ax.yaxis.set_major_locator(ticker.AutoLocator())
-        if minor_yticks:
-            ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
-        if no_colorbar[k]:
-            ax.xaxis.set_major_locator(ticker.AutoLocator())
-            if minor_xticks:
-                ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+        if ax.get_xscale() == 'log':
+            pass
+        else:
+            if no_colorbar[k]:
+                ax.xaxis.set_major_locator(ticker.AutoLocator())
+                if minor_xticks:
+                    ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+
+        if ax.get_yscale() == 'log':
+            pass
+        else:
+            ax.yaxis.set_major_locator(ticker.AutoLocator())
+            if minor_yticks:
+                ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
 
         if not english:
             # Get pick labels:

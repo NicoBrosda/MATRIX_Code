@@ -498,7 +498,10 @@ class Analyzer:
                 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
                 sm.set_array([])
                 if colorbar:
-                    bar = fig.colorbar(sm, ax=ax, extend='max')
+                    if intensity_limits[0] > 0:
+                        bar = fig.colorbar(sm, ax=ax, extend='both')
+                    else:
+                        bar = fig.colorbar(sm, ax=ax, extend='max')
             else:
                 if np.min(map_el['z']) < intensity_limits[0] and np.max(map_el['z']) > intensity_limits[1]:
                     color_map = ax.contourf(map_el['x'], map_el['y'], map_el['z'], cmap=cmap, extend='both', levels=levels, alpha=alpha)
@@ -512,7 +515,10 @@ class Analyzer:
                 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
                 sm.set_array([])
                 if colorbar:
-                    bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
+                    if intensity_limits[0] > 0:
+                        bar = fig.colorbar(sm, ax=ax, extend='both', ticks=color_map.levels)
+                    else:
+                        bar = fig.colorbar(sm, ax=ax, extend='max', ticks=color_map.levels)
             ax.set_xlabel(r'Position x (mm)')
             ax.set_ylabel(r'Position y (mm)')
 

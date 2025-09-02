@@ -1,6 +1,8 @@
 from EvaluationSoftware.main import *
 from EvaluationSoftware.readout_modules import ams_channel_assignment_readout
 from Consoles.Consoles8Gafchromic.Concept8GafMeasurementComparison import GafImage
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from PIL import Image
 
 
 def load_image(folder_path, image, background_subtraction=True, normalization=True, position=None):
@@ -10,7 +12,6 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
         OriginalGaf.load_image()
         # '''
         if 'matrix211024_006.bmp' in image:
-            print('yes')
             OriginalGaf.image = OriginalGaf.image[::-1]
             OriginalGaf.image = OriginalGaf.image[:, ::-1]
         # '''
@@ -74,7 +75,29 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
             list_of_files, instance, method, align_lines=True)
 
     elif '_211124' in folder_path.name:
-        pass
+        mapping = Path('../../Files/mapping.xlsx')
+        direction1 = pd.read_excel(mapping, header=1)
+        direction1 = np.array([int(k[-3:]) for k in direction1['direction_1']])
+        direction2 = pd.read_excel(mapping, header=1)
+        direction2 = np.array([int(k[-3:]) for k in direction2['direction_2']])
+
+        mapping = Path('../../Files/Mapping_SmallMatrix2.xlsx')
+        data2 = pd.read_excel(mapping, header=None)
+        mapping_map = data2.to_numpy().flatten()
+        translated_mapping = np.array([direction2[np.argwhere(direction1 == i)[0][0]] - 1 for i in mapping_map])
+
+        readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y,
+                                                                          channel_assignment=translated_mapping), standard_position
+
+        A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
+
+        dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
+        dark = ['12_2DSmall_miscshape_']
+
+        norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
+        norm = '8_2DSmall_yscan_'
+        norm_module = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
+            list_of_files, instance, method, align_lines=True)
     elif '_260325' in folder_path.name:
         pass
     elif '_19062024' in folder_path.name:
@@ -235,3 +258,216 @@ def add_diode_geometry_indicator(ax, analyzer, position='upper right', fig=None)
         if text_x_pos > x_lims[0] + text_width:  # Check if text would be visible
             ax.text(text_x_pos, base_y + scaled_pitch_y / 2,
                     pitch_text_y, ha='right', va='center', rotation=90, fontsize=8)
+
+
+def add_png_icon(ax, instance, location='top right', zoom=96/400, translation=None, background=False):
+    """
+    Adds a PNG icon to a specified location within a Matplotlib axis, with options for customization such as
+    zoom level, translations, and background.
+
+    This function facilitates displaying icons onto a plot based on the attributes of the given `instance`.
+    It uses preset paths to specific icons, matched with particular geometry configurations. Icons can be
+    aligned in different positions on the plot, zoomed to a given scale, and supplemented with arrows to
+    indicate translation directions. Optional background shading can also be added for visual clarity.
+
+    :param ax: Matplotlib axis on which the icon will be added.
+    :param instance: Object containing geometry attributes like diode_dimension and diode_size, used to select
+                     the appropriate icon.
+    :param location: String specifying the location on the axis where the icon will appear. Supports 'top right',
+                     'top left', 'bottom left', and 'bottom right'. Defaults to 'top right'.
+    :param zoom: Float defining the scaling level of the icon. Defaults to 96/400.
+    :param translation: List of dimensions ('x' or 'y') in which directional arrows will be added to indicate movement.
+                        Defaults to None.
+    :param background: Boolean indicating whether to draw a white rectangle as a background box behind the icon.
+                       Defaults to False.
+    :return: None if the geometry specified in `instance` does not correspond to any predefined icon. Otherwise,
+             modifies the axis in place by adding the icon and optional visual elements.
+    """
+    if instance.diode_dimension[0] == 11 and instance.diode_dimension[1] == 11 and instance.diode_size[0] == 0.8:
+        icon_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/11x11Big.png')
+    elif instance.diode_dimension[0] == 11 and instance.diode_dimension[1] == 11 and instance.diode_size[0] == 0.4:
+        icon_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/11x11.png')
+    elif instance.diode_dimension[0] == 1 and instance.diode_dimension[1] == 128 and instance.diode_size[0] == 0.4:
+        icon_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/1x128.png')
+    elif instance.diode_dimension[0] == 1 and instance.diode_dimension[1] == 128 and instance.diode_size[0] == 0.17:
+        icon_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/1x128Small.png')
+    elif instance.diode_dimension[0] == 2 and instance.diode_dimension[1] == 64 and instance.diode_size[0] == 0.4:
+        icon_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/2x64.png')
+    else:
+        print('The given geometry is not exisiting a icon to add into graph')
+        return None
+
+    # Load the PNG image using PIL
+    with Image.open(icon_path) as image:
+        # Wrap it for matplotlib
+        im = OffsetImage(image, zoom=zoom)
+
+        # Define location anchor and box alignment
+        location_map = {
+            'top right': ((0.98, 0.98), (1, 1)),
+            'top left': ((0.02, 0.98), (0, 1)),
+            'bottom left': ((0.02, 0.02), (0, 0)),
+            'bottom right': ((0.98, 0.02), (1, 0)),
+        }
+        (xy, box_alignment) = location_map.get(location, ((1, 1), (1, 1)))
+
+        # Create and add icon box
+        ab = AnnotationBbox(
+            im,
+            xy=xy,
+            xycoords='axes fraction',
+            box_alignment=box_alignment,
+            frameon=False,
+            pad=0
+        )
+        ax.add_artist(ab)
+
+        # Force rendering to get accurate icon position
+        fig = ax.figure
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+
+        # Get icon bounding box in display (pixel) coords
+        icon_bbox_display = ab.get_window_extent(renderer)
+
+        # Convert to axes fraction coordinates
+        trans = ax.transAxes.inverted()
+        icon_bbox_axes = trans.transform(icon_bbox_display)
+
+        # Extract edges and center
+        (x0, y0), (x1, y1) = icon_bbox_axes
+        x_center = (x0 + x1) / 2
+        y_center = (y0 + y1) / 2
+
+        # Arrow size scaling based on axis size
+        ax_width_px = ax.get_window_extent().width
+        ax_height_px = ax.get_window_extent().height
+        arrow_length = 0.1  # in axes fraction
+        arrow_lw = max(1.5, 4 * ((x1 - x0) + (y1 - y0)))
+
+        # Add arrows if requested
+        if translation:
+            if 'x' in translation:
+                if 'left' in location:
+                    start = (x1, y_center)
+                    end = (x1 + arrow_length, y_center)
+                else:
+                    start = (x0, y_center)
+                    end = (x0 - arrow_length, y_center)
+                ax.annotate(
+                    '', xy=end, xytext=start,
+                    xycoords='axes fraction',
+                    textcoords='axes fraction',
+                    arrowprops=dict(arrowstyle='->', color='red', lw=arrow_lw)
+                )
+            if 'y' in translation:
+                if 'bottom' in location:
+                    start = (x_center, y1)
+                    end = (x_center, y1 + arrow_length)
+                else:
+                    start = (x_center, y0)
+                    end = (x_center, y0 - arrow_length)
+                ax.annotate(
+                    '', xy=end, xytext=start,
+                    xycoords='axes fraction',
+                    textcoords='axes fraction',
+                    arrowprops=dict(arrowstyle='->', color='red', lw=arrow_lw)
+                )
+
+            # Draw white background box behind icon
+            if background:
+                width = x1 - x0
+                height = y1 - y0
+                rect = Rectangle(
+                    (x0, y0), width, height,
+                    transform=ax.transAxes,
+                    facecolor='white', edgecolor='none', alpha=0.75,
+                    zorder=ab.zorder - 1  # behind the icon
+                )
+                ax.add_patch(rect)
+        return x0, y0, x1, y1
+
+
+def add_image(ax, image_path, location='top right', zoom=96/400, background=False, align_corner=(0, 0)):
+    """
+    Adds an image to a Matplotlib Axes object at a specified location with optional
+    background settings.
+
+    This function allows placing an image on a plot, with features such as location
+    control, scaling, and background rendering to enhance visualization.
+
+    :param ax: A Matplotlib Axes object where the image will be added.
+    :param image_path: The path to the image file (must be a PNG file).
+    :type image_path: str
+    :param location: Either a string specifying the general location ('top right',
+        'top left', 'bottom right', 'bottom left') or a tuple of coordinates in
+        axes fraction (default is 'top right').
+    :type location: str or tuple[float, float]
+    :param zoom: Scaling factor for the image, the default is 96/400 for adjusting
+        icon sizes.
+    :type zoom: float
+    :param background: If True, draws a semi-transparent white background behind
+        the image to improve visibility (default is False).
+    :type background: bool
+    :param align_corner: Defines the alignment of the image corner relative to
+        the position if `location` is provided as a tuple. Defaults to (0, 0).
+    :type align_corner: tuple[float, float]
+    :return: Image corner coordinates in axes fraction.
+    """
+
+    # Load the PNG image using PIL
+    with Image.open(image_path) as image:
+        # Wrap it for matplotlib
+        im = OffsetImage(image, zoom=zoom)
+
+        if isinstance(location, str):
+            # Define location anchor and box alignment
+            location_map = {
+                'top right': ((0.98, 0.98), (1, 1)),
+                'top left': ((0.02, 0.98), (0, 1)),
+                'bottom left': ((0.02, 0.02), (0, 0)),
+                'bottom right': ((0.98, 0.02), (1, 0)),
+            }
+            (xy, box_alignment) = location_map.get(location, ((1, 1), (1, 1)))
+        else:
+            xy = location
+            box_alignment = align_corner
+
+        # Create and add icon box
+        ab = AnnotationBbox(
+            im,
+            xy=xy,
+            xycoords='axes fraction',
+            box_alignment=box_alignment,
+            frameon=False,
+            pad=0
+        )
+        ax.add_artist(ab)
+
+        # Force rendering to get accurate icon position
+        fig = ax.figure
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+
+        # Get icon bounding box in display (pixel) coords
+        icon_bbox_display = ab.get_window_extent(renderer)
+
+        # Convert to axes fraction coordinates
+        trans = ax.transAxes.inverted()
+        icon_bbox_axes = trans.transform(icon_bbox_display)
+
+        # Extract edges and center
+        (x0, y0), (x1, y1) = icon_bbox_axes
+
+        # Draw white background box behind icon
+        if background:
+            width = x1 - x0
+            height = y1 - y0
+            rect = Rectangle(
+                (x0, y0), width, height,
+                transform=ax.transAxes,
+                facecolor='white', edgecolor='none', alpha=0.75,
+                zorder=ab.zorder - 1  # behind the icon
+            )
+            ax.add_patch(rect)
+        return x0, y0, x1, y1
