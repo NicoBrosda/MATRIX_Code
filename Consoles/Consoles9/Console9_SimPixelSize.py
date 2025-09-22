@@ -43,6 +43,99 @@ def simulation_Bragg(run_name, diff=200, pixel_size=50/200, mean_range=(20, 30))
     return data_cache, line_cache, line_std_cache, data_max
 
 
+def pixel_Bragg(run_name, pixel=[800, 400, 200, 100, 50, 25], diff=200, mean_range=(20, 30), make_plot=True,
+                wedge_thick=10):
+    dat = pd.read_csv(Path(f'../../Files/energies_after_wheel_diffusor{diff}.txt'), header=4, delimiter='\t',
+                      decimal='.',
+                      names=['pos', 'thickness', 'energy'])
+    comp_list = dat['thickness']
+
+    # ----------------------------------------------------------------------------------------------------------------
+    # Obtaining the data
+    # ----------------------------------------------------------------------------------------------------------------
+    cache = {}
+    for pix in pixel:
+        pixel_size = 50 / pix
+        data_cache = []
+        line_cache = []
+        line_std_cache = []
+        material_depth = []
+        for i, param in enumerate(comp_list):
+            _run_name = f"{run_name}{param}"
+            current_path = Path('/Users/nico_brosda/GateSimulation/GATE10/Simulation/output/')
+            output_path = current_path / f'{run_name[0:run_name.index("_")]}/'
+            output_file = output_path / f"_{_run_name}_pixel{pix}_dose.mhd"
+
+            # ----------------- Load the Dose / Edep image ----------------------------------
+            # img = sitk.ReadImage(str(output_file).replace(".mhd", "_dose.mhd"))
+            img = sitk.ReadImage(str(output_file).replace(".mhd", "_edep.mhd"))
+            img_std = sitk.ReadImage(str(output_file).replace(".mhd", "_edep_uncertainty.mhd"))
+            data = np.array(sitk.GetArrayFromImage(img))[0][::-1, :] / simn
+            data_std = np.array(sitk.GetArrayFromImage(img_std))[0][::-1, :] / simn
+            line = np.mean(data[:, int(mean_range[0] / pixel_size):int(mean_range[1] / pixel_size)], axis=1)[::-1]
+            line_std = np.mean(data_std[:, int(mean_range[0] / pixel_size):int(mean_range[1] / pixel_size)], axis=1)[
+                ::-1]
+            data_cache.append(data)
+            line_cache.append(line)
+            line_std_cache.append(line_std)
+
+            if make_plot:
+                color = param_color(param)
+                line_max = line.max()
+                fig, ax = plt.subplots()
+                ax2 = ax.twinx()
+                data = data[::-1, :].T
+                extent = (-np.shape(data)[1] * pixel_size / 2, np.shape(data)[1] * pixel_size / 2,
+                          - np.shape(data)[0] * pixel_size / 2, np.shape(data)[0] * pixel_size / 2)
+                print(extent)
+                color_map = ax.imshow(data, vmin=0, vmax=np.max(data), extent=extent, cmap=cmap)
+                norm = matplotlib.colors.Normalize(vmin=0, vmax=np.max(data))
+                sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
+                sm.set_array([])
+                bar = fig.colorbar(sm, ax=ax, extend='max')
+                y_pos = np.arange(0, np.shape(data)[0]) * pixel_size - 25
+                ax2.plot(y_pos, line, color=color)
+
+                axlim_before = ax.get_xlim()
+
+                ax2.axvline(y_pos[np.argmax(line)], color=color)
+                ax2.set_yticklabels([])
+
+                ax.set_xlabel('Position y (mm)')
+                ax.set_ylabel('Position x (mm)')
+
+                ax.text(*transform_axis_to_data_coordinates(ax, [0.02, 0.98]),
+                                fr'Dose actor pixel pitch {pixel_size}$\,$mm', fontsize=11, ha='left', va='top',
+                                color='k')
+                bar.set_label('Deposited energy (MeV)')
+
+                bragg_pos_sim = -20 + (20 - 11.2)
+                shape = LineShape([[0, 1e-9], [40 - 2.1, wedge_thick]], distance_mode=True)
+                shape.print_shape()
+                shape.position(bragg_pos_sim, 0)
+                shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.6, zorder=5, edgecolor='k')
+
+                ax.set_xlim(axlim_before)
+
+                material_depth.append(shape.calculate_value(y_pos[np.argmax(line)]))
+                text = f"{param: .2f}$\\,${param_unit} Depth: {shape.calculate_value(y_pos[np.argmax(line)]): .2f}$\\,$mm"
+                ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.93]), text, fontsize=13,
+                        ha='left', va='top',
+                        c=color, zorder=7, bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.9, 'pad': 2})
+                name = f'Ideal_DoseMap_Pixel{pix}_{param:.2f}{param_unit}'
+                format_save(save_path / f"Comp_PixelDoseMaps/{pixel_size}mm/", save_name=name, save=True,
+                            legend=False, fig=fig)
+            else:
+                y_pos = np.arange(0, np.shape(data)[0]) * pixel_size - 25
+                shape = LineShape([[0, 1e-9], [40 - 2.1, wedge_thick]], distance_mode=True)
+                bragg_pos_sim = -20 + (20 - 11.2)
+                shape.position(bragg_pos_sim, 0)
+                material_depth.append(shape.calculate_value(y_pos[np.argmax(line)]))
+
+        data_max = np.max(line_cache)
+        cache[f"{pix}"] = [data_cache, line_cache, line_std_cache, data_max, material_depth, pixel_size]
+    return cache
+
 mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
@@ -646,7 +739,7 @@ save_path = results_path / 'CorrectedIII_Wedge200/'
 # for wedge_mat in ['PEEK', 'PEEKII', 'PEEKpB', 'PEEKmB', 'PEEKpi', 'PEEKmi', 'PEEKpii', 'PEEKmii', 'PEEKpiii', 'PEEKmiii']:
 # for wedge_mat in ['PEEKmBI', 'PEEKmBII', 'PEEKmBIII', 'PEEKmBIIII']:
 cache = []
-for wedge_mat in ['PEEK', 'DoublePEEK']:
+for wedge_mat in ['PEEK']:
     wedge_thick = 10
     run_name = f'1e7RealWedge200diff{wedge_mat}_param'
     if wedge_mat == 'PEEKII':
@@ -675,58 +768,22 @@ for wedge_mat in ['PEEK', 'DoublePEEK']:
     plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
                    signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
 
+save_path = Path('/Users/nico_brosda/GateSimulation/GATE10/Simulation/output/1e7PixelCheckWedge200diffPEEK/')
+
+cache = pixel_Bragg(f'1e7PixelCheckWedge200diffPEEK_param', make_plot=True)
+
 fig, ax = plt.subplots()
-ax.plot(comp_list, cache[0], '^', label='Sim normale wedge')
-ax.plot(comp_list, cache[1], 'v', label='Sim double wedge')
-ax.plot(comp_list, material_depth, 'x', label='Experiment')
+color = sns.color_palette("hls", len(cache))
+ax.plot(comp_list, material_depth, ls='--', c='k', label='Experiment')
+
+for i, el in enumerate(cache):
+    dat = cache[el]
+    print(data_wheel_200['energies'])
+    print(dat[-2])
+    ax.plot(data_wheel_200['energies'], dat[-2], c=color[i], label=fr'Pixel size {dat[-1]}$\,$mm')
+
 ax.set_xlabel('Proton energy (MeV)')
-ax.set_ylabel(f'Max signal wedge material depth (mm)')
-format_save(save_path, save_name=f'SimComp_DoubleWedge', save=True, legend=True, fig=fig)
-
-plt.error
-# ----------------------------------------------------------------------------------------------------------------
-# Calls for 200 wedge middle
-# ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_200['energies'].to_numpy()[-len(signal_cache_200_middle):-1]
-param_colormapper_200 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_color = lambda param: param_cmap(param_colormapper_200(param))
-param_unit = 'MeV'
-signal_cache = signal_cache_200_middle[:len(comp_list)]
-map_cache = wedge_200_middle[:len(comp_list)]
-shape_position = bragg_pos_wedge200_middle
-save_path = results_path / 'WedgeDensityVar/'
-for wedge_mat in ['PEEK', 'PEEKpB', 'PEEKmB', 'PEEKpi', 'PEEKmi', 'PEEKpii', 'PEEKmii', 'PEEKpiii', 'PEEKmiii']:
-    run_name = f'1e7RealWedge200diff{wedge_mat}_param'
-    save_path = results_path / f'DensityVar/WedgeMidDensityVar_{wedge_mat}/'
-    # run_name = 'RealerWedge200um1e7_param'
-
-    material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-        plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                      run_name, param_unit, True, True))
-
-    plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-                   signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
-
-plt.error
-# ----------------------------------------------------------------------------------------------------------------
-# Calls for 400 wedge
-# ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_400['energies'].to_numpy()[:-1]
-param_colormapper_400 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_unit = 'MeV'
-param_color = param_color_400
-signal_cache = signal_cache_400[:len(comp_list)]
-map_cache = wedge_400[:len(comp_list)]
-shape_position = bragg_pos_wedge400
-save_path = results_path / 'CorrectedIII_Wedge400/'
-run_name = 'RealerWedge400um1e7_param'
-
-material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-    plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                  run_name, param_unit, True, True))
-
-plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-               signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
-
-
-
+ax.set_ylabel('Max signal wedge material depth (mm)')
+ax.legend()
+format_save(save_path / f"Comp_PixelDoseMaps/", save_name='Material_Comp', save=True, save_format='.pdf',
+                            legend=False, fig=fig)

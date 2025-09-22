@@ -764,3 +764,46 @@ ax.text(*transform_axis_to_data_coordinates(ax, [0.025, upper_text-0.23]),
         zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
 
 format_save(save_path, save_name=f'ParamWedgeLength', save=True, legend=True, fig=fig)
+
+# --------------------------------------------------------------------------------------------------------------------
+wedge_height_exp = 10
+wedge_length_exp = 40 - 2.1
+
+mat = []
+param_list = np.arange(-5, 5, 1) + shape_position
+param_unit = 'mm'
+material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
+    get_wedge_depth(signal_cache, shape_position, run_name, ))
+
+for pos in param_list:
+    cache, _, _, _, _, _ = get_wedge_depth(signal_cache, pos, run_name, )
+    mat.append(cache)
+
+cmap_param = sns.cubehelix_palette(as_cmap=True)
+fig, ax = plt.subplots()
+ax.set_xlabel('Proton energy (MeV)')
+ax.set_ylabel(f'Max signal wedge material depth (mm)')
+ax.plot(comp_list, material_depth_sim, c='r', marker='x', ls='-', label='Simulation', zorder=1)
+ax.plot(comp_list, material_depth, c='b', marker='x', ls='-', label='Experiment', zorder=1)
+
+for i, param in enumerate(param_list):
+    color = cmap_param(i / len(param_list))
+    ax.plot(comp_list, mat[i], c=color, marker='x', ls='-', zorder=0)
+
+ax.set_ylim(ax.get_ylim())
+ax.set_xlim(ax.get_xlim())
+
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]),
+        f'Wedge pos', fontsize=13, c='k', zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+upper_text = 0.88
+gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, upper_text-0.015]),
+                       transform_axis_to_data_coordinates(ax, [0.1, upper_text-0.145]),
+                   cmap=cmap_param, lw=10, zorder=5)
+ax.text(*transform_axis_to_data_coordinates(ax, [0.035, upper_text]),
+        f'{np.min(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0),
+        zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+ax.text(*transform_axis_to_data_coordinates(ax, [0.025, upper_text-0.23]),
+        f'{np.max(param_list): .2f}$\\,${param_unit}', fontsize=13, c=cmap_param(0.99),
+        zorder=3, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+
+format_save(save_path, save_name=f'ParamWedgePos', save=True, legend=True, fig=fig)
