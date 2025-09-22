@@ -84,7 +84,7 @@ if poster:
     plt.rc('figure', titlesize=posterfont+4)  # fontsize of the figure title
     fullsize_plot = (28 * cm, 28 * cm / 1.2419)
 
-paper = True
+paper = False
 if paper:
     if use_LaTeX:
         plt.rcParams["font.family"] = ["sans-serif"]
@@ -463,7 +463,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
         ax = axes[k]
         # set ticks automatic:
 
-        if ax.get_xscale() == 'log':
+        if ax.get_xscale() == 'log' or ax.get_xscale() == 'symlog':
             pass
         else:
             if no_colorbar[k]:
@@ -471,7 +471,7 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
                 if minor_xticks:
                     ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
 
-        if ax.get_yscale() == 'log':
+        if ax.get_yscale() == 'log' or ax.get_yscale() == 'symlog':
             pass
         else:
             ax.yaxis.set_major_locator(ticker.AutoLocator())

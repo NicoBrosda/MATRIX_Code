@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 
 from Consoles.StyleConsoles.Utils_ImageLoad import *
 from PIL import Image
-from Consoles.Consoles8Gafchromic.Concept8GafCompTests import align_and_compare_images, resample_image, transform_image
+from Consoles.Consoles8Gafchromic.Concept8GafCompTests import (align_and_compare_images, resample_image,
+                                                               transform_image, align_and_compare_images2)
 
 # Save path and options for the map
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/Paper/')
@@ -26,7 +27,7 @@ intensity_limitsg = [0, 1]
 pixel = 'fill'
 
 dpi = 300
-format = '.svg'
+format = '.pdf'
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 # ------------------------------------------------------------------------------------------------------------------
 # Ax1: Logo image
@@ -116,7 +117,7 @@ y_limits.append(y_limit)
 ax = ax3
 # Axis limits
 x_limit = np.array([22-18, 22+14])
-y_limit = np.array([28-15, 28+17])
+y_limit = np.array([23.5-15, 23.5+17])
 # Selection of the image (automatic assigning of the Analyzer)
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/Gafchromic_221024/')
 image = 'gafchromic_matrix211024_006.bmp'
@@ -138,13 +139,14 @@ else:
 
 _x, _y, _z = homogenize_pixel_size([A1.maps[0]['x'], A1.maps[0]['y'], np.abs(A1.maps[0]['z']) / np.max(A1.maps[0]['z'])])
 
-diff3, score3, addition3 = align_and_compare_images(_z[::-1], gaf.image, low_pixel_size, gaf.pixel_size,
+diff3, score3, addition3 = align_and_compare_images2(_z[::-1], gaf.image, low_pixel_size, gaf.pixel_size,
                                                     optimize_alignment=True, bounds=(-3, 3), ev_max_iter=1000,
                                                     ev_pop_size=10, optimization_method='evolutionary',
                                                     image_down_sampled=down_samp)
 print(np.shape(diff3), np.min(diff3), np.max(diff3))
 print(score3)
-gaf.image = transform_image(down_samp, rotation=np.array(-2.5), center_shift=[0, 0])
+# gaf.image = transform_image(down_samp, rotation=np.array(-2.5), center_shift=[0, 0])
+gaf.image = addition3[-2]
 gaf.pixel_size = low_pixel_size
 
 if zero_scale:
@@ -176,7 +178,7 @@ y_limits.append(y_limit)
 ax = ax4
 # Axis limits
 x_limit = np.array([22-14, 22+14])
-y_limit = np.array([28-14, 28+14])
+y_limit = np.array([26-14, 26+14])
 # Selection of the image (automatic assigning of the Analyzer)
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/Gafchromic_221024/')
 image = 'gafchromic_matrix211024_010.bmp'
@@ -196,12 +198,13 @@ else:
     DownSampGaf.save_image(quick_load.parent)
 
 _x, _y, _z = homogenize_pixel_size([A2.maps[0]['x'], A2.maps[0]['y'], np.abs(A2.maps[0]['z']) / np.max(A2.maps[0]['z'])])
-diff4, score4, addition4 = align_and_compare_images(_z[::-1], gaf.image, low_pixel_size, gaf.pixel_size,
+diff4, score4, addition4 = align_and_compare_images2(_z[::-1], gaf.image, low_pixel_size, gaf.pixel_size,
                                                     optimize_alignment=True, bounds=(-3, 3), ev_max_iter=1000,
                                                     ev_pop_size=10, optimization_method='evolutionary',
                                                     image_down_sampled=down_samp)
 
-gaf.image = transform_image(down_samp, rotation=np.array(-2.5), center_shift=[0, 0])
+# gaf.image = transform_image(down_samp, rotation=np.array(-2.5), center_shift=[0, 0])
+gaf.image = addition4[-2]
 gaf.pixel_size = low_pixel_size
 
 if zero_scale:
@@ -234,8 +237,8 @@ cmap = sns.color_palette('coolwarm', as_cmap=True)
 
 ax = ax5
 # Axis limits
-x_limit = np.array([24-18, 24+14])
-y_limit = np.array([28-15, 28+17])
+x_limit = np.array([22-18, 22+14])
+y_limit = np.array([23.5-15, 23.5+17])
 if zero_scale:
     ext_x = 0 - np.min(x_limit)
     ext_y = 0 - np.min(y_limit)
@@ -246,9 +249,9 @@ else:
     ext_x = 0
     ext_y = 0
 
-diff3 = transform_image(-diff3, rotation=np.array(-2.5), center_shift=[0, 0])
+# diff3 = transform_image(-diff3, rotation=np.array(-2.5), center_shift=[0, 0])
 
-color_map = ax.imshow(diff3, cmap=cmap, vmin=-1, vmax=1, extent=(
+color_map = ax.imshow(-diff3, cmap=cmap, vmin=-1, vmax=1, extent=(
     ext_x, np.shape(diff3)[1] * low_pixel_size + ext_x, ext_y, np.shape(diff3)[0] * low_pixel_size + ext_y))
 norm = matplotlib.colors.Normalize(vmin=-1, vmax=1)
 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
@@ -265,8 +268,8 @@ y_limits.append(y_limit)
 # ------------------------------------------------------------------------------------------------------------------
 ax = ax6
 # Axis limits
-x_limit = np.array([24-14, 24+14])
-y_limit = np.array([28-14, 28+14])
+x_limit = np.array([22-14, 22+14])
+y_limit = np.array([26-14, 26+14])
 if zero_scale:
     ext_x = 0 - np.min(x_limit)
     ext_y = 0 - np.min(y_limit)
@@ -277,9 +280,9 @@ else:
     ext_x = 0
     ext_y = 0
 
-diff4 = transform_image(-diff4, rotation=np.array(-2.5), center_shift=[0, 0])
+# diff4 = transform_image(-diff4, rotation=np.array(-2.5), center_shift=[0, 0])
 
-color_map = ax.imshow(diff4, cmap=cmap, vmin=-1, vmax=1, extent=(
+color_map = ax.imshow(-diff4, cmap=cmap, vmin=-1, vmax=1, extent=(
     ext_x, np.shape(diff4)[1] * low_pixel_size + ext_x, ext_y, np.shape(diff4)[0] * low_pixel_size + ext_y))
 norm = matplotlib.colors.Normalize(vmin=-1, vmax=1)
 sm = plt.cm.ScalarMappable(norm=norm, cmap=color_map.cmap)
@@ -363,4 +366,5 @@ ax4.text(*transform_axis_to_data_coordinates(ax4, [0.5, 0.97]), '2x64 array \n 0
         va='top', color='k')
 '''
 
-just_save(save_path=results_path, save_name=f"GafchromicComp{version}", dpi=dpi, plot_size=plot_size, save_format=format, fig=fig)
+plt.show()
+# format_save(save_path=results_path, save_name=f"Graph4_GafchromicComp{version}", dpi=dpi, plot_size=plot_size, save_format=format, fig=fig)

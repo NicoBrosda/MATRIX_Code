@@ -785,7 +785,10 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
     signals = []
     for file in tqdm(list_of_files):
         # The parsing of the position out of the name and save it
-        position.append(instance.pos_parser(file))
+        if instance.pos_parser(file)[0] == 0:
+            position.append([20, instance.pos_parser(file)[1]])
+        else:
+            position.append(instance.pos_parser(file))
         signal = instance.readout(file, instance)['signal']
         signals.append((np.array(signal) - instance.dark))
 
@@ -804,9 +807,12 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
 
     # If multiple positions in the other directions are given, this version filters for the step with the largest number
     # of translation steps
+    print((pos[1-sp]))
     if len(pos[1-sp]) > 1:
         pos_choice = []
         for i in pos[1-sp]:
+            print(i)
+            print(np.array(list(set([j[sp] for j in position if j[1-sp] == i]))).sort())
             pos_choice.append(len(np.array(list(set([j[sp] for j in position if j[1-sp] == i]))).sort()))
         choice = x_pos[np.argmax([pos_choice])]
         signals = [sig for i, sig in enumerate(signals) if position[i][1-sp] == choice]

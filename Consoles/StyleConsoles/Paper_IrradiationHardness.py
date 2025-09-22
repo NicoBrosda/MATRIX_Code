@@ -8,7 +8,7 @@ plt.rcParams["font.family"] = ["Arial"]
 # Save path and options for the map
 results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/Paper/')
 
-plot_size = (8.9*cm, 3*8.9*cm / 1.2419)
+plot_size = (9.0*cm, 3*8.9*cm / 1.2419)
 dpi = 300
 save_format = '.svg'
 
@@ -74,15 +74,17 @@ A.scale = 'nano'
 ax.plot(times[times < 7.7], A.signal_conversion(data[times < 7.7]), ls='', marker='.', color='k')
 ax.plot(times[times > 22] - 22 + 7.7, A.signal_conversion(data[times > 22]), ls='', marker='.', color='k')
 
-ax1_twin.plot([0, np.max(times[times > 22] - 22 + 7.7)], [0, 3], c='r')
+print(f'Maximal time is {np.max(times[times > 22] - 22 + 7.7)}')
+
+ax1_twin.plot([0, np.max(times[times > 22] - 22 + 7.7)], [0, 2.44], c='r')
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(0, ax.get_ylim()[1])
 ax1_twin.set_ylim(0, ax1_twin.get_ylim()[1]*1.1)
 
 ax.set_xlabel('Irradiation time (h)')
 ax.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)')
-ax1_twin.set_ylabel('Approximation of cumulated dose (MGy)', color='red', va='center')
+ax1_twin.set_ylabel('Cumulated dose (MGy)', color='red', va='center', labelpad=10)
 
-ax1.text(*transform_axis_to_data_coordinates(ax1, [0.5, 0.96]), r'\textbf{3 MGy total dose}', fontsize=8, ha='center',
+ax1.text(*transform_axis_to_data_coordinates(ax1, [0.5, 0.96]), r'\textbf{2.4$\,$MGy total dose | 43.6$\,$Gy/s} ', fontsize=9, ha='center',
         va='top', color='r')
 
 export_plot_data(ax, results_path / "Data_IrradiationHardness_LongTermDegradation.csv")
@@ -125,12 +127,12 @@ ax.set_yscale('log')
 ax.set_xscale('log')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*2)
-ax.text(*transform_axis_to_data_coordinates(ax, [1.01, 0.21]), r'Before $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=7,
+ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.11]), r'Before $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=10,
         ha='right', va='bottom', c='r')
-ax.text(*transform_axis_to_data_coordinates(ax, [1.01  , 0.2]), r'After $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r22), fontsize=7,
+ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.1]), r'After $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r22), fontsize=10,
         ha='right', va='top', c='b')
 
-ax.legend(loc='lower right')
+ax.legend(loc='upper left', fontsize=9)
 
 export_plot_data(ax, results_path / "Data_IrradiationHardness_Linearity.csv")
 
@@ -143,23 +145,22 @@ signal_comparison_channel(folder_path1, results_path, ['exp6_25nA_nA_1.9_x_0_y_0
                   'exp8_dark_without_cup_nA_1.9_x_0_y_0', A, names=['Before Irradiation', 'After irradiation'], normed=True, mark_n=[], add_plot=ax, save_plot=False, lw=1.5, color_list=['r', 'orange'])
 signal_comparison_channel(folder_path2, results_path, ['exp3_nA_1.9_x_28.25_y_0.0'], 'exp2_nA_1.9_x_28.25_y_0.0', B, names=['3 months later'], add_plot=ax, normed=True, lw=1.5, color_list=['blue'], save_plot=False)
 
-ax.legend(loc='lower right')
+ax.legend(loc='lower right', fontsize=9)
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 
 x0, y0, x1, y1 = add_png_icon(ax, A, 'top left', zoom=0.2 , translation=None, background=True)
-ax.text(*transform_axis_to_data_coordinates(ax, [0.03, y0-0.05]), 'Diffused Beam Shape \n Only Relative Height \n Reproducable', fontsize=6,
-        ha='left', va='top', c='k')
+# ax.text(*transform_axis_to_data_coordinates(ax, [0.03, y0-0.05]), 'Diffused Beam Shape \n Only Relative Height \n Reproducable', fontsize=6, ha='left', va='top', c='k')
 
 export_plot_data(ax, results_path / "Data_IrradiationHardness_BeamShape.csv")
 
 # ------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------
 
-ax1.text(*transform_axis_to_data_coordinates(ax1, [0.97, 0.97]), r'\textbf{(a)}', fontsize=8, ha='right',
+ax1.text(*transform_axis_to_data_coordinates(ax1, [0.97, 0.97]), r'\textbf{(a)}', fontsize=9, ha='right',
         va='top', color='k')
-ax2.text(*transform_axis_to_data_coordinates(ax2, [0.97, 0.97]), r'\textbf{(b)}', fontsize=8, ha='right',
+ax2.text(*transform_axis_to_data_coordinates(ax2, [0.97, 0.97]), r'\textbf{(b)}', fontsize=9, ha='right',
         va='top', color='k')
-ax3.text(*transform_axis_to_data_coordinates(ax3, [0.97, 0.97]), r'\textbf{(c)}', fontsize=8, ha='right',
+ax3.text(*transform_axis_to_data_coordinates(ax3, [0.97, 0.97]), r'\textbf{(c)}', fontsize=9, ha='right',
         va='top', color='k')
 
 '''
@@ -192,4 +193,4 @@ for ax in fig.axes:
 
 print(plt.gcf().get_axes())
 
-format_save(save_path=results_path, save_name=f"IrradiationHardness", dpi=dpi, plot_size=plot_size, save_format=save_format, fig=fig, legend=False)
+format_save(save_path=results_path, save_name=f"Graph2_IrradiationHardness", dpi=dpi, plot_size=plot_size, save_format=save_format, fig=fig, legend=False)

@@ -84,16 +84,23 @@ readout, position_parser, voltage_parser = (
 A = Analyzer((1, 128), 0.4, 0.1, readout=readout)
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
 dark_path = folder_path
-dark_paths = ['voltage_scan_no_beam_nA_1.8000000000000005_x_20.0_y_70.0.csv',
+dark_paths_1 = ['voltage_scan_no_beam_nA_1.8000000000000005_x_20.0_y_70.0.csv',
                      'd2_1n_5s_flat_calib_nA_1.8000000000000007_x_20.0_y_70.0.csv']
 dark_paths_array3_1V = ['Array3_VoltageScan_dark_nA_1.0_x_0.0_y_40.0.csv']
 dark_paths_array3 = ['Array3_VoltageScan_dark_nA_1.8_x_0.0_y_40.0.csv']
-measurements = ['uniformity_scan_', 'Normalization2']
-
+measurements = ['uniformity_scan_', 'Array3_DiffuserYScan']
+measurements = ['Normalization2', 'Array3_DiffuserYScan']
+labels = [r'128x0.5x0.5 mm$^2$', r'128x0.25x0.5 mm$^2$']
 factors = []
 for i, measurement in enumerate(measurements):
-    instance = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout=readout,
-                        position_parser=position_parser, voltage_parser=voltage_parser)
+    if i == 0:
+        instance = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout=readout,
+                            position_parser=position_parser, voltage_parser=voltage_parser)
+        dark_paths = dark_paths_1
+    elif i == 1:
+        instance = Analyzer((1, 128), (0.17, 0.4), (0.08, 0.1), readout=readout,
+                            position_parser=position_parser, voltage_parser=voltage_parser)
+        dark_paths = dark_paths_array3
 
     instance.set_measurement(folder_path, [measurement])
     voltage = voltage_parser(instance.measurement_files[0])
@@ -108,9 +115,17 @@ data_min, data_max = 0.98, 1.07
 bins = np.arange(start=data_min, stop=data_max + bin_size, step=bin_size)
 color = sns.color_palette("hls", len(factors))
 for i, factor in enumerate(factors):
-    ax2.hist(factor.flatten(), bins=bins, edgecolor='k', color=color[i])
+    ax2.hist(factor.flatten(), bins=bins, edgecolor='k', color=color[i], label=labels[i], alpha=0.7)
+ax2.axvline(1, color='k', ls='-fide ', zorder=10)
 ax2.set_xlabel('Signal Homogeneity')
 ax2.set_ylabel('Array diodes per homogeneity bin')
+legend = ax2.legend(loc="upper left",
+    bbox_to_anchor=(0.37, 0.35),   # 50% across, 50% up inside the axes
+    bbox_transform=ax2.transAxes,
+    title='Arrays',
+    title_fontsize=7,
+)
+legend.get_title().set_fontsize(7) #legend 'Title' fontsize
 
 axins = ax2.inset_axes([0.5, 0.5, 0.47, 0.47])
 for i, factor in enumerate(factors):
@@ -152,11 +167,11 @@ ax.set_ylabel(f'Signal current ({scale_dict[instance.scale][1]}A)')
 ax.set_yscale('log')
 ax.set_xscale('log')
 ax.set_xlim(ax.get_xlim())
-ax.set_ylim(ax.get_ylim())
-ax.text(currents[2], signal[1], r'Signal linear fit $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=7,
-        ha='left', va='top', c='r')
-ax.text(currents[-1], std[-1], r'Std sqrt fit $\bar{\mathrm{R}}^2$' + ' = {x:.3f}'.format(x=std_r2), fontsize=7,
-        ha='right', va='bottom', c='b')
+ax.set_ylim(ax.get_ylim()[0]/2, ax.get_ylim()[1])
+ax.text(currents[0], signal[2], r'Signal linear fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=7,
+        ha='left', va='bottom', c='r')
+ax.text(currents[0], std[2], r'Std sqrt fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.3f}'.format(x=std_r2), fontsize=7,
+        ha='left', va='bottom', c='b')
 
 ax.legend(loc='lower right')
 # ------------------------------------------------------------------------------------------------------------------
@@ -197,4 +212,4 @@ ax3.text(*transform_axis_to_data_coordinates(ax3, [0.5, 0.97]), '1x128 array', f
 ax4.text(*transform_axis_to_data_coordinates(ax4, [0.5, 0.97]), '2x64 array \n 0.25$\\,$mm offset', fontsize=11, ha='center',
         va='top', color='k')
 '''
-just_save(save_path=results_path, save_name=f"HomogemeityLinearity", dpi=dpi, plot_size=plot_size, save_format=save_format, fig=fig, axes=[ax1, ax2, axins, ax3], legend=False)
+format_save(save_path=results_path, save_name=f"HomogemeityLinearity", dpi=dpi, plot_size=plot_size, save_format=save_format, fig=fig, axes=[ax1, ax2, axins, ax3], legend=False)
