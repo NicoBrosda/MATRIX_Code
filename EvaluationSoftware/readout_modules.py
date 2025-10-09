@@ -3,7 +3,6 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 
-
 # This is the standard blueprint of a readout module (in terms of inputs and outputs)
 def readout_example(path_to_data_file, instance):
     signal = np.zeros(instance.diodes_dimension)
@@ -962,3 +961,257 @@ def ams_2D_assignment_readout_WPE_choice(path_to_data_file, instance, channel_as
     return {'signal': np.reshape(signals, instance.diode_dimension),
             'std': np.reshape(signal_std, instance.diode_dimension),
             'dict': {}}
+
+
+def ams_2D_assignment_WPE_fast(path_to_data_file, instance, channel_assignment=None,
+                           sample_size=None, version='mean', step=100,
+                           keep_first_row=False):
+    """
+    Fast AMS 2D readout with vectorized operations.
+
+    Parameters
+    ----------
+    path_to_data_file : str
+        Path to CSV file.
+    instance : object
+        Analyzer instance containing diode_dimension and excluded info.
+    channel_assignment : list or ndarray, optional
+        List of active channels. Defaults to all.
+    sample_size : list or int, optional
+        Range of samples to average [start, end] or single integer.
+    version : str
+        'sum', 'mean', 'mean_filtered', 'max', 'n_max'
+    step : int
+        Step size for 'mean_filtered' or 'n_max'
+    keep_first_row : bool
+        Keep the first malformed measurement row.
+
+    Returns
+    -------
+    dict
+        {'signal': 2D array, 'std': 2D array, 'dict': {}}
+    """
+    el = np.prod(instance.diode_dimension)
+    if channel_assignment is None:
+        channel_assignment = np.arange(el)
+    channel_assignment = np.array(channel_assignment).flatten()
+
+    # ---------------------------
+    # Load CSV once, handle first row
+    # ---------------------------
+    if keep_first_row:
+        # read header + first row manually
+        with open(path_to_data_file, 'r') as f:
+            header = f.readline().strip().split(',')
+            first_row = f.readline().strip().split(',')
+        # convert first_row to float
+        first_row = np.array(first_row, dtype=float)
+        # read remaining rows
+        data_rest = pd.read_csv(path_to_data_file, delimiter=',', header=0, skiprows=[1])
+        data_rest = data_rest.to_numpy()
+        # combine
+        data = np.vstack([first_row, data_rest])
+        columns_used = data.shape[1]
+    else:
+        # skip malformed first row
+        data = pd.read_csv(path_to_data_file, delimiter=',', header=0, skiprows=[1])
+        data = data.to_numpy()
+        columns_used = data.shape[1]
+
+    # ---------------------------
+    # Handle dark subtraction
+    # ---------------------------
+    dark = []
+    from copy import deepcopy
+    instance2 = deepcopy(instance)
+    instance2.diode_dimension = [1, 128]
+    instance2.excluded = np.full(instance2.diode_dimension, False)
+
+    if hasattr(instance, 'dark_files') and instance.dark_files:
+        for file2 in instance.dark_files:
+            # simple mean over dark file
+            dark_data = ams_channel_assignment_readout(file2, instance2)['signal'].flatten()
+            dark.append(dark_data)
+        dark = np.mean(np.array(dark), axis=0)
+    else:
+        dark = np.zeros(columns_used)
+
+    # ---------------------------
+    # Determine sample slice
+    # ---------------------------
+    if sample_size is None:
+        s_start, s_end = 0, data.shape[0]
+    elif isinstance(sample_size, list) and len(sample_size) == 2:
+        s_start = max(0, sample_size[0])
+        s_end = min(data.shape[0], sample_size[1])
+    else:
+        s_start, s_end = 0, min(data.shape[0], int(sample_size))
+
+    data_slice = data[s_start:s_end, 2:]  # skip DAC + Sample columns
+    dark_vec = dark[:data_slice.shape[1]]
+
+    # ---------------------------
+    # Excluded mask
+    # ---------------------------
+    excluded_flat = instance.excluded.flatten()
+    mask = np.ones(data_slice.shape[1], dtype=bool)
+    mask[excluded_flat] = False
+    mask[channel_assignment] = True  # ensure channel assignment
+
+    # ---------------------------
+    # Vectorized signal computation
+    # ---------------------------
+    # subtract dark
+    data_slice -= dark_vec
+
+    signals = np.zeros(data_slice.shape[1])
+    signal_std = np.zeros(data_slice.shape[1])
+
+    if version == 'sum':
+        signals[mask] = np.sum(data_slice[:, mask], axis=0)
+        signal_std[mask] = np.std(data_slice[:, mask], axis=0)
+    elif version == 'mean':
+        signals[mask] = np.mean(data_slice[:, mask], axis=0)
+        signal_std[mask] = np.std(data_slice[:, mask], axis=0)
+    elif version == 'max':
+        signals[mask] = np.max(data_slice[:, mask], axis=0)
+        signal_std[mask] = np.std(data_slice[:, mask], axis=0)
+    elif version == 'n_max':
+        # use partial sort for speed
+        sorted_part = np.partition(data_slice[:, mask], -step, axis=0)[-step:]
+        signals[mask] = np.mean(sorted_part, axis=0)
+        signal_std[mask] = np.std(data_slice[:, mask], axis=0)
+    elif version == 'mean_filtered':
+        # find column-wise argmax
+        max_idx = np.argmax(data_slice[:, mask], axis=0)
+        # compute mean around max index (with clipping)
+        for i, idx in enumerate(max_idx):
+            s = max(idx - step, 0)
+            e = min(idx + step + 1, data_slice.shape[0])
+            signals[np.where(mask)[0][i]] = np.mean(data_slice[s:e, np.where(mask)[0][i]])
+            signal_std[np.where(mask)[0][i]] = np.std(data_slice[s:e, np.where(mask)[0][i]])
+
+    # reshape to diode array
+    signals = signals[:el][channel_assignment]
+    signal_std = signal_std[:el][channel_assignment]
+
+    return {'signal': np.reshape(signals, instance.diode_dimension),
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'dict': {}}
+
+
+def ams_2D_assignment_fast_avg(path_to_data_file, instance,
+                               channel_assignment=None,
+                               sample_size=None,
+                               keep_first_row=False):
+    """
+    Fast AMS 2D readout for averaging only, ignoring exclusions.
+    Handles malformed CSVs where the first measurement row is appended to the header.
+    """
+    el = np.prod(instance.diode_dimension)
+
+    # ---------------------------
+    # Setup channel assignment
+    # ---------------------------
+    if channel_assignment is None:
+        channel_assignment = np.arange(el)
+    else:
+        channel_assignment = np.array(channel_assignment).flatten()
+
+    # ---------------------------
+    # Read CSV properly
+    # ---------------------------
+    # Skip header, read DAC + Sample + 128 channels
+    data = pd.read_csv(path_to_data_file, delimiter=',', header=None,
+                       skiprows=1, usecols=range(2 + 128)).to_numpy()
+
+    if keep_first_row:
+        with open(path_to_data_file, 'r') as f:
+            header_line = f.readline().strip().split(',')  # full header + first row appended
+            # extract only the first measurement values (columns 2..2+128)
+            first_row = np.array(header_line[2 + 128:], dtype=float)
+        # prepend to the rest of the CSV data
+        data = np.vstack([first_row[np.newaxis, :], data])
+
+    # ---------------------------
+    # Sample slicing
+    # ---------------------------
+    if sample_size is None:
+        s_start, s_end = 0, data.shape[0]
+    elif isinstance(sample_size, list) and len(sample_size) == 2:
+        s_start = max(0, sample_size[0])
+        s_end = min(data.shape[0], sample_size[1])
+    else:
+        s_start = 0
+        s_end = min(data.shape[0], int(sample_size))
+
+    data_slice = data[s_start:s_end, 2:]  # skip DAC + Sample
+
+    # ---------------------------
+    # Average & std (vectorized)
+    # ---------------------------
+    signals_full = np.mean(data_slice, axis=0)  # shape: 128
+    signal_std_full = np.std(data_slice, axis=0)
+
+    # ---------------------------
+    # Apply channel_assignment and reshape
+    # ---------------------------
+    signals = signals_full[channel_assignment]
+    signal_std = signal_std_full[channel_assignment]
+
+    return {'signal': np.reshape(signals, instance.diode_dimension),
+            'std': np.reshape(signal_std, instance.diode_dimension),
+            'dict': {}}
+
+
+def ams_2D_assignment_frame(path_to_data_file, instance,
+                               channel_assignment=None,
+                               keep_first_row=True,
+                               frame_bunch_size=1000) -> np.ndarray:
+    """
+    Fast AMS 2D readout for averaging only, ignoring exclusions.
+    Handles malformed CSVs where the first measurement row is appended to the header.
+    """
+    el = np.prod(instance.diode_dimension)
+
+    # ---------------------------
+    # Setup channel assignment
+    # ---------------------------
+    if channel_assignment is None:
+        channel_assignment = np.arange(el)
+    else:
+        channel_assignment = np.array(channel_assignment).flatten()
+
+    # ---------------------------
+    # Read CSV properly
+    # ---------------------------
+    # Skip header, read DAC + Sample + 128 channels
+    data = pd.read_csv(path_to_data_file, delimiter=',', header=None,
+                       skiprows=1, usecols=range(2 + 128)).to_numpy()
+
+    # print(np.shape(data))
+    if keep_first_row:
+        with open(path_to_data_file, 'r') as f:
+            header_line = f.readline().strip().split(',')  # full header + first row appended
+            # extract only the first measurement values (columns 2..2+128)
+            first_row = np.array(header_line[2 + 128:], dtype=float)
+        # prepend to the rest of the CSV data
+        data = np.vstack([first_row[np.newaxis, :], data])
+
+    # ---------------------------
+    # Sample slicing
+    # ---------------------------
+    if frame_bunch_size is None:
+        frame_bunch_size = 1
+    elif frame_bunch_size < 1:
+        frame_bunch_size = 1
+    elif frame_bunch_size > data.shape[0]:
+        frame_bunch_size = data.shape[0]
+    elif not isinstance(frame_bunch_size, int):
+        frame_bunch_size = int(frame_bunch_size)
+
+    N = data.shape[0]
+    indices = np.arange(N)
+    groups = np.array_split(indices, frame_bunch_size)
+
+    return np.array([data[g].mean(axis=0)[2:][channel_assignment] for g in groups])

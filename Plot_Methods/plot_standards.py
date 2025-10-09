@@ -400,10 +400,10 @@ def improved_gradient_scale(param_list, cmap, ax_in=None, param_unit='MeV',
 # Now to the interesting part: This function represents an example how to apply settings to a generated plot, without
 # the necessity to call the settings during plotting.
 def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, legend_separator=None, x_after=0,
-                y_after=0, x_fmt=format_func, y_fmt=format_func, second_axis=False, minor_xticks=True,
-                minor_yticks=True, english=language_english, legend_position=0, plot_size=fullsize_plot, x_rotation=0,
-                plot_variant='PL_spectrum', save_format=save_format, dpi=300, fig=None, axes=None, bbox=None,
-                *args) -> None:
+                y_after=0, x_fmt=format_func, y_fmt=format_func, second_axis=False, major_ticks=[True, True],
+                minor_xticks=True, minor_yticks=True, english=language_english, legend_position=0,
+                plot_size=fullsize_plot, x_rotation=0, plot_variant='PL_spectrum', save_format=save_format, dpi=300,
+                fig=None, axes=None, bbox=None, transparent=False, *args) -> None:
     """
     :param save_path: The path where the plot is saved. The standard path just uses (or creates) a folder in the folder
     of this python script ("./Plots/")
@@ -467,14 +467,20 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
             pass
         else:
             if no_colorbar[k]:
-                ax.xaxis.set_major_locator(ticker.AutoLocator())
+                if major_ticks[0]:
+                    ax.xaxis.set_major_locator(ticker.AutoLocator())
+                else:
+                    ax.xaxis.set_major_locator(ticker.NullLocator())
                 if minor_xticks:
                     ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
 
         if ax.get_yscale() == 'log' or ax.get_yscale() == 'symlog':
             pass
         else:
-            ax.yaxis.set_major_locator(ticker.AutoLocator())
+            if major_ticks[0]:
+                ax.yaxis.set_major_locator(ticker.AutoLocator())
+            else:
+                ax.yaxis.set_major_locator(ticker.NullLocator())
             if minor_yticks:
                 ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
 
@@ -543,9 +549,11 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
         os.makedirs(save_path)
     if save:
         if save_name == '':
-            fig.savefig(Path(save_path) / (str(time.asctime()) + save_format), dpi=dpi, bbox_inches=bb, *args)
+            fig.savefig(Path(save_path) / (str(time.asctime()) + save_format), dpi=dpi, bbox_inches=bb,
+                        transparent=transparent, *args)
         else:
-            fig.savefig(Path(save_path) / (save_name + save_format), dpi=dpi, bbox_inches=bb, *args)
+            fig.savefig(Path(save_path) / (save_name + save_format), dpi=dpi, bbox_inches=bb,
+                        transparent=transparent, *args)
 
         plt.close(fig=fig)
 

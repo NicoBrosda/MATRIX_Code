@@ -426,7 +426,7 @@ def homogenize_pixel_size(input_map):
     # Estimation of the minimum pixel size (contains a workaround to use a gcd algorithm from numpy...)
     if np.shape(input_x)[0] == np.shape(input_z)[1]:
         x_steps = np.array([input_x[i + 1] - input_x[i] for i in range(np.shape(input_x)[0] - 1)])
-        x_steps = np.append(x_steps, x_steps[-1])
+        # x_steps = np.append(x_steps, x_steps[-1])
         x_pos = input_x
     elif np.shape(input_x)[0] == np.shape(input_z)[1] + 1:
         x_steps = np.array([input_x[i + 1] - input_x[i] for i in range(np.shape(input_x)[0] - 1)])
@@ -438,7 +438,7 @@ def homogenize_pixel_size(input_map):
 
     if np.shape(input_y)[0] == np.shape(input_z)[0]:
         y_steps = np.array([input_y[i + 1] - input_y[i] for i in range(np.shape(input_y)[0] - 1)])
-        y_steps = np.append(y_steps, y_steps[-1])
+        # y_steps = np.append(y_steps, y_steps[-1])
         y_pos = input_y
     elif np.shape(input_y)[0] == np.shape(input_z)[0] + 1:
         y_steps = np.array([input_y[i + 1] - input_y[i] for i in range(np.shape(input_y)[0] - 1)])
@@ -449,7 +449,7 @@ def homogenize_pixel_size(input_map):
     y_pixel_size = np.gcd.reduce([int(round(i * 10 ** 9, 0)) for i in set(y_steps)]) / 10 ** 9
 
     pixel_size = min(x_pixel_size, y_pixel_size)
-
+    '''
     # x-direction:
     new_x = []
     new_z = []
@@ -474,6 +474,40 @@ def homogenize_pixel_size(input_map):
         else:
             new_y.append(y_pos[i])
             new_image.append(row)
+    '''
+
+    # --- x-direction ---
+    new_x = []
+    new_z = []
+    for i, col in enumerate(input_z.T):
+        if x_steps[i] > pixel_size + 1e-12:
+            # use ceil to avoid truncation from floating precision
+            n_sub = int(np.round(x_steps[i] / pixel_size))
+            left_edge = x_pos[i] - x_steps[i] / 2 + pixel_size / 2
+            for j in range(n_sub):
+                new_x.append(left_edge + j * pixel_size)
+                new_z.append(col)
+        else:
+            new_x.append(x_pos[i])
+            new_z.append(col)
+    new_x, new_z = np.array(new_x), np.array(new_z).T
+
+    # --- y-direction ---
+    new_y = []
+    new_image = []
+    for i, row in enumerate(new_z):
+        if y_steps[i] > pixel_size + 1e-12:
+            n_sub = int(np.round(y_steps[i] / pixel_size))
+            bottom_edge = y_pos[i] - y_steps[i] / 2 + pixel_size / 2
+            for j in range(n_sub):
+                new_y.append(bottom_edge + j * pixel_size)
+                new_image.append(row)
+        else:
+            new_y.append(y_pos[i])
+            new_image.append(row)
+    new_y = np.array(new_y)
+    new_image = np.array(new_image)
+
     return new_x, new_y, np.array(new_image)
 
 

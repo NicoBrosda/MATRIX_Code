@@ -5,6 +5,7 @@ import pathlib
 import os
 import numpy as np  # v. 1.25.1
 import matplotlib.colors as mcolors
+from matplotlib.patches import FancyArrowPatch
 
 
 def wv_to_e(wv):
@@ -237,3 +238,97 @@ def process_color(color):
     comp_rgb = complement_color(rgb)
     return rgb_float_to_format(comp_rgb, fmt, original_alpha)
 
+
+def span_arrow(axis, start, end, c='k', lw=1, *args, **kwargs):
+    axis.autoscale(enable=False)
+
+    axis.axvline(start[0], transform_data_to_axis_coordinates(axis, [start[0], start[1]])[1],
+                 transform_data_to_axis_coordinates(axis, [end[0], end[1]])[1], lw=lw, c=c, *args, **kwargs)
+    axis.axhline(start[1], transform_data_to_axis_coordinates(axis, [start[0], start[1]])[0] - 0.01,
+                 transform_data_to_axis_coordinates(axis, [start[0], start[1]])[0] + 0.01, lw=lw, c=c, *args, **kwargs)
+    axis.axhline(end[1], transform_data_to_axis_coordinates(axis, [end[0], end[1]])[0] - 0.01,
+                 transform_data_to_axis_coordinates(axis, [end[0], end[1]])[0] + 0.01, lw=lw, c=c, *args, **kwargs)
+
+
+def span_arrow(ax, start, end, c='k', lw=1.5, tick_size=0.2, **kwargs):
+    """
+    Vertical measurement bar with square caps exactly at start/end.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Target axes.
+    start, end : (float, float)
+        Data coordinates (x, y) for lower and upper end.
+    c : color
+        Line color.
+    lw : float
+        Line width for the vertical and horizontal ticks.
+    tick_size : float
+        Half-length of the horizontal caps (in data x-units).
+    """
+    # main vertical line
+    ax.plot([start[0], end[0]],
+            [start[1],  end[1]],
+            color=c, lw=lw, clip_on=False, **kwargs)
+
+    # horizontal caps
+    ax.plot([start[0] - tick_size, start[0] + tick_size],
+            [start[1], start[1]],
+            color=c, lw=lw, clip_on=False, **kwargs)
+    ax.plot([end[0] - tick_size, end[0] + tick_size],
+            [end[1], end[1]],
+            color=c, lw=lw, clip_on=False, **kwargs)
+
+
+def span_arrow_cross(ax, center, span=1.0, c='k', lw=1.5, tick_size=0.5):
+    """
+    Draws a cross-shaped measurement arrow centered at `center`.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Target axes.
+    center : tuple of floats
+        (x, y) center position of the cross.
+    span : float
+        Total length of each arrow (mm or data units).
+    c : str
+        Color of the arrows.
+    lw : float
+        Line width.
+    tick_size : float
+        Half-length of the horizontal/vertical end caps.
+    """
+    x0, y0 = center
+    half_span = span / 2
+
+    # Vertical arrow
+    y_start = y0 - half_span
+    y_end = y0 + half_span
+    ax.plot([x0, x0], [y_start, y_end], color=c, lw=lw, clip_on=False)
+    # horizontal caps at top and bottom
+    ax.plot([x0 - tick_size, x0 + tick_size], [y_start, y_start], color=c, lw=lw, clip_on=False)
+    ax.plot([x0 - tick_size, x0 + tick_size], [y_end, y_end], color=c, lw=lw, clip_on=False)
+
+    # Horizontal arrow
+    x_start = x0 - half_span
+    x_end = x0 + half_span
+    ax.plot([x_start, x_end], [y0, y0], color=c, lw=lw, clip_on=False)
+    # vertical caps at left and right ends
+    ax.plot([x_start, x_start], [y0 - tick_size, y0 + tick_size], color=c, lw=lw, clip_on=False)
+    ax.plot([x_end, x_end], [y0 - tick_size, y0 + tick_size], color=c, lw=lw, clip_on=False)
+
+    # Label in the center
+    # ax.text(x0, y0, fr"{span:.0f}$\,$mm", ha='center', va='center')
+
+
+def span_arrow2(axis, start, end, c='k', lw=1, *args, **kwargs):
+    axis.axhline(start[1], transform_data_to_axis_coordinates(axis, [start[0], start[1]])[0],
+                 transform_data_to_axis_coordinates(axis, [end[0], end[1]])[0], lw=lw, c=c, *args, **kwargs)
+    axis.axvline(start[0], transform_data_to_axis_coordinates(axis, [start[0], start[1]])[1] - 0.02,
+                 transform_data_to_axis_coordinates(axis, [start[0], start[1]])[1] + 0.02, lw=lw, c=c, *args,
+                 **kwargs)
+    axis.axvline(end[0], transform_data_to_axis_coordinates(axis, [end[0], end[1]])[1] - 0.02,
+                 transform_data_to_axis_coordinates(axis, [end[0], end[1]])[1] + 0.02, lw=lw, c=c, *args, **kwargs)
+    # axis.autoscale_view()

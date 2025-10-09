@@ -8,7 +8,6 @@ from EvaluationSoftware.normalization_modules import *
 from EvaluationSoftware.filter_modules import *
 from EvaluationSoftware.parameter_parsing_modules import *
 
-
 class DiodeGeometry:
     def __set_name__(self, owner, name):
         self.name = name
@@ -423,7 +422,7 @@ class Analyzer:
                     cache_x = np.array([map_el['x'][0]-(self.diode_spacing[0]+self.diode_size[0])/2])
                     for i in range(np.shape(map_el['x'])[0]):
                         if i == 0:
-                            cache_x = np.append(cache_x, cache_x[-1]+self.diode_spacing[0]/2)
+                            # cache_x = np.append(cache_x, cache_x[-1]+self.diode_spacing[0]/2)
                             cache_x = np.append(cache_x, cache_x[-1] + self.diode_size[0])
                         else:
                             cache_x = np.append(cache_x, cache_x[-1] + self.diode_spacing[0])
@@ -432,7 +431,7 @@ class Analyzer:
                     for i, row in enumerate(map_el['z'].T):
                         if pixel == 'fill':
                             if i == 0:
-                                cache_z.append(map_el['z'].T[i])
+                                pass
                             else:
                                 cache_z.append((map_el['z'].T[i]+map_el['z'].T[i-1])/2)
                         else:
@@ -451,7 +450,7 @@ class Analyzer:
                     cache_y = np.array([map_el['y'][0]-(self.diode_spacing[1]+self.diode_size[1])/2])
                     for i in range(np.shape(map_el['y'])[0]):
                         if i == 0:
-                            cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1] / 2)
+                            # cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1]/2)
                             cache_y = np.append(cache_y, cache_y[-1] + self.diode_size[1])
                         else:
                             cache_y = np.append(cache_y, cache_y[-1] + self.diode_spacing[1])
@@ -461,7 +460,7 @@ class Analyzer:
                     for i, row in enumerate(cache_z):
                         if pixel == 'fill':
                             if i == 0:
-                                cache.append(cache_z[i])
+                                pass
                             else:
                                 cache.append((cache_z[i]+cache_z[i-1])/2)
                         else:
@@ -489,7 +488,6 @@ class Analyzer:
                         interpolation = imshow
                     else:
                         interpolation = 'antialiased'
-
                     color_map = ax.imshow(map_z, cmap=cmap, origin='lower', vmin=intensity_limits[0],
                                           vmax=intensity_limits[1], interpolation=interpolation, alpha=alpha,
                                           extent=(map_x[0] - p2, map_x[-1] + p2, map_y[0] - p2, map_y[-1] + p2))
