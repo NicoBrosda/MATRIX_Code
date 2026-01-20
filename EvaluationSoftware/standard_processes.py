@@ -455,7 +455,8 @@ def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit
 
 
 def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit, instance, names=None, normed=False,
-                      channel_range=[0, 128], mark_n=[], save_plot=True, add_plot=False, color_list=None, lw=1):
+                      channel_range=[0, 128], mark_n=[], save_plot=True, add_plot=False, color_list=None,
+                              pos_scale=False, lw=1):
 
     # Load in the dark data for the comparison:
     if dark_crit is not None:
@@ -469,6 +470,7 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
     else:
         fig, ax = plt.subplots()
 
+    cache = []
     # Load in all the data for the comparison
     for i, crit in enumerate(list_of_crit):
         # Plot colour
@@ -500,22 +502,32 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
         else:
             label = names[i]
 
+        if pos_scale:
+            x = [(k + 1)*pos_scale[0]+pos_scale[1] for k in range(len(signal))]
+        else:
+            x = [k + 1 for k in range(len(signal))]
+
+        cache.append([label, signal, std, x])
+
         if normed:
             max_sig = np.max(signal)
             signal = signal / max_sig
             std = std / max_sig
+
         if i in mark_n:
             # ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color='m', label=label, capsize=5, zorder=3, lw=lw)
-            ax.plot([k + 1 for k in range(len(signal))], signal, color='m', label=label, markersize=5, marker='_', zorder=3, lw=lw)
+            ax.plot(x, signal, color='m', label=label, markersize=5, marker='_', zorder=3, lw=lw)
         elif color_list is not None:
             # ax.errorbar([k + 1 for k in range(len(signal))], signal, yerr=std, color=color_list[i], label=label, capsize=5, alpha=0.9, lw=lw)
-            ax.plot([k + 1 for k in range(len(signal))], signal, color=color_list[i], label=label, markersize=5, marker='_', zorder=3, lw=lw)
+            ax.plot(x, signal, color=color_list[i], label=label, markersize=5, marker='_', zorder=3, lw=lw)
         else:
             # ax.errorbar([k+1 for k in range(len(signal))], signal, yerr=std, color=color, label=label, capsize=5, alpha=0.9, lw=lw)
-            ax.plot([k + 1 for k in range(len(signal))], signal, color=color, label=label, markersize=5, marker='_', zorder=3, lw=lw)
+            ax.plot(x, signal, color=color, label=label, markersize=5, marker='_', zorder=3, lw=lw)
 
-
-    ax.set_xlabel(r'$\#$ Channel of diode array')
+    if pos_scale:
+        ax.set_xlabel(r'Position (mm)')
+    else:
+        ax.set_xlabel(r'$\#$ Channel of diode array')
     if normed:
         ax.set_ylabel('Normed signal current')
     else:
@@ -530,5 +542,5 @@ def signal_comparison_channel(folder_path, results_path, list_of_crit, dark_crit
         format_save(results_path / 'SignalComp/Channel/', name, legend=True)
         plt.close('all')
 
-    return fig, ax
+    return cache
 

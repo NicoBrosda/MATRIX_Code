@@ -27,7 +27,7 @@ intensity_limitsg = [0, 1]
 pixel = 'fill'
 
 dpi = 300
-format = '.pdf'
+format = '.png'
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 # ------------------------------------------------------------------------------------------------------------------
 # Ax1: Logo image

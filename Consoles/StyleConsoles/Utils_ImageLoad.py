@@ -24,6 +24,8 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
         channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
         readout, position_parser = (lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment),
                                     standard_position)
+        readout, position_parser = (lambda x, y: ams_2D_assignment_fast_avg(x, y, channel_assignment),
+                                    standard_position)
         A = Analyzer((1, 128), 0.5, 0.0, readout=readout,
                      position_parser=position_parser, voltage_parser=standard_voltage, current_parser=standard_current)
         # Correct sizing of the arrays
@@ -88,7 +90,8 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
 
         readout, position_parser = lambda x, y: ams_2D_assignment_readout(x, y,
                                                                           channel_assignment=translated_mapping), standard_position
-
+        readout, position_parser = (lambda x, y: ams_2D_assignment_fast_avg(x, y, translated_mapping),
+                                    standard_position)
         A = Analyzer((11, 11), 0.4, 0.1, readout=readout)
 
         dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_211124/')
@@ -125,6 +128,13 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
     else:
         A.set_measurement(folder_path, image)
 
+    # '''
+    if 'Beam' in image:
+        A.scale = 'nano'
+    else:
+        A.scale = 'pico'
+    # '''
+
     A.load_measurement()
 
     if background_subtraction:
@@ -134,10 +144,16 @@ def load_image(folder_path, image, background_subtraction=True, normalization=Tr
 
     A.update_measurement(dark=background_subtraction, factor=normalization)
 
+
     if '_19062024' in folder_path.name:
         A.create_map(inverse=[False, False])
     else:
         A.create_map(inverse=[True, False])
+
+    if '_221024' in folder_path.name:
+        print('Hi')
+        for i, image_map in enumerate(A.maps):
+            A.maps[i]['z'] = simple_zero_replace(image_map['z'])
 
     if len(A.maps) > 1 and position is None:
         A.maps = [A.maps[0]]

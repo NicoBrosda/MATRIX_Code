@@ -10,7 +10,7 @@ results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Style/Paper/')
 
 plot_size = (9.0*cm, 3*8.9*cm / 1.2419)
 dpi = 300
-save_format = '.svg'
+save_format = '.png'
 
 fig, [ax1, ax2, ax3] = plt.subplots(3, 1, figsize=plot_size)
 
@@ -80,7 +80,7 @@ ax1_twin.plot([0, np.max(times[times > 22] - 22 + 7.7)], [0, 2.44], c='r')
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(0, ax.get_ylim()[1])
 ax1_twin.set_ylim(0, ax1_twin.get_ylim()[1]*1.1)
 
-ax.set_xlabel('Irradiation time (h)')
+ax.set_xlabel('Irradiation time (h)', labelpad=1)
 ax.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)')
 ax1_twin.set_ylabel('Cumulated dose (MGy)', color='red', va='center', labelpad=10)
 
@@ -116,21 +116,21 @@ B.scale = 'nano'
 
 currents2, fit_currents2, signal2, fit2, std2, fit_std2, fit_r22, std_r22 = linearity_return(folder_path2, crit, dark_crit, B)
 
-ax.plot(currents, signal, marker='x', color='r', label='Before irradiation', ls='')
-ax.plot(fit_currents, fit, marker='', color='r', ls='--')
-ax.plot(currents2, signal2, marker='x', color='b', label='3 months later', ls='')
-ax.plot(fit_currents2, fit2, marker='', color='b', ls='--')
+ax.plot(currents, signal, marker='x', color='b', label='Before irradiation', ls='')
+ax.plot(fit_currents, fit, marker='', color='b', ls='--')
+ax.plot(currents2, signal2, marker='x', color='r', label='After 3$\\,$mon', ls='')
+ax.plot(fit_currents2, fit2, marker='', color='r', ls='--')
  
-ax.set_xlabel('Proton current at Faraday cup (nA)')
+ax.set_xlabel('Proton current at Faraday cup (nA)', labelpad=2)
 ax.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)')
 ax.set_yscale('log')
 ax.set_xscale('log')
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*2)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.11]), r'Before $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=10,
-        ha='right', va='bottom', c='r')
+        ha='right', va='bottom', c='b')
 ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.1]), r'After $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r22), fontsize=10,
-        ha='right', va='top', c='b')
+        ha='right', va='top', c='r')
 
 ax.legend(loc='upper left', fontsize=9)
 
@@ -141,12 +141,17 @@ export_plot_data(ax, results_path / "Data_IrradiationHardness_Linearity.csv")
 # ------------------------------------------------------------------------------------------------------------------
 ax = ax3
 
-signal_comparison_channel(folder_path1, results_path, ['exp6_25nA_nA_1.9_x_0_y_0', 'exp12_25nA_12_12_2024_16_04_42'],
-                  'exp8_dark_without_cup_nA_1.9_x_0_y_0', A, names=['Before Irradiation', 'After irradiation'], normed=True, mark_n=[], add_plot=ax, save_plot=False, lw=1.5, color_list=['r', 'orange'])
-signal_comparison_channel(folder_path2, results_path, ['exp3_nA_1.9_x_28.25_y_0.0'], 'exp2_nA_1.9_x_28.25_y_0.0', B, names=['3 months later'], add_plot=ax, normed=True, lw=1.5, color_list=['blue'], save_plot=False)
+# signal_comparison_channel(folder_path1, results_path, ['exp6_25nA_nA_1.9_x_0_y_0', 'exp12_25nA_12_12_2024_16_04_42'],'exp8_dark_without_cup_nA_1.9_x_0_y_0', A, names=['Before Irradiation', 'After irradiation'], normed=True, mark_n=[], add_plot=ax, save_plot=False, lw=1.5, color_list=['r', 'orange'])
+signal_before = signal_comparison_channel(folder_path1, results_path, ['exp6_25nA_nA_1.9_x_0_y_0'],'exp8_dark_without_cup_nA_1.9_x_0_y_0', A, names=['Before'], normed=True, mark_n=[], add_plot=ax, save_plot=False, lw=1.5, color_list=['b'], pos_scale=[0.5, 0])
 
+signal_after = signal_comparison_channel(folder_path2, results_path, ['exp3_nA_1.9_x_28.25_y_0.0'], 'exp2_nA_1.9_x_28.25_y_0.0', B, names=[r'After'], add_plot=ax, normed=True, lw=1.5, color_list=['r'], save_plot=False, pos_scale=[0.5, 0])
+
+ax.plot(signal_after[0][-1], signal_after[0][1]/np.max(signal_before[0][1]), marker='', ls='--', c='r', alpha=1, label='Signal \n loss')
+
+gradient_arrow(ax, (31, 1), ((31, 1.08*(np.max(signal_after[0][1])/np.max(signal_before[0][1])))), lw=2.5,
+               cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["b", "r"]), alpha=1, zorder=-1)
 ax.legend(loc='lower right', fontsize=9)
-ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+ax.set_xlim((5, 69)), ax.set_ylim(ax.get_ylim())
 
 x0, y0, x1, y1 = add_png_icon(ax, A, 'top left', zoom=0.2 , translation=None, background=True)
 # ax.text(*transform_axis_to_data_coordinates(ax, [0.03, y0-0.05]), 'Diffused Beam Shape \n Only Relative Height \n Reproducable', fontsize=6, ha='left', va='top', c='k')

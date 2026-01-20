@@ -15,10 +15,10 @@ intensity_limits = np.array([75, 105]) * (2/1.995) / 0.82
 pixel = 'fill'
 
 plot_size = fullsize_plot
-plot_size = (2 * 8.9 * cm, 8.0 / 1.2419 * cm)
+plot_size = (2 * 8.9 * cm, 8.0 / 1.15 * cm)
 
 dpi = 300
-format = '.svg'
+format = '.png'
 
 cmap = sns.color_palette("Greys_r", as_cmap=True)
 
@@ -94,11 +94,14 @@ elif x_scale[1] - x_scale[0] > y_scale[1] - y_scale[0]:
 print(ax2.get_xlim())
 print(ax2.get_ylim())
 
-add_png_icon(ax2, A, 'top left', zoom=0.1, translation=['x', 'y'], background=True)
+add_png_icon(ax2, A, 'top left', zoom=0.11, translation=['x', 'y'], background=True)
 
 ax1.text(*transform_axis_to_data_coordinates(ax1, [0.97, 0.97]), r'\textbf{(a)}', fontsize=10, ha='right',
         va='top', color='k', bbox=dict(facecolor='white', edgecolor='white', boxstyle='round,pad=0.1'))
 ax2.text(*transform_axis_to_data_coordinates(ax2, [0.97, 0.97]), r'\textbf{(b)}', fontsize=10, ha='right',
         va='top', color='k', bbox=dict(facecolor='white', edgecolor='white', boxstyle='round,pad=0.1'))
 
-format_save(save_path=results_path, save_name=f"Graph5_MouseFoot", dpi=dpi, plot_size=plot_size, save_format=format, fig=fig)
+ax2.text(*[2.50, 1.5], r'2$\,$mm', fontsize=10, ha='center', va='bottom', color='w')  # , bbox=dict(facecolor='white', edgecolor='white', boxstyle='round,pad=0.1'))
+span_arrow2(ax2, [1.5, 1], [3.5, 1], c='w')
+ax2.set_xlabel(''), ax2.set_ylabel('')
+format_save(save_path=results_path, save_name=f"Graph5_MouseFoot", dpi=dpi, plot_size=plot_size, save_format=format, fig=fig, major_ticks=[False, False], minor_xticks=False, minor_yticks=False)

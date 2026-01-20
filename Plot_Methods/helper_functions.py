@@ -5,7 +5,6 @@ import pathlib
 import os
 import numpy as np  # v. 1.25.1
 import matplotlib.colors as mcolors
-from matplotlib.patches import FancyArrowPatch
 
 
 def wv_to_e(wv):
@@ -332,3 +331,5 @@ def span_arrow2(axis, start, end, c='k', lw=1, *args, **kwargs):
     axis.axvline(end[0], transform_data_to_axis_coordinates(axis, [end[0], end[1]])[1] - 0.02,
                  transform_data_to_axis_coordinates(axis, [end[0], end[1]])[1] + 0.02, lw=lw, c=c, *args, **kwargs)
     # axis.autoscale_view()
+
+

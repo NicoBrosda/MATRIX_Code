@@ -19,7 +19,7 @@ def doseCalc_Cyrce(area_target, thickness_target, density_target, edep_target, i
     return dose
 
 
-density_target = 6.15e+3  # kg / m^3
+density_target = 6.15e+3  # kg / m^3 = 1e3 g / cm^3
 area_target = (0.4e-03)**2  # m^2
 thickness_target = 4.5e-6  # m
 edep_target = 16.512e+3 / 2 * 1e+6  # eV / m
@@ -27,4 +27,43 @@ edep_target = 17.58e+3 / 2 * 1e+6  # eV / m
 irradiation_time = 15.53 * 3600  # s
 proton_current = 25e-9  # A
 
+
+density_target = 1.3e+3  # kg / m^3 = 1e3 g / cm^3
+area_target = (10e-03)**2  # m^2
+thickness_target = 2e-3  # m
+edep_target = 3.66e9  # eV / m
+irradiation_time = 1e-3  # s
+proton_current = 2e-9  # A
+
+density_target = 6.15e+3  # kg / m^3 = 1e3 g / cm^3
+area_target = (0.4e-03)**2  # m^2
+thickness_target = 4.5e-6  # m
+edep_target = 120e+3 * 1e+6  # eV / m
+irradiation_time = 836.1 * 60  # s
+proton_current = 25e-9  # A
+
+print(f'{doseCalc_Cyrce(area_target, thickness_target, density_target, 8.8e+9, irradiation_time, proton_current):.2e}')
+print(f'{doseCalc_Cyrce(area_target, thickness_target, density_target, 20e+9, irradiation_time, proton_current):.2e}')
+print(f'{doseCalc_Cyrce(area_target, thickness_target, density_target, 120e+9, irradiation_time, proton_current):.2e}')
+
+density_target = 6.15e+3  # kg / m^3 = 1e3 g / cm^3
+area_target = (0.4e-03)**2  # m^2
+thickness_target = 4.5e-6  # m
+edep_target = 120e+3 * 1e+6  # eV / m
+irradiation_time = 876.1 * 60  # s
+proton_current = 25e-9  # A
+
 print(f'{doseCalc_Cyrce(area_target, thickness_target, density_target, edep_target, irradiation_time, proton_current):.2e}')
+
+density_target = 6.15e+3  # kg / m^3 = 1e3 g / cm^3
+area_target = (0.4e-03)**2  # m^2
+thickness_target = 4.5e-6  # m
+edep_target = 120e+3 * 1e+6  # eV / m
+irradiation_time = 40 * 60  # s
+proton_current = 8e-9  # A
+
+print(f'{doseCalc_Cyrce(area_target, thickness_target, density_target, edep_target, irradiation_time, proton_current):.2e}')
+
+print(876.1/60)
+
+print(70*5000/2)

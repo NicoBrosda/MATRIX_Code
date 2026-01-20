@@ -21,7 +21,7 @@ intensity_limits = None
 pixel = 'fill'
 
 dpi = 300
-format = '.svg'
+format = '.png'
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 # ------------------------------------------------------------------------------------------------------------------
 # Ax1: Logo image or schematic?
@@ -196,8 +196,6 @@ zero_scale = True
 intensity_limits = None
 pixel = 'fill'
 
-dpi = 300
-format = '.pdf'
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 # ------------------------------------------------------------------------------------------------------------------
 # Ax1: Logo image or schematic?

@@ -30,7 +30,7 @@ frames = 8
 frames = [frame_start + i*frame_space for i in range(frames)]
 
 plot_size = (18*cm, 9.3/1.2419*cm)
-save_format = '.pdf'
+save_format = '.png'
 dpi = 300
 cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 

@@ -478,6 +478,7 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
 
     # results_path = Path("/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/Process/") / label
     results_path = Path("/Users/nico_brosda/Cyrce_Messungen/Results_260325/Homogeneity/Process/")
+    results_path = Path("/Users/nico_brosda/Cyrce_Messungen/ResultsUV/Normalization/Process/")
 
     # -----------------------------------------------------------------------------------------------------------------
     # Plot in loop: Baseline Mean Before / after shift
@@ -779,7 +780,7 @@ def normalization_from_translated_array_v4(list_of_files, instance, method='leas
 
 
 def normalization_from_translated_array_v5(list_of_files, instance, method='least_squares', align_lines=True,
-                                           remove_background=True, factor_limits=(0.9, 1.1)):
+                                           remove_background=True, factor_limits=(0.9, 1.1), diff_return=False):
     # Load in the data from a list of files in a folder; save position and signal
     position = []
     signals = []
@@ -797,7 +798,7 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
     y_pos = np.sort(np.array(list(set([i[1] for i in position]))))
     pos = [x_pos, y_pos]
 
-    # Choose the direction that is considered for normalisation
+    # Choose the direction considered for normalization
     if len(x_pos) > len(y_pos):
         sp = 0
     elif len(y_pos) > len(x_pos):
@@ -840,7 +841,7 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
         return None
 
     print('Normalization is calculated from translation direction', ['x', 'y'][sp], 'with', steps,
-          'at a mean step width of', step_width, 'mm for a diode periodicity of', diode_periodicity, 'mm.')
+          'steps at a mean step width of', step_width, 'mm for a diode periodicity of', diode_periodicity, 'mm.')
 
     # Sort the arrays by the position
     indices = np.argsort(np.array(position)[:, sp])
@@ -874,6 +875,7 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
         # Group the positions after their recalculation to gain a grid, from which the mean calculation is meaningful
         group_distance = instance.diode_size[sp]
         groups = group(positions[:, :, sp].flatten(), group_distance)
+        print(groups)
 
         # Calculate the mean for each grouped position, consider only the diode signals that were close to this position
         mean_new = []
@@ -897,6 +899,9 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
                 mean_new.append(cache_new / j_new)
                 mean_x_new.append(mean)
 
+        print('-'*50)
+        print(mean_x_new)
+        print(':'*30)
         mean_x_new, mean_new = np.array(mean_x_new), np.array(mean_new)
 
         if align_lines:
@@ -974,4 +979,7 @@ def normalization_from_translated_array_v5(list_of_files, instance, method='leas
             factor_new[line][line_masks[line]] = (factor_new[line][line_masks[line]] - baseline[line_masks[line]]
                                                   + np.mean(baseline))
 
-    return factor_new, diff_new
+    if diff_return:
+        return np.array(factor_new), np.array(diff_new)
+    else:
+        return np.array(factor_new)
