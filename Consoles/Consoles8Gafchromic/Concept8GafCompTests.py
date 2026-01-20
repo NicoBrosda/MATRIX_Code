@@ -3,6 +3,8 @@ from skimage.transform import resize, rotate
 from scipy.optimize import minimize, differential_evolution
 from scipy.ndimage import affine_transform
 import time
+from matplotlib import pyplot as plt
+import matplotlib
 
 func_calls = 0
 
@@ -70,14 +72,27 @@ def align_and_compare_images(
     global func_calls
     func_calls = 0
 
-    def transform_image(image, rotation, center_shift):
-        # Rotate the image without reshape and apply center shift
-        rotated_image = rotate(image, rotation, order=1, mode='reflect')
+    def transform_image(image, rotation, center_shift, mode='resample'):
         shift_matrix = np.eye(3)
         shift_matrix[:2, 2] = center_shift
-        transformed_image = affine_transform(
-            rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=1
-        )
+        if mode == 'resample':
+            # Rotate the image without reshape and apply center shift
+            rotated_image = rotate(image, rotation, order=1, mode='reflect')
+
+            transformed_image = affine_transform(
+                rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=1
+            )
+        elif mode == 'preserve':
+            rotated_image = rotate(image, rotation, order=0)
+
+            transformed_image = affine_transform(
+                rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=0
+            )
+        else:
+            transformed_image = affine_transform(
+                image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=0
+            )
+
         return transformed_image
 
     start_time = time.time()
@@ -182,8 +197,7 @@ def align_and_compare_images(
 
         center_shift = [shift_x, shift_y]
 
-    transformed_low_res = transform_image(image_low_res_padded, rotation, center_shift)
-
+    transformed_low_res = transform_image(image_low_res_padded, rotation, center_shift, mode='preserve')
     valid_mask = (image_high_res_padded > 0) | (transformed_low_res > 0)
     diff_image = image_high_res_padded - transformed_low_res
     diff_image[~valid_mask] = 0  # Set invalid regions to zero
@@ -217,14 +231,27 @@ def align_and_compare_images2(
     global func_calls
     func_calls = 0
 
-    def transform_image(image, rotation, center_shift):
-        # Rotate the image without reshape and apply center shift
-        rotated_image = rotate(image, rotation, order=1, mode='reflect')
+    def transform_image(image, rotation, center_shift, mode='resample'):
         shift_matrix = np.eye(3)
         shift_matrix[:2, 2] = center_shift
-        transformed_image = affine_transform(
-            rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=1
-        )
+        if mode == 'resample':
+            # Rotate the image without reshape and apply center shift
+            rotated_image = rotate(image, rotation, order=1, mode='reflect')
+
+            transformed_image = affine_transform(
+                rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=1
+            )
+        elif mode == 'preserve':
+            rotated_image = rotate(image, rotation, order=0)
+
+            transformed_image = affine_transform(
+                rotated_image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=0
+            )
+        else:
+            transformed_image = affine_transform(
+                image, shift_matrix[:2, :2], offset=shift_matrix[:2, 2], order=0
+            )
+
         return transformed_image
 
     # Resample high-res image to match low-res pixel size
@@ -318,7 +345,7 @@ def align_and_compare_images2(
 
         center_shift = [shift_x, shift_y]
 
-    transformed_high_res = transform_image(image_high_res_padded, rotation, center_shift)
+    transformed_high_res = transform_image(image_high_res_padded, rotation, center_shift, mode='resample')
 
     valid_mask = (image_low_res_padded > 0) | (transformed_high_res > 0)
     diff_image = transformed_high_res - image_low_res_padded

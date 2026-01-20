@@ -199,6 +199,7 @@ class Analyzer:
 
         factor = normalization_module(files, self)
 
+        print(factor)
         if cache_save:
             np.save(path_to_folder / (str(filter_criterion)+'_normalization_factor.npy'), factor)
 
@@ -483,7 +484,10 @@ class Analyzer:
                     map_x, map_y, map_z = homogenize_pixel_size([cache_x, cache_y, cache_z])
 
                     pixel_size = map_x[1] - map_x[0]
+
                     p2 = pixel_size / 2
+                    print(map_x[0] - p2, map_x[-1] + p2, pixel_size)
+                    print(map_y[0] - p2, map_y[-1] + p2)
                     if isinstance(imshow, str):
                         interpolation = imshow
                     else:

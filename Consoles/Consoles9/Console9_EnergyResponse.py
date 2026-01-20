@@ -442,7 +442,7 @@ sim_energy, sim_res, sim_std = simulation_response2('EnergyVariation1e6_param')
 rescale_sim = 1e3
 scale_sim = 'k'
 simn = 1e6 / rescale_sim / 5026.548245743669
-sim_res, sim_std = sim_res / simn, sim_std / simn
+sim_res, sim_std = sim_res / simn / 2, sim_std / simn / 2
 
 sim_res_400 = np.interp(data_wheel_400['energies'][0:len(cache_400)], sim_energy, sim_res)
 sim_std_400 = np.interp(data_wheel_400['energies'][0:len(cache_400)], sim_energy, sim_std)

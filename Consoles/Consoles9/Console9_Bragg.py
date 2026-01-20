@@ -260,7 +260,7 @@ for data in wedge_400:
 # ----------------------------------------------------------------------------------------------------------------
 
 def plot_maps_and_wedge(save_path, comp_list, map_cache, signal_cache, param_color, shape_position, param_unit='MeV',
-                        add_wedge=True, keep_scale=True):
+                        add_wedge=True, keep_scale=True, wedge_thick=10):
     material_depth = []
     signal_height = []
     signal_pos = []
@@ -290,7 +290,7 @@ def plot_maps_and_wedge(save_path, comp_list, map_cache, signal_cache, param_col
         axlim_before = ax.get_xlim()
 
         if add_wedge:
-            shape = LineShape([[0, 1e-9], [40, 10]], distance_mode=True)
+            shape = LineShape([[0, 0.4], [37.81, wedge_thick]], distance_mode=True)
             shape.print_shape()
             shape.position(shape_position, 0)
             shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.6, zorder=5, edgecolor='k')

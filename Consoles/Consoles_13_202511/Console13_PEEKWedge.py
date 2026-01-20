@@ -7,12 +7,15 @@ from scipy.constants import e
 from scipy.optimize import curve_fit
 
 fast_mode = True
-pixel_size = 50/200
+pixel_size = 50 / 200
 rescale_sim = 1e6
 scale_sim = ''
 simn = 1e7 / rescale_sim
-def simulation_Bragg(run_name, diff=200, pixel_size=50/200, mean_range=(20, 30)):
-    dat = pd.read_csv(Path(f'../../Files/energies_after_wheel_diffusor{diff}.txt'), header=4, delimiter='\t', decimal='.',
+
+
+def simulation_Bragg(run_name, diff=200, pixel_size=50 / 200, mean_range=(20, 30)):
+    dat = pd.read_csv(Path(f'../../Files/energies_after_wheel_diffusor{diff}.txt'), header=4, delimiter='\t',
+                      decimal='.',
                       names=['pos', 'thickness', 'energy'])
     comp_list = dat['thickness']
 
@@ -30,7 +33,7 @@ def simulation_Bragg(run_name, diff=200, pixel_size=50/200, mean_range=(20, 30))
 
         # ----------------- Load the Dose / Edep image ----------------------------------
         # img = sitk.ReadImage(str(output_file).replace(".mhd", "_dose.mhd"))
-        print('-'*50)
+        print('-' * 50)
         output_path2 = Path(str(output_file).replace(".mhd", "_edep.mhd"))
         print(f"Checking file: {output_path2}")
         print(f"Exists? {output_path2.exists()}")
@@ -52,7 +55,7 @@ def simulation_Bragg(run_name, diff=200, pixel_size=50/200, mean_range=(20, 30))
 
 mapping = Path('../../Files/mapping.xlsx')
 data = pd.read_excel(mapping, header=1)
-channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
+channel_assignment = [int(k[-3:]) - 1 for k in data['direction_2']]
 readout, position_parser, voltage_parser, current_parser = (
     lambda x, y: ams_2line_readout(x, y, channel_assignment=channel_assignment),
     standard_position,
@@ -60,9 +63,11 @@ readout, position_parser, voltage_parser, current_parser = (
     current5
 )
 
-folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
-results_path = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/Bragg_NewCyrce/')
-results_stem = Path('/Users/nico_brosda/Cyrce_Messungen/Results_260325/')
+aperture_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_peek_121125/')
+
+results_path = Path('/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_121125/PEEK/')
+results_stem = Path('/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_121125/')
 
 # ----------------------- Short summary log of measurements -----------------------
 # Exp 1 : Dark voltage scan ["dark_"]
@@ -107,136 +112,105 @@ new_measurements = []
 aperture_measurements = []
 
 # Used Bragg wedge measurements
-diff_400um =  ([f'exp{44}_PEEKwedge_P{0}_'] + [f'exp{i+46}_PEEKwedge_P{i+1}_' for i in range(17)] +
-               [f'exp{45}_PEEKwedge_P{18}_'])
-diff_200um= ([f'exp{i+99}_PEEKWedge_P{i}_' for i in range(18)] + [f'exp{98}_PEEKWedge_P{18}_'] +
-             [f'exp{117}_PEEKWedge_P{19}_'])
-diff_200um_middle = [f'exp{i+118}_PEEKWedgeMiddle_P{19-i}_' for i in range(8)][::-1]
-new_measurements += diff_400um
+diff_200um = ([f'calibration_1.9_24MeV_P0{int(i+1)}_' for i in range(9)] +
+              [f'calibration_1.9_24MeV_P{int(i+1)}_' for i in range(9, 13)])
 new_measurements += diff_200um
-new_measurements += diff_200um_middle
 
 # Also load round aperture scans for correction purposes
-diff_400um_aperture = [f'exp{i+14}_energydiffmap_P{i}_' for i in range(19)]
-diff_200um_aperture= [f'exp{i+77}_energyDep_P{i}_' for i in range(19)] + ['exp118_PEEKWedgeMiddle_P19_']
-new_measurements += diff_400um_aperture
+diff_200um_aperture = [f'exp{i + 77}_energyDep_P{i}_' for i in range(19)] + ['exp118_PEEKWedgeMiddle_P19_']
 new_measurements += diff_200um_aperture
 
 data_wheel_200 = pd.read_csv('../../Files/energies_after_wheel_diffusor200.txt', sep='\t', header=4,
-                         names=['position', 'thickness', 'energies'])
-data_wheel_400 = pd.read_csv('../../Files/energies_after_wheel_diffusor400.txt', sep='\t', header=4,
-                         names=['position', 'thickness', 'energies'])
+                             names=['position', 'thickness', 'energies'])
 
 # Cmaps for two diffuser
-cmap=sns.color_palette("rocket_r", as_cmap=True)
+cmap = sns.color_palette("rocket_r", as_cmap=True)
 
 param_cmap = sns.color_palette("crest_r", as_cmap=True)
-param_colormapper_200 = lambda param: color_mapper(param, np.min(data_wheel_200['energies']), np.max(data_wheel_200['energies']))
+param_colormapper_200 = lambda param: color_mapper(param, np.min(data_wheel_200['energies']),
+                                                   np.max(data_wheel_200['energies']))
 param_color_200 = lambda param: param_cmap(param_colormapper_200(param))
-param_colormapper_400 = lambda param: color_mapper(param, np.min(data_wheel_400['energies']), np.max(data_wheel_400['energies']))
-param_color_400 = lambda param: param_cmap(param_colormapper_400(param))
 
-dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
+dark_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_peek_121125/')
 
-dark_paths_array1 = ['exp1_dark_0nA_400um_nA_1.9_x_20.0_y_68.0', 'exp64_darkEnd_0.5nA_400um_nA_1.9_x_20.0_y_68.0',
-                     '2exp66_Dark_0.0nA_0um_nA_1.9_x_20.0_y_68.0', '2exp138_DarkEnd_0nA_200um_nA_1.9_x_20.0_y_68.0']
+dark_paths_array1 = ['/Users/nico_brosda/Cyrce_Messungen/matrix_peek_121125/test__nA_1.9_x_108.0_y_28.25.csv',
+                     '/Users/nico_brosda/Cyrce_Messungen/matrix_peek_121125/test__nA_1.9_x_107.5_y_28.25.csv']
 
 norm_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/')
 norm_array1 = ['exp7_norm1,9V_']
 # norm_array1 = ['2exp76_normday2_P0_']
 
 try:
-    aperture_400 = np.load(results_stem / 'Fast_Mode/aperture_400.npz', allow_pickle=True)['arr_0']
-    aperture_200 = np.load(results_stem / 'Fast_Mode/aperture_200.npz', allow_pickle=True)['arr_0']
-    wedge_400 = np.load(results_stem / 'Fast_Mode/wedge_400.npz', allow_pickle=True)['arr_0']
-    wedge_200 = np.load(results_stem / 'Fast_Mode/wedge_200.npz', allow_pickle=True)['arr_0']
-    wedge_200_middle = np.load(results_stem / 'Fast_Mode/wedge_200_middle.npz', allow_pickle=True)['arr_0']
+    aperture_200 = np.load(results_stem / 'Fast_Mode/aperturePEEK_200.npz', allow_pickle=True)['arr_0']
+    wedge_200 = np.load(results_stem / 'Fast_Mode/wedgePEEK_200.npz', allow_pickle=True)['arr_0']
 
     A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout,
                  diode_offset=[[0, - 0.25], np.zeros(64)], position_parser=position_parser,
                  voltage_parser=voltage_parser, current_parser=current_parser)
 except FileNotFoundError as _error:
     print(_error)
-    aperture_400 = []
     aperture_200 = []
-    wedge_400 = []
     wedge_200 = []
-    wedge_200_middle = []
 
     for k, crit in enumerate(new_measurements[0:]):
-        print('-'*50)
+        print('-' * 50)
         print(crit)
-        print('-'*50)
+        print('-' * 50)
 
-        if k < len(diff_400um):
-            diffuser = 400
-        elif k < len(diff_400um) + len(diff_200um):
-            diffuser = 200
-        elif k < len(diff_400um) + len(diff_200um) + len(diff_200um_middle):
-            diffuser = 200
-        elif k < len(diff_400um) + len(diff_200um) + len(diff_200um_middle) + len(diff_400um_aperture):
-            diffuser = 400
+        diffuser = 200
+        if k >= len(diff_200um):
+            used_path = aperture_path
         else:
-            diffuser = 200
+            used_path = folder_path
 
-        wheel_position = int(crit[crit.rindex('_P')+2:crit.rindex('_')])
+        wheel_position = int(crit[crit.rindex('_P') + 2:crit.rindex('_')])
 
         A = Analyzer((2, 64), (0.4, 0.4), (0.1, 0.1), readout=readout,
                      diode_offset=[[0, - 0.25], np.zeros(64)], position_parser=position_parser,
                      voltage_parser=voltage_parser, current_parser=current_parser)
         dark = dark_paths_array1
-        A.set_measurement(folder_path, crit)
+        A.set_measurement(used_path, crit)
         A.set_dark_measurement(dark_path, dark)
         norm = norm_array1
         norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
             list_of_files, instance, method, align_lines=True)
         A.normalization(norm_path, norm, normalization_module=norm_func)
         A.load_measurement()
-        A.create_map(inverse=[True, False])
+        A.create_map(inverse=[False, False])
 
         A.maps[0] = overlap_treatment(A.maps[0], A, True)
 
         # -------------- Save signal map to a cache list --------------
         save_obj = A.maps[0]
         save_obj['wheel_position'] = wheel_position
-        if k < len(diff_400um):
-            wedge_400.append(save_obj)
-        elif k < len(diff_400um) + len(diff_200um):
+        if k < len(diff_200um):
             wedge_200.append(save_obj)
-        elif k < len(diff_400um) + len(diff_200um) + len(diff_200um_middle):
-            wedge_200_middle.append(save_obj)
-        elif k < len(diff_400um) + len(diff_200um) + len(diff_200um_middle) + len(diff_400um_aperture):
-            aperture_400.append(save_obj)
         else:
             aperture_200.append(save_obj)
 
     if fast_mode:
-        np.savez(results_stem / 'Fast_Mode/aperture_400.npz', aperture_400)
-        np.savez(results_stem / 'Fast_Mode/aperture_200.npz', aperture_200)
-        np.savez(results_stem / 'Fast_Mode/wedge_400.npz', wedge_400)
-        np.savez(results_stem / 'Fast_Mode/wedge_200.npz', wedge_200)
-        np.savez(results_stem / 'Fast_Mode/wedge_200_middle.npz', wedge_200_middle)
+        np.savez(results_stem / 'Fast_Mode/aperturePEEK_200.npz', aperture_200)
+        np.savez(results_stem / 'Fast_Mode/wedgePEEK_200.npz', wedge_200)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Positioning of PEEK wedge
 # ---------------------------------------------------------------------------------------------------------------------
-# For 400 um measurement: Bottom line at ≈ 57.25 - validation bottom aperture at 55.54
-# Difference = 1.71 mm but in Gaf ≈ 2.4 mm !x!x!
-bragg_pos_wedge400 = 57.25
 # For 200 um measurement:
-# Holes at 70.3, 72.1, ...
-# -> Lower edge is 14 or 15.8 mm lower = 56.3
-bragg_pos_wedge200 = 56.3
-# For 200 um measurement in middle: ≈ 65.4 as end of wedge object -> lower edge of wedge 2.1 mm higher
-# This would mean: Lower edge of wedge is at 67.5
-# But will be validated with synchronizing max signal to 200 um measurement position
-bragg_pos_wedge200_middle = 67.5
+# Bragg should be stacked with thick side down fully to the aperture holder
+# Central cross is in measurements at 28.25
+# The sample holder is 30 mm deep
+# Upper edge of wedge after ≈ 37.81 mm
+# -> Upper edge at 28.25 - 15 + 37.81 = 51.06
+bragg_pos_wedge200 = 28.25 - (51.06-28.25)
+
 
 # Bragg position in the simulation is at y = -17 respectively -17 + 2.1 for the shortened version
 # bragg_pos_sim = -17
 # realer_bragg_pos_sim = -17 + 2.1
 realer_bragg_pos_sim = -20 + (20 - 11.2)
 bragg_pos_sim = realer_bragg_pos_sim
+
+
 # To compare with measurement I will align the y-scale, so that it begins at 0
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -314,6 +288,7 @@ def plot_maps_sim(save_path, comp_list, map_cache, signal_cache, param_color, sh
             text = f"{param: .2f}$\\,${param_unit}"
         ax.text(*transform_axis_to_data_coordinates(ax, [0.05, 0.93]), text, fontsize=13,
                 c=color, zorder=7, bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.9, 'pad': 2})
+        plt.show()
         format_save(save_path, save_name=f'Map{wheel_position}', save=True, legend=False, fig=fig)
     if add_wedge:
         return material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim
@@ -360,13 +335,13 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
             ax.plot(y_pos, line, c='k', zorder=-1, ls='-', label='Experiment')
             ax2.plot(y_pos_sim, line_sim, c='k', zorder=-1, ls='--', label='Simulation')
 
-    shape = LineShape([[0, 1e-9], [40-2.1, 10]], distance_mode=True)
+    shape = LineShape([[0, 1e-9], [40 - 2.1, 10]], distance_mode=True)
     shape.print_shape()
     shape.position(shape_position, 0)
     shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.6, zorder=5, edgecolor='k')
 
     gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]),
-                       transform_axis_to_data_coordinates(ax, [0.1, 0.795]),
+                   transform_axis_to_data_coordinates(ax, [0.1, 0.795]),
                    cmap=param_cmap, lw=10, zorder=5)
     ax.text(*transform_axis_to_data_coordinates(ax, [0.035, 0.94]),
             f'{np.min(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.min(comp_list)),
@@ -412,13 +387,12 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
             ax.plot(y_pos, line, c='k', zorder=-1, ls='-', label='Experiment')
             ax2.plot(y_pos_sim, line_sim, c='k', zorder=-1, ls='--', label='Simulation')
 
-
-    shape = LineShape([[0, 1e-9], [40-2.1, 10]], distance_mode=True)
+    shape = LineShape([[0, 1e-9], [40 - 2.1, 10]], distance_mode=True)
     shape.print_shape()
     shape.position(shape_position, 0)
     shape.add_to_plot(0.0, 0.5, ax=ax, color='grey', alpha=0.6, zorder=5, edgecolor='k')
 
-    ax.set_xlim(48, 80)
+    ax.set_xlim(shape_position, shape_position+35)
 
     gradient_arrow(ax, transform_axis_to_data_coordinates(ax, [0.1, 0.925]),
                    transform_axis_to_data_coordinates(ax, [0.1, 0.795]),
@@ -439,7 +413,7 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
         """Return a truncated and optionally reversed colormap"""
         if reverse:
             cmap = cmap.reversed()
-            
+
         new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
             f'trunc({cmap.name},{minval:.2f},{maxval:.2f})',
             cmap(np.linspace(minval, maxval, n))
@@ -484,18 +458,18 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
         shape.position(shape_position, 0)
         shape.add_to_plot(0.0, 0.5, ax=ax, color='grey', alpha=0.6, zorder=5, edgecolor='k')
 
-        ax.set_xlim(48, 80)
+        ax.set_xlim(shape_position, shape_position+35)
         if k == 0:
             pass
         elif k == 1:
             ax.text(*transform_axis_to_data_coordinates(ax, [0.025, 0.94]),
-                   f'{np.max(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.max(comp_list)),
-                   zorder=4, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
+                    f'{np.max(comp_list): .2f}$\\,${param_unit}', fontsize=13, c=param_color(np.max(comp_list)),
+                    zorder=4, bbox={'facecolor': 'w', 'alpha': 0.8, 'pad': 2, 'edgecolor': 'w'})
         else:
-            approx_len = 0.925 - (0.925 - 0.795) * k / (len(signal_cache)-1)
+            approx_len = 0.925 - (0.925 - 0.795) * k / (len(signal_cache) - 1)
 
             # Map the fraction up to the current parameter
-            frac = 1 - (param - np.min(comp_list)) / (np.max(comp_list)- np.min(comp_list))
+            frac = 1 - (param - np.min(comp_list)) / (np.max(comp_list) - np.min(comp_list))
 
             # Create a reversed + truncated version of the colormap
             cmapII = truncated_colormap(param_cmap, minval=0.0, maxval=frac, reverse=True)
@@ -521,13 +495,14 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
     ax.set_ylabel(f'Max signal wedge material depth (mm)')
 
     for i, obj in enumerate(signal_cache):
+        if i > len(material_depth)-1 or i > len(material_depth_sim)-1: break
         param = comp_list[i]
         color = param_color(param)
         ax.plot(param, material_depth[i], c=color, marker='x', zorder=2)
         ax.plot(param, material_depth_sim[i], c=color, marker='^', zorder=2)
 
-    ax.plot(comp_list, material_depth, c='k', marker='x', ls='-', label='Experiment', zorder=1)
-    ax.plot(comp_list, material_depth_sim, c='k', marker='^', ls='--', label='Simulation', zorder=1)
+    ax.plot(comp_list[:len(material_depth)], material_depth, c='k', marker='x', ls='-', label='Experiment', zorder=1)
+    ax.plot(comp_list[:len(material_depth_sim)], material_depth_sim, c='k', marker='^', ls='--', label='Simulation', zorder=1)
 
     format_save(save_path, save_name=f'SimComp_MaterialDepthVsWedge', save=True, legend=True, fig=fig)
 
@@ -542,26 +517,28 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
     ax2.set_ylabel(f'Deposited Energy per initial proton ({scale_sim}eV)')
 
     for i, obj in enumerate(signal_cache):
+        if i > len(material_depth)-1 or i > len(material_depth_sim)-1: break
         param = comp_list[i]
         color = param_color(param)
         ax.plot(param, signal_height[i], c=color, marker='x', zorder=2)
         ax2.plot(param, signal_height_sim[i], c=color, marker='^', zorder=2)
 
-    ax.plot(comp_list, signal_height, c='k', marker='x', ls='-', label='Experiment', zorder=1)
-    ax2.plot(comp_list, signal_height_sim, c='k', marker='^', ls='--', label='Simulation', zorder=1)
+    ax.plot(comp_list[:len(material_depth)], signal_height, c='k', marker='x', ls='-', label='Experiment', zorder=1)
+    ax2.plot(comp_list[:len(material_depth_sim)], signal_height_sim, c='k', marker='^', ls='--', label='Simulation', zorder=1)
 
     format_save(save_path, save_name=f'SimComp_SignalHeightVsWedge', save=True, legend=True, fig=fig)
 
 
 # ----------------------------------------------------------------------------------------------------------------
 # Calculate normed responses (normed to incoming protons)
-#----------------------------------------------------------------------------------------------------------------
-additional_scale = 1/e * 1e-18 * 4417.864669110646
+# ----------------------------------------------------------------------------------------------------------------
+additional_scale = 1 / e * 1e-18 * 4417.864669110646
 rescale_current = 1e6 * additional_scale
 scale_current = f'$\\#$electrons'
 
-currents_400_aperture = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 / e / rescale_current
-currents_200_aperture = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) *1e-9 / e /rescale_current
+currents_200_aperture = np.array(
+    [1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69,
+     1.76]) * 1e-9 / e / rescale_current
 
 factor_200 = []
 for i in range(len(currents_200_aperture)):
@@ -569,30 +546,17 @@ for i in range(len(currents_200_aperture)):
     factor_200.append(aperture_200[i])
     factor_200[i]['z'] = factor_200[i]['z'] / np.max(factor_200[i]['z'])
 
-factor_400 = []
-for i in range(len(currents_400_aperture)):
-    aperture_400[i]['z'] = aperture_400[i]['z'] / currents_400_aperture[i]
-    factor_400.append(aperture_400[i])
-    factor_400[i]['z'] = factor_400[i]['z'] / np.max(factor_400[i]['z'])
-
 rescale_current = 1e6 * additional_scale
 scale_current = f'$\\#$electrons'
 # Correctly ordered from P0 (or P12) increasing
-currents_400 = np.array([882.5, 879, 877.5, 877, 874.5, 874, 872, 876.5, 876, 875.5, 873.5, 873.5, 872.5, 872, 870.5, 888, 888.5, 888, 881]) * 1e-12 / e / rescale_current
-currents_200 = np.array([1.74, 1.736, 1.7295, 1.7245, 1.7195, 1.715, 1.7115, 1.7085, 1.710, 1.7345, 1.726, 1.735, 1.7335, 1.731, 1.7265, 1.726, 1.725, 1.7225, 1.7455, 1.7225]) * 1e-9 / e / rescale_current
-currents_200_middle = np.array([1.7815, 1.781, 1.778, 1.778, 1.777, 1.7765, 1.7745, 1.774]) * 1e-9 / e / rescale_current
+
+currents_200 = np.array([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]) * 1e-9 / e / rescale_current
 
 for i in range(len(currents_200)):
     wedge_200[i]['z'] = wedge_200[i]['z'] / currents_200[i]
 
-for i in range(len(currents_400)):
-    wedge_400[i]['z'] = wedge_400[i]['z'] / currents_400[i]
-
-for i in range(len(currents_200_middle)):
-    wedge_200_middle[i]['z'] = wedge_200_middle[i]['z'] / currents_200_middle[i]
-
-#----------------------------------------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------
 
 def correct_wedge_with_aperture(wheel_position, map_set='400', threshold=0.1):
     """
@@ -607,15 +571,9 @@ def correct_wedge_with_aperture(wheel_position, map_set='400', threshold=0.1):
         Dictionary with 'z', 'x', 'y', 'position' keys for corrected wedge map
     """
     # Select the appropriate maps based on the set parameter
-    if map_set == '400':
-        wedge_map = wedge_400[wheel_position]
-        aperture_map = factor_400[wheel_position]
-    elif map_set == '200':
+    if map_set == '200':
         wedge_map = wedge_200[wheel_position]
         aperture_map = factor_200[wheel_position]
-    elif map_set == '200_middle':
-        wedge_map = wedge_200_middle[wheel_position - 12]
-        aperture_map = factor_200[wheel_position]  # Note: using aperture_200 for 200_middle
     else:
         raise ValueError(f"Unknown map set: {map_set}. Use '400', '200', or '200_middle'")
 
@@ -690,39 +648,21 @@ def correct_wedge_with_aperture(wheel_position, map_set='400', threshold=0.1):
                         # print(f"Warning: Index out of bounds: wedge[{i_w},{j_w}], aperture[{i_a},{j_a}]")
     return corrected_wedge_map
 
+
 threshold = 0.3
-for wheel_position in range(19):
+for wheel_position in range(13):
     wedge_200[wheel_position] = correct_wedge_with_aperture(wheel_position, map_set='200', threshold=threshold)
-    wedge_400[wheel_position] = correct_wedge_with_aperture(wheel_position, map_set='400', threshold=threshold)
-    if wheel_position >= 12:
-        wedge_200_middle[wheel_position-12] = correct_wedge_with_aperture(wheel_position, map_set='200_middle', threshold=threshold)
 
 # ---------------------------------------------------------------------------------------------------------------------
 # With correction
 # ---------------------------------------------------------------------------------------------------------------------
 # Extract Bragg curves out of signal maps:
-x_range = (16, 18)
+x_range = (100, 110)
 signal_cache_200 = []
 for data in wedge_200:
     x_data = data['x']
     indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
     signal_cache_200.append([data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
-
-x_range = (16, 18)
-signal_cache_200_middle = []
-for data in wedge_200_middle:
-    x_data = data['x']
-    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
-    signal_cache_200_middle.append(
-        [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
-
-x_range = (16, 18)
-signal_cache_400 = []
-for data in wedge_400:
-    x_data = data['x']
-    indices = [np.argmin(np.abs(x_data - x_range[0])), np.argmin(np.abs(x_data - x_range[1]))]
-    signal_cache_400.append(
-        [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
 
 A.scale = 'atto'
 # ----------------------------------------------------------------------------------------------------------------
@@ -741,37 +681,20 @@ save_path = results_path / 'CorrectedIII_Wedge200/'
 # for wedge_mat in ['PEEK', 'PEEKII', 'PEEKpB', 'PEEKmB', 'PEEKpi', 'PEEKmi', 'PEEKpii', 'PEEKmii', 'PEEKpiii', 'PEEKmiii']:
 # for wedge_mat in ['PEEKmBI', 'PEEKmBII', 'PEEKmBIII', 'PEEKmBIIII']:
 cache = []
-for wedge_mat in ['Polypropylene', '1um_Detector']:
+for wedge_mat in ['PEEK']:
     print(wedge_mat)
     wedge_thick = 10
     save_path = results_path / f'DensityVar/WedgeDensityVar_{wedge_mat}/'
-    if wedge_mat == 'UHMWPE2':
-        run_name = f'1e+06OffsetCheck200UHMWPE_param'
-    elif wedge_mat == 'UHMWPEII':
-        run_name = f'1e+06MeasuredWedge200{wedge_mat}_param'
-    elif 'Polypropylene' in wedge_mat:
-        run_name = f'1e+06MeasuredWedge200{wedge_mat}_param'
-    elif wedge_mat == '1um_Detector':
-        wedge_mat = 'Polypropylene'
-        run_name = f'1e+06MeasuredWedge200AND1umDetector{wedge_mat}_param'
-    else:
-        run_name = f'1e+07MeasuredWedge200{wedge_mat}_param'
-    if wedge_mat == 'PEEKII':
-        run_name = f'1e6MaterialTest{wedge_mat}_param'
-    if wedge_mat == 'DoublePEEK':
-        wedge_mat = 'PEEK'
-        run_name = f'1e7DoubleWedge200diff{wedge_mat}_param'
-        save_path = results_path / f'DensityVar/DoubleWedgeDensityVar_{wedge_mat}/'
-        wedge_thick = 20
-    # run_name = 'RealerWedge200um1e7_param'
+    # run_name = f'1e7RealWedge200diff{wedge_mat}_param'
+    run_name = f'1e7PixelCheckWedge200diff{wedge_mat}_param'
 
     material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
         plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                      run_name, param_unit, True, True, wedge_thick=wedge_thick) )
+                      run_name, param_unit, True, True, wedge_thick=wedge_thick))
     if 'Double' in save_path.name:
         material_depth = np.array(material_depth) / 2
     plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-                   signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
+                   signal_height_sim, signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
     cache.append(material_depth_sim)
     continue
     material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
@@ -779,8 +702,10 @@ for wedge_mat in ['Polypropylene', '1um_Detector']:
                       run_name, param_unit, True, True))
 
     plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-                   signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
+                   signal_height_sim, signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
 
+
+plt.error
 fig, ax = plt.subplots()
 ax.plot(comp_list, cache[0], '^', label='C2H4')
 ax.plot(comp_list, cache[1], 'v', label='Polyproplyene C3H6')
@@ -790,49 +715,7 @@ ax.set_ylabel(f'Max signal wedge material depth (mm)')
 format_save(save_path, save_name=f'SimComp_MeasuredMaterial', save=True, legend=True, fig=fig)
 
 plt.error
-# ----------------------------------------------------------------------------------------------------------------
-# Calls for 200 wedge middle
-# ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_200['energies'].to_numpy()[-len(signal_cache_200_middle):-1]
-param_colormapper_200 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_color = lambda param: param_cmap(param_colormapper_200(param))
-param_unit = 'MeV'
-signal_cache = signal_cache_200_middle[:len(comp_list)]
-map_cache = wedge_200_middle[:len(comp_list)]
-shape_position = bragg_pos_wedge200_middle
-save_path = results_path / 'WedgeDensityVar/'
-for wedge_mat in ['PEEK', 'PEEKpB', 'PEEKmB', 'PEEKpi', 'PEEKmi', 'PEEKpii', 'PEEKmii', 'PEEKpiii', 'PEEKmiii']:
-    run_name = f'1e7RealWedge200diff{wedge_mat}_param'
-    save_path = results_path / f'DensityVar/WedgeMidDensityVar_{wedge_mat}/'
-    # run_name = 'RealerWedge200um1e7_param'
 
-    material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-        plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                      run_name, param_unit, True, True))
-
-    plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-                   signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
-
-plt.error
-# ----------------------------------------------------------------------------------------------------------------
-# Calls for 400 wedge
-# ----------------------------------------------------------------------------------------------------------------
-comp_list = data_wheel_400['energies'].to_numpy()[:-1]
-param_colormapper_400 = lambda param: color_mapper(param, np.min(comp_list), np.max(comp_list))
-param_unit = 'MeV'
-param_color = param_color_400
-signal_cache = signal_cache_400[:len(comp_list)]
-map_cache = wedge_400[:len(comp_list)]
-shape_position = bragg_pos_wedge400
-save_path = results_path / 'CorrectedIII_Wedge400/'
-run_name = 'RealerWedge400um1e7_param'
-
-material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
-    plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,
-                  run_name, param_unit, True, True))
-
-plots_sim_comp(save_path / 'Results/', comp_list, signal_cache, material_depth, material_depth_sim, signal_height,
-               signal_height_sim,  signal_pos, signal_pos_sim, param_color, shape_position, run_name, param_unit)
 
 
 

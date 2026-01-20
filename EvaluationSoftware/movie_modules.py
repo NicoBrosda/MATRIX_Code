@@ -30,7 +30,7 @@ def get_frames_per_file(folder, criterion):
     return frames_per_file, first_file
 
 
-def compute_fps_from_files(folder, pattern="*.csv",
+def compute_fps_from_files2(folder, pattern="*.csv",
                            frames_per_file=None,
                            use_ctime=False,
                            frames=None,
@@ -143,6 +143,7 @@ def compute_fps_from_files(folder, pattern="*.csv",
 
 def compute_fps_from_files(folder, pattern="*.csv",
                            frames_per_file=None,
+                           sub_time_gap = 1e-3,
                            use_ctime=False,
                            frames=None,
                            target_fps=None,
@@ -160,6 +161,8 @@ def compute_fps_from_files(folder, pattern="*.csv",
         Glob pattern to select files (default '*.csv').
     frames_per_file : int
         How many logical frames are in each file (default 1).
+    sub_time_gap : float
+        What is the time gap between measurements within the sub_files (default 1ms=1e-3s)
     use_ctime : bool
         Use creation time (getctime) instead of modification time (getmtime).
     frames : list or tuple, optional
@@ -196,7 +199,7 @@ def compute_fps_from_files(folder, pattern="*.csv",
     if frames is None:
         frames_idx = np.arange(len(files))
     else:
-        frames_idx = np.array(frames)
+        frames_idx = np.array(frames) - 1
 
     files = np.array(files)[frames_idx]
     n_files = len(files)
@@ -204,7 +207,7 @@ def compute_fps_from_files(folder, pattern="*.csv",
 
     # Intervals between consecutive files
     dts = np.diff(times) if len(times) > 1 else np.array([], dtype=float)
-    duration_files = times[-1] - times[0] if len(times) > 1 else 0.0
+    duration_files = times[-1] - times[0] + frames_per_file * sub_time_gap if len(times) > 1 else frames_per_file * sub_time_gap
 
     total_frames = frames_per_file * n_files
     fps_est = (total_frames - 1) / duration_files if duration_files > 1e-9 and total_frames > 1 else None
@@ -495,7 +498,7 @@ class FrameGenerator:
 def generate_movie(analyzer, folder_path, crit, output_path, output_name=None, frame_select=None, zero_frame=None,
                    target_fps=60, length_scale=1., movie_res=4, detector_status=True, breaks: float | str = 'proportional',
                    cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"]),
-                   compress=True, return_info=False):    #
+                   compress=True, return_info=False, sub_time=1e-3, intensity_limits=(0, 0.8)):    #
     # The measurement files and some redundant statistics to allow easier frame settings
     files = sorted(glob.glob(str(folder_path / f"*{crit}*.csv")))
     n_files = len(files)
@@ -516,14 +519,14 @@ def generate_movie(analyzer, folder_path, crit, output_path, output_name=None, f
     else:
         frame_start = 1
         frame_space = 1
-        frames_n = len(files) - 1
+        frames_n = len(files)
     frames = [frame_start + i*frame_space for i in range(frames_n)]
 
     results_path = output_path / Path(f'movie_subres{frame_start}_{frame_space}_{frames_n}/')
 
     # Target fps
     stats = compute_fps_from_files(folder_path, pattern=f"*{crit}*.csv", frames=frames, target_fps=target_fps,
-                                   length_scale=length_scale, verbose=True)
+                                   length_scale=length_scale, verbose=True, sub_time_gap=sub_time)
 
     if return_info:
         return stats
@@ -564,7 +567,7 @@ def generate_movie(analyzer, folder_path, crit, output_path, output_name=None, f
         zero *= analyzer.norm_factor
         zero = analyzer.signal_conversion(zero)
         cache = np.abs(cache - zero)
-    intensity_limits = np.array([0, np.max(cache)*0.8])
+    intensity_limits = np.array([np.min(cache)*intensity_limits[0], np.max(cache)*intensity_limits[1]])
     # cache = np.transpose(cache, (0, 2, 1))
 
     FG = FrameGenerator(analyzer, inverse=[False, False])

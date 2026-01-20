@@ -1,3 +1,5 @@
+import numpy as np
+
 from EvaluationSoftware.main import *
 from EvaluationSoftware.helper_modules import rename_files
 import contextlib
@@ -12,8 +14,12 @@ direction1 = np.array([int(k[-3:]) for k in direction1['direction_1']])
 direction2 = pd.read_excel(mapping, header=1)
 direction2 = np.array([int(k[-3:]) for k in direction2['direction_2']])
 
-mapping_small2 = Path('../../Files/Mapping_SmallMatrix2.xlsx')
+mapping_small2 = Path('../../Files/Mapping_SmallMatrix2_Rotated.xlsx')
+mapping_big2 = Path('../../Files/Mapping_MatrixArray_Rotated.xlsx')
 mapping_big2 = Path('../../Files/Mapping_MatrixArray.xlsx')
+
+mapping_big2 = Path('../../Files/Mapping_MatrixArray_Rotated.xlsx')
+
 
 data_small2 = pd.read_excel(mapping_small2, header=None)
 mapping_map = data_small2.to_numpy().flatten()
@@ -34,8 +40,8 @@ dark_small = ['exp1_dark__nA_1.9_x_100.0_y_50.0.csv']
 dark_big = ['exp55_nA_1.9_x_100.0_y_50.0.csv']
 
 position_parser, voltage_parser, current_parser = WPE, standard_voltage, current3
-readout_small = lambda x, y:ams_2D_assignment_readout_WPE3(x, y, channel_assignment=translated_mapping_small2)
-readout_big = lambda x, y: ams_2D_assignment_readout_WPE3(x, y, channel_assignment=translated_mapping_big)
+readout_small = lambda x, y:ams_2D_assignment_readout(x, y, channel_assignment=translated_mapping_small2)
+readout_big = lambda x, y: ams_2D_assignment_readout(x, y, channel_assignment=translated_mapping_big)
 
 # A = Analyzer((11, 11), 0.4, 0.1, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser)
 # A.set_dark_measurement(dark_path, dark)
@@ -138,13 +144,15 @@ for j, folder_path in enumerate([folder_image1, folder_image2, folder_image3]):
         A.readout = readout
 # '''
 
-measurements = ['exp52_eye_', 'exp53_eye_', 'exp56_StepPhantom_']
+measurements = ['exp52_eye_', 'exp53_eye_', 'exp56_StepPhantom_', 'exp57']
 folder_path = Path('/Users/nico_brosda/Desktop/matrix_210525/Images/')
 
 norm_func = lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
         list_of_files, instance, method, align_lines=True)
 
 for i, crit in enumerate(measurements):
+    if i != 2:
+        continue
     if i <= 1:
         readout = readout_small
         dark = dark_small
@@ -160,49 +168,117 @@ for i, crit in enumerate(measurements):
         norm_path=Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
         norm = ['2DLarge_YScan_']
 
-    for version in ['sum', 'mean', 'mean_filtered', 'max', 'n_max']:
-        if version == 'mean_filtered':
-            for step in [10, 100, 500, 1000, 2000]:
-                readout = lambda x, y: ams_2D_assignment_readout_WPE_choice(x, y, channel_assignment=mapping,
-                                                                            version=version, step=step)
+    for version in ['sum']:
+        A = Analyzer((11, 11), dsi, dsp, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser,
+                     position_parser=position_parser)
+        A.set_dark_measurement(dark_path, dark)
 
-                A = Analyzer((11, 11), dsi, dsp, readout=readout, voltage_parser=voltage_parser,
-                             current_parser=current_parser,
-                             position_parser=position_parser)
-                A.set_dark_measurement(dark_path, dark)
-                A.normalization(norm_path, norm, normalization_module=norm_func)
-                A.norm_factor[A.norm_factor < 0.7] = 1
-                A.set_measurement(folder_path, crit)
-                A.load_measurement()
-                A.create_map(inverse=[True, False])
-                A.name += f'_{version}_{step:.0f}_'
-                A.plot_map(results_path / 'maps/', pixel='fill')
-        elif version == 'n_max':
-            for step in [5, 10, 50, 100, 500, 1000, 2000]:
-                readout = lambda x, y: ams_2D_assignment_readout_WPE_choice(x, y, channel_assignment=mapping,
-                                                                            version=version, step=step)
+        A.readout = lambda x, y: ams_2D_assignment_readout_WPE_choice(x, y, channel_assignment=mapping, version=version)
 
-                A = Analyzer((11, 11), dsi, dsp, readout=readout, voltage_parser=voltage_parser,
-                             current_parser=current_parser,
-                             position_parser=position_parser)
-                A.set_dark_measurement(dark_path, dark)
-                A.normalization(norm_path, norm, normalization_module=norm_func)
-                A.norm_factor[A.norm_factor < 0.7] = 1
-                A.set_measurement(folder_path, crit)
-                A.load_measurement()
-                A.create_map(inverse=[True, False])
-                A.name += f'_{version}_{step:.0f}_'
-                A.plot_map(results_path / 'maps/', pixel='fill')
-        else:
-            readout = lambda x, y: ams_2D_assignment_readout_WPE_choice(x, y, channel_assignment=mapping, version=version)
+        if i >= 2:
+            A.set_measurement(folder_path, 'exp57')
+            A.load_measurement()
+            A.create_map(inverse=[False, False])
+            flat_field = A.maps[0]['z']
+            A.norm_factor = flat_field / (np.mean(flat_field[flat_field > 0]))
+            A.norm_factor[A.norm_factor <= 0.05] = 1
+            norm_factor = (1 / A.norm_factor).T
+            norm_factor = norm_factor / np.mean(norm_factor)
 
-            A = Analyzer((11, 11), dsi, dsp, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser,
-                         position_parser=position_parser)
-            A.set_dark_measurement(dark_path, dark)
+
+            print('-' * 50)
+            print('_' * 50)
+            # '''
+            # Plot
+            cmap = sns.color_palette("flare_r", as_cmap=True)
+
+            # Adjust figure size dynamically (bigger for longer arrays)
+            ny, nx = norm_factor.shape
+            aspect_ratio = nx / ny
+            print(aspect_ratio)
+            fig_width = min(max(4 * aspect_ratio, 6), 12)
+            fig_height = min(max(4 / aspect_ratio, 4), 10)
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+
+            v_min = 0.8
+            v_max = 1.4
+            # Show the image
+            if aspect_ratio != 1:
+                aspect = 'auto'
+            else:
+                aspect = 'equal'
+            im = ax.imshow(norm_factor.T[::-1], cmap=cmap, aspect=aspect, vmin=v_min, vmax=v_max)
+
+            # Annotate only if it's not too large
+            if ny * nx <= 150:  # avoid clutter for long 1×128 arrays
+                for i in range(ny):
+                    for j in range(nx):
+                        ax.text(j, i, f"{norm_factor.T[::-1][i, j]:.3f}",
+                                ha='center', va='center', color='white', fontsize=7)
+
+            # Titles and labels
+            ax.set_title(f"{'FlatField Exp57'} Norm Factor", fontsize=14)
+            # ax.set_xlabel("X pixel index")
+            # ax.set_ylabel("Y pixel index")
+
+            # Set tick marks dynamically
+            ax.set_xticks(np.arange(nx))
+            ax.set_yticks(np.arange(ny))
+            ax.set_xticklabels(np.arange(1, nx + 1))
+            ax.set_yticklabels(np.arange(1, ny + 1))
+
+            # Reduce tick density for long arrays
+            if nx > 20:
+                ax.set_xticks(np.arange(0, nx, nx // 10))
+            if ny > 20:
+                ax.set_yticks(np.arange(0, ny, ny // 10))
+
+            # Colorbar
+            plt.colorbar(im, ax=ax, label='Normalization factor')
+
+            # Keep "image-style" orientation
+            ax.invert_yaxis()
+
+            plt.tight_layout()
+            format_save(Path('/Users/nico_brosda/Cyrce_Messungen/ResultsWPE_210525/Single_maps/'),
+                        f'Norm_factor{'FlatFieldExp57'}_{v_min}_{v_max}', save_format='.pdf',
+                        plot_size=(fig_width, fig_height))
+            # '''
+            print('_'*50)
+
+        A = Analyzer((11, 11), dsi, dsp, readout=readout, voltage_parser=voltage_parser, current_parser=current_parser,
+                     position_parser=position_parser)
+        A.set_dark_measurement(dark_path, dark)
+
+        if i < 2:
             A.normalization(norm_path, norm, normalization_module=norm_func)
             A.norm_factor[A.norm_factor < 0.7] = 1
-            A.set_measurement(folder_path, crit)
+
+        print(np.shape(A.norm_factor))
+        if crit == 'exp57':
+            pass
+            il = [0, 10e3]
+        elif i >= 2:
+            A.norm_factor = norm_factor
+            il = [8e3, 17.5e3]
+        else:
+            il = [20e3, 40e3]
+
+        print(np.shape(A.norm_factor))
+        A.readout = lambda x, y: ams_2D_assignment_readout_WPE_choice(x, y, channel_assignment=mapping, version=version)
+
+        A.set_measurement(folder_path, crit)
+        A.load_measurement()
+        A.create_map(inverse=[True, False])
+        A.name += f'_{version}'
+        A.plot_map(results_path / 'maps/', pixel='fill', save_format='.pdf', intensity_limits=il, imshow=True)
+
+        files = A.measurement_files
+        for file in files:
+            file = file.name
+            print(file)
+            A.set_measurement(folder_path, file)
             A.load_measurement()
             A.create_map(inverse=[True, False])
-            A.name += f'_{version}'
-            A.plot_map(results_path / 'maps/', pixel='fill')
+            A.name = f'{file}_{version}'
+            A.plot_map(results_path / f'Single_maps/{crit}/', pixel='fill', save_format='.pdf', intensity_limits=il, imshow=True)
