@@ -199,7 +199,6 @@ class Analyzer:
 
         factor = normalization_module(files, self)
 
-        print(factor)
         if cache_save:
             np.save(path_to_folder / (str(filter_criterion)+'_normalization_factor.npy'), factor)
 

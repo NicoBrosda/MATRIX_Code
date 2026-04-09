@@ -84,7 +84,7 @@ if poster:
     plt.rc('figure', titlesize=posterfont+4)  # fontsize of the figure title
     fullsize_plot = (28 * cm, 28 * cm / 1.2419)
 
-presentation = False
+presentation = True
 if presentation:
     posterfont = 16
     plt.rc('font', size=posterfont)  # controls default text sizes
@@ -528,7 +528,6 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
         cache[0] += current_handles
         cache[1] += current_labels
 
-        '''
         if legend_separator is not None:
             extra = Rectangle((0, 0), 1, 1, fc="w", fill=False, edgecolor='none', linewidth=0)
             cache[0] += [extra]
@@ -536,7 +535,6 @@ def format_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True
             cache[1] += [separator]
     if len(cache[1]) > 0 and legend:
         leg = axes[0].legend(cache[0], cache[1], loc=legend_position)
-    '''
 
     if second_axis:
         ax2 = ax.twiny()
@@ -642,6 +640,9 @@ def just_save(save_path=Path('./Plots/'), save_name='', save=True, legend=True, 
             # ax.xaxis.set_major_locator(ticker.AutoLocator())
             if minor_xticks:
                 ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
+
+        if minor_yticks:
+            ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
 
         if not english:
             # Get pick labels:

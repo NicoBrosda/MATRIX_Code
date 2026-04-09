@@ -110,7 +110,7 @@ def quick_movie_wrap(folder_path):
 
 # '''
 # ---------------------------------------------------------------------------------------------------------------------
-folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_111024/')
+folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_221024/')
 analyzer = quick_movie_wrap(folder_path)
 analyzer.scale = 'nano'
 crit = '2DLarge_movieScan_'
@@ -121,7 +121,7 @@ breaks = 'proportional'
 # breaks = 1
 output_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsMovies/MatrixArray/')
 return_info = False
-frame_select = [100, 1, 1]
+frame_select = [1305, 1, 1]
 # frame_select = None
 zero_frame = 1305
 zero_frame = None

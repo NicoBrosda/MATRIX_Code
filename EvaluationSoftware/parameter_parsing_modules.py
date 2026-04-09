@@ -40,6 +40,10 @@ def extern_voltage(path_to_data_file):
     return voltage
 
 
+def set_voltage(path_to_data_file, set_voltage=1.9):
+    return set_voltage
+
+
 def standard_current(path_to_data_file, conversion_factor=1):
     if not isinstance(path_to_data_file, str):
         path_to_data_file = str(path_to_data_file)
@@ -112,6 +116,21 @@ def current5(path_to_data_file, conversion_factor=1):
         index2 = path_to_data_file.index('nA_')
         index1 = path_to_data_file[:index2].rindex('_')
         current = float(comma_replace(path_to_data_file[index1+1:index2])) * conversion_factor
+    except ValueError:
+        current = None
+    return current
+
+
+def current6(path_to_data_file, conversion_factor=1):
+    # Current as format: _5nA_nA_
+    if not isinstance(path_to_data_file, str):
+        path_to_data_file = str(path_to_data_file)
+
+    # The parsing of the position out of the name and save it
+    try:
+        index2 = path_to_data_file.index('nA_')
+        index1 = path_to_data_file[:index2].rindex('Control_')
+        current = float(comma_replace(path_to_data_file[index1+8:index2])) * conversion_factor
     except ValueError:
         current = None
     return current

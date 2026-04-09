@@ -5,6 +5,7 @@ import pathlib
 import os
 import numpy as np  # v. 1.25.1
 import matplotlib.colors as mcolors
+import matplotlib
 
 
 def wv_to_e(wv):
@@ -333,3 +334,14 @@ def span_arrow2(axis, start, end, c='k', lw=1, *args, **kwargs):
     # axis.autoscale_view()
 
 
+def truncated_colormap(cmap, minval=0.0, maxval=1.0, n=256, reverse=False):
+    """Return a truncated and optionally reversed colormap"""
+    if reverse:
+        cmap = cmap.reversed()
+
+    new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+        f'trunc({cmap.name},{minval:.2f},{maxval:.2f})',
+        cmap(np.linspace(minval, maxval, n))
+    )
+
+    return new_cmap

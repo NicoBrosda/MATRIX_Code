@@ -770,7 +770,7 @@ ax.plot(sim_energy, proportional(sim_res, c_400II_cut), c='k', ls='-')
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
-energies = [23.69003946750678, 60, 120, 226.7]
+energies = [23.69003946750678, 60, 100, 226.7]
 for i, energy in enumerate(energies):
     res = proportional(sim_res[sim_energy == energy], c_200II_cut)[0]
     print(energy, res)
@@ -780,13 +780,14 @@ for i, energy in enumerate(energies):
         text = f'Reference E ={energy: .2f}$\\,$MeV \n (CYRCé with 200$\\,$µm diffuser)'
         ax.text(energy, res, text, color=energy_color(energy), ha='left', va='bottom', fontsize=13)
     elif i < len(energies)-1:
-        text = f'{res_0/res: .1f}x lower response \n at E ={energy: .2f}$\\,$MeV'
+        text = f'{res_0/res: .2f}x lower response \n at E ={energy: .2f}$\\,$MeV'
         ax.text(energy, res, text, color=energy_color(energy), ha='left', va='bottom', fontsize=13)
     else:
-        text = f'{res_0 / res: .1f}x lower response \n at E ={energy: .2f}$\\,$MeV'
+        text = f'{res_0 / res: .2f}x lower response \n at E ={energy: .2f}$\\,$MeV'
         ax.text(energy, res, text, color=energy_color(energy), ha='right', va='top', fontsize=13)
 
     ax.axvline(energy, ymin=0, ymax=transform_data_to_axis_coordinates(ax, [energy, res])[1], c=energy_color(energy), ls='--')
+    print(energy, res)
     ax.axhline(res, xmin=0, xmax=transform_data_to_axis_coordinates(ax, [energy, res])[0], c=energy_color(energy), ls='--')
 
 

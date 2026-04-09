@@ -9,7 +9,7 @@ from scipy.constants import e
 from scipy.optimize import curve_fit
 
 fast_mode = True
-def simulation_response(run_name, comp_list=[], param_info='', gradual_parameter=True, param_unit='MeV', diff=200):
+def simulation_response(run_name, diff=200):
     dat = pd.read_csv(Path(f'../../Files/energies_after_wheel_diffusor{diff}.txt'), header=4, delimiter='\t', decimal='.',
                       names=['pos', 'thickness', 'energy'])
     comp_list = dat['thickness']

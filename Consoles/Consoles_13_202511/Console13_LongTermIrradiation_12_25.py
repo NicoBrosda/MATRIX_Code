@@ -257,4 +257,27 @@ format_save(results_path, f'LongTermIrradiationBragg_ArrayCurves', save_format='
 # ---------------------------------------------------------------------------------------------------------------------
 # ---------------------------------------------------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------------------------
+
+fig, ax = plt.subplots()
+
+time_colour = sns.color_palette("flare_r", as_cmap=True)
+
+ax.plot(cache[0], marker='', ls='-', color='b')
+ax.plot(np.argmax(cache[0]), np.max(cache[0]), marker='|', color='b', zorder=3, label='Before')
+
+correction_factor = np.load(results_path / 'compensation_factor.npy')
+ax.plot(cache[-1]/correction_factor, marker='', ls='-', color='r')
+ax.plot(np.argmax(cache[-1]/correction_factor), np.max(cache[-1]/correction_factor), marker='|', color='r', zorder=3, label='After')
+
+ax.set_xlabel('Diode ()')
+ax.set_ylabel(f'Measurement signal ({scale_dict[A.scale][-1]}A)')
+
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+
+format_save(results_path, f'LongTermIrradiationBragg_ArrayCurves_corrected', save_format='.png', legend=True)
+
+# ---------------------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------------------------
 print(times[-1])

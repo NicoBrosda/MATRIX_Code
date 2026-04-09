@@ -166,12 +166,15 @@ class LineShape:
         y = y * (y_max-y_min) / max(y)
         y += y_min
         y = [transform_axis_to_data_coordinates(ax, [0.5, j])[1] for j in y]
-        y_min = transform_axis_to_data_coordinates(ax, [0.5, y_min])[1]
-        fill = ax.fill_between(self.points[:, 0], y, y_min, *args, **kwargs)
+        y_min_data = transform_axis_to_data_coordinates(ax, [0.5, y_min])[1]
+        fill = ax.fill_between(self.points[:, 0], y, y_min_data, *args, **kwargs)
 
         if add_angle:
             dx = np.max(self.points[:, 0]) - np.min(self.points[:, 0])
-            x_coord = np.min(self.points[:, 0]) + dx / 10
+            if np.min(self.points[:, 1]) == 0:
+                x_coord = np.min(self.points[:, 0]) + dx / 3
+            else:
+                x_coord = np.min(self.points[:, 0]) + dx / 5
 
             height = self.calculate_value(x_coord)
             max_height = np.max(self.points[:, 1])
@@ -180,9 +183,13 @@ class LineShape:
             p2 = [x_coord, transform_axis_to_data_coordinates(ax, [0.1, y_max*ratio])[1]]
             p1 = [x_coord+dx/30, p0[1]+(p2[1]-p0[1])/2]
 
-            curved_line_through_points(p0, p1, p2, ax=ax, color='w')
-            ax.text(p0[0], p1[1], text_fmt.format(self.get_angle()), va='center', ha='right', fontsize=15, c='w')
+            print(p0, p1, p2)
+
+            z = kwargs.get("zorder", 1)
+            curved_line_through_points(p0, p1, p2, ax=ax, color='w', zorder=z)
+            ax.text(p0[0], p1[1], text_fmt.format(self.get_angle()), va='center', ha='right', fontsize=24, c='w')
                     # bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.9, 'pad': 2})
+
         '''
         y_raw = self.points[:, 1]
         y_min_raw = np.min(y_raw)
@@ -421,23 +428,23 @@ def overlap_treatment(map_el, instance, super_res=True):
         x_overlap = False
     elif len(xs) > 1:
         x_overlap = True
-        start_x = np.sort(np.argwhere(x_steps[0:len(x_steps) // 2] != np.min(xs)))[-1] + 1
-        end_x = np.sort(np.argwhere(x_steps[len(x_steps) // 2:] != np.min(xs)))[0]
+        # start_x = np.sort(np.argwhere(x_steps[0:len(x_steps) // 2] != np.min(xs)))[-1] + 1
+        # end_x = np.sort(np.argwhere(x_steps[len(x_steps) // 2:] != np.min(xs)))[0]
     else:
         x_overlap = True
-        start_x = 0
-        end_x = len(map_el['x']+1)
+        # start_x = 0
+        # end_x = len(map_el['x']+1)
 
     if np.min(ys) >= pitch_y:
         y_overlap = False
     elif len(ys) > 1:
         y_overlap = True
-        start_y = np.sort(np.argwhere(y_steps[0:len(y_steps) // 2] != np.min(ys)))[-1] + 1
-        end_y = np.sort(np.argwhere(y_steps[len(y_steps) // 2:] != np.min(ys)))[0]
+        # start_y = np.sort(np.argwhere(y_steps[0:len(y_steps) // 2] != np.min(ys)))[-1] + 1
+        # end_y = np.sort(np.argwhere(y_steps[len(y_steps) // 2:] != np.min(ys)))[0]
     else:
         y_overlap = True
-        start_y = 0
-        end_y = len(map_el['y'] + 1)
+        # start_y = 0
+        # end_y = len(map_el['y'] + 1)
 
     if not x_overlap and not y_overlap:
         print('No overlap')
@@ -781,4 +788,7 @@ def export_plot_data(ax=None, filename="plot_data.csv"):
         return
 
     print("No exportable data found in this axes.")
+
+
+
 

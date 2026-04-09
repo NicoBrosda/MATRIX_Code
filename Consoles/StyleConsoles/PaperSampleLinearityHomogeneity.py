@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-
 from Consoles.StyleConsoles.Utils_ImageLoad import *
 from PIL import Image
 from EvaluationSoftware.standard_processes import linearity_return
@@ -119,21 +117,21 @@ for i, measurement in enumerate(measurements):
 
     instance.set_measurement(folder_path, [measurement])
     voltage = voltage_parser(instance.measurement_files[0])
-    print(voltage)
     instance.set_dark_measurement(dark_path, dark_paths)
     factor, diff = normalization_from_translated_array_v5(instance.measurement_files, instance, align_lines=True, remove_background=True, diff_return=True)
     factors.append(factor)
 
-print(factor.flatten())
 bin_size = 0.0025
 # data_min, data_max = 0.98, 1.07
 data_min, data_max = 0.985, 1.045
 bins = np.arange(start=data_min, stop=data_max + bin_size, step=bin_size)
-color = sns.color_palette("hls", len(factors))
+color = sns.color_palette("husl", 8)
+color = [color[0], color[-3]]
+
 for i, factor in enumerate(factors):
     ax2.hist(factor.flatten(), bins=bins, edgecolor='k', color=color[i], label=labels[i], alpha=0.7)
 ax2.axvline(1, color='k', ls='-', zorder=10)
-ax2.set_xlabel('Signal Homogeneity')
+ax2.set_xlabel('Normalized signal')
 ax2.set_ylabel('Array diodes per homogeneity bin')
 
 # Two points
@@ -201,6 +199,9 @@ A = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage
 
 currents, fit_currents, signal, fit, std, fit_std, fit_r2, std_r2 = linearity_return(folder_path, crit, dark_crit, A)
 
+currents = currents / (np.pi * 30e-1**2) * 1e3
+fit_currents = fit_currents / (np.pi * 30e-1**2) * 1e3
+
 linearity_colour = sns.color_palette("husl", 8)
 
 ax.plot(currents, signal, marker='x', color='k', label='Signal', ls='-')
@@ -209,15 +210,29 @@ ax.plot(fit_currents, fit, marker='', color=linearity_colour[-1], label='Linear 
 ax.plot(currents, std, marker='o', color='k', label='Signal Std', ls='-')
 ax.plot(fit_currents, fit_std, marker='', color=linearity_colour[-2], label='Std sqrt fit', ls='--')
 
-ax.set_xlabel('Proton current at Faraday cup (nA)')
+ax.set_xlabel('Proton current density (pA$\\,$cm$^{-2}$)')
 ax.set_ylabel(f'Signal current ({scale_dict[instance.scale][1]}A)')
 ax.set_yscale('log')
 ax.set_xscale('log')
-ax.set_xlim(ax.get_xlim())
+
+print(ax.get_xlim())
+print(currents[0], currents[-1])
+
+print('--'*20)
+print(fit_currents[-1])
+print(fit[-1])
+slope = (fit[-1] - fit[0])/(fit_currents[-1] - fit_currents[0])
+print(f"{slope:.2e}")
+print(f"{140e+3 / slope:.2e}")
+print(f"{140e+3 / 5 / slope:.2e}")
+print(f"{140e+3 / 10 / slope:.2e}")
+print(f"{140e+3 / 20 / slope:.2e}")
+
+ax.set_xlim([1e+1, 1.7e+3])
 ax.set_ylim(ax.get_ylim()[0]/3, ax.get_ylim()[1])
-ax.text(currents[0], signal[2], r'Signal linear fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=9,
+ax.text(1.1e+1, signal[2]+0.5e+2, r'Signal linear fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=9,
         ha='left', va='bottom', c=linearity_colour[-1])
-ax.text(currents[0], std[2], r'Std sqrt fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.3f}'.format(x=std_r2), fontsize=9,
+ax.text(1.1e+1, std[2], r'Std sqrt fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.3f}'.format(x=std_r2), fontsize=9,
         ha='left', va='bottom', c=linearity_colour[-2])
 
 leg = ax.legend(

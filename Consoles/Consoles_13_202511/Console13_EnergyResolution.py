@@ -124,7 +124,7 @@ crit = '1e+07Real5degWedgePEEK_param'
 crit = f'5e+0640umDiffSimPEEK_param'
 crit = f'5e+0640umDiffSimSigmaPEEK_param'
 crit = f'1e+0740umDiffSimSigmaPEEK_param'
-
+crit = f'5e+075degInitialNewPEEK_param'
 
 param_list = [24.73, 23.73, 22.73]
 param_list = [0, 0.01, 0.05, 0.1, 0.5, 1, 5]
@@ -133,6 +133,7 @@ param_list = [24.73, 23.73, 22.73]
 param_list = [23, 24, 25]
 param_list = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
 param_list = [0, 0.05, 0.1, 0.15, 0.2]
+param_list = [24.92, 23.92, 22.92]
 
 
 colors = sns.color_palette("flare", as_cmap=True)

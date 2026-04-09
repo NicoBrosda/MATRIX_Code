@@ -12,7 +12,7 @@ plot_size = (18 * cm, 18 / 1.2419 * cm)
 # Setup of the final figure
 fig, [[ax1, ax2], [ax3, ax4]] = plt.subplots(2, 2, figsize=plot_size)
 # Adjust spacing: left, right, bottom, top, wspace, hspace
-fig.subplots_adjust(wspace=0.25, hspace=0.25)
+fig.subplots_adjust(wspace=0.1, hspace=0.05)
 # Axis limits
 y_limits = []
 x_limits = []
@@ -29,13 +29,23 @@ cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", 
 x_limits.append(None)
 y_limits.append(None)
 
-with Image.open('/Users/nico_brosda/Cyrce_Messungen/3D_Files/Logo.jpg') as img:
+ax1.axis("off")
+
+ax1 = fig.add_axes([0.07, 0.49 , 0.5, 0.4])  # [left, bottom, width, height]
+ax1.axis("off")
+
+img = Image.open("/Users/nico_brosda/Cyrce_Messungen/Style/Setup_LogoComp.png")
+ax1.imshow(img)
+ax1.set_aspect("equal")
+
+'''
+with Image.open('/Users/nico_brosda/Cyrce_Messungen/Style/Setup_LogoComp.png') as img:
     # img = img.transpose(Image.FLIP_LEFT_RIGHT)
     # img = img.transpose(Image.FLIP_TOP_BOTTOM)
     # img = img.rotate(180)
     ax1.imshow(img)
-ax1.axis('off')
 ax1.set_xlim(ax1.get_xlim()), ax1.set_ylim(ax1.get_ylim())
+
 ax1.annotate('', xy=(80.6, 280), xytext=(303.1, 280),
              arrowprops=dict(arrowstyle='<->', color='red'))
 ax1.axvline(80.6, ymin=0.3, ymax=0.7, ls='--', c='r', alpha=0.6)
@@ -43,6 +53,7 @@ ax1.axvline(303.1, ymin=0.3, ymax=0.7, ls='--', c='r', alpha=0.6)
 
 ax1.text((ax1.get_xlim()[1]-ax1.get_xlim()[0]) / 2, 284, 'Text within x mm', ha='center', va='top',
          fontsize=7, color='red')
+# '''
 # ------------------------------------------------------------------------------------------------------------------
 # Ax2: Logo 128x0.5x0.5 image
 # ------------------------------------------------------------------------------------------------------------------
@@ -140,14 +151,23 @@ for i, ax in enumerate([ax1, ax2, ax3, ax4]):
         ax.set_ylim(y_scale[0] - (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0]) / 2,
                     y_scale[1] + (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0]) / 2)
 
+    if i > 0:
+        start, end = [2, 2], [6, 2]
+        ax.text(*[(end[0]-start[0])/2+start[0], start[1]+0.5], f'{end[0]-start[0]:.0f}$\\,$mm', fontsize=10, ha='center',
+                 va='bottom', color='k')  # , bbox=dict(facecolor='white', edgecolor='white', boxstyle='round,pad=0.1'))
+        span_arrow2(ax, start, end, c='k')
+        ax.set_xlabel(''), ax.set_ylabel('')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
 for ax in fig.axes:
     if is_colorbar(ax):
         ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
         ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
     else:
-        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=3))
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
         ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
-        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=3))
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
 
 '''
@@ -160,8 +180,7 @@ add_png_icon(ax2, A2, 'top left', translation='x', zoom=0.15)
 add_png_icon(ax3, A3, 'top left', translation='x', zoom=0.15)
 add_png_icon(ax4, A4, 'top left', translation='x', zoom=0.15)
 
-ax1.text(*transform_axis_to_data_coordinates(ax1, [0.97, 0.97]), r'\textbf{(a)}', fontsize=10, ha='right',
-        va='top', color='k')
+ax2.text(*transform_axis_to_data_coordinates(ax2, [-0.1, 0.97]), r'\textbf{(a)}', fontsize=10, ha='right', va='top', color='k')
 ax2.text(*transform_axis_to_data_coordinates(ax2, [0.97, 0.97]), r'\textbf{(b)}', fontsize=10, ha='right',
         va='top', color='k')
 ax3.text(*transform_axis_to_data_coordinates(ax3, [0.97, 0.97]), r'\textbf{(c)}', fontsize=10, ha='right',
@@ -276,14 +295,23 @@ for i, ax in enumerate([ax1, ax2, ax3]):
         ax.set_ylim(y_scale[0] - (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0]) / 2,
                     y_scale[1] + (x_scale[1] - x_scale[0] - y_scale[1] + y_scale[0]) / 2)
 
+    if i > 0:
+        start, end = [4, 2], [8, 2]
+        ax.text(*[(end[0]-start[0])/2+start[0], start[1]+0.5], f'{end[0]-start[0]:.0f}$\\,$mm', fontsize=10, ha='center',
+                 va='bottom', color='k')  # , bbox=dict(facecolor='white', edgecolor='white', boxstyle='round,pad=0.1'))
+        span_arrow2(ax, start, end, c='k')
+        ax.set_xlabel(''), ax.set_ylabel('')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+
 for ax in fig.axes:
     if is_colorbar(ax):
         ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
         ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
     else:
-        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=3))
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
         ax.yaxis.set_minor_locator(ticker.AutoMinorLocator())
-        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=3))
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=5))
         ax.xaxis.set_minor_locator(ticker.AutoMinorLocator())
 
 '''

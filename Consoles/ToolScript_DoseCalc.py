@@ -63,7 +63,3 @@ irradiation_time = 40 * 60  # s
 proton_current = 8e-9  # A
 
 print(f'{doseCalc_Cyrce(area_target, thickness_target, density_target, edep_target, irradiation_time, proton_current):.2e}')
-
-print(876.1/60)
-
-print(70*5000/2)

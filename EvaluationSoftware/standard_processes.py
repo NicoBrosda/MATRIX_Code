@@ -266,7 +266,7 @@ def linearity(folder_path, results_path, crit, dark_crit, instance, voltage_depe
     plt.close('all')
 
 
-def linearity_return(folder_path, crit, dark_crit, instance, set_voltage=1.9):
+def linearity_return(folder_path, crit, dark_crit, instance, set_voltage=1.9, per_diode=False):
     def linear_func2(x, a, b):
         return a*x + b
 
@@ -392,7 +392,10 @@ def linearity_return(folder_path, crit, dark_crit, instance, set_voltage=1.9):
             params_std.append([popt, pcov])
 
     currents2 = np.linspace(np.min(currents), np.max(currents), 1000)
-    return currents, currents2, np.mean(netto_signals, axis=1), linear_func(currents2, np.mean([i[0] for i in params])), signal_std, exp_func(currents2, np.mean([i[0][0] for i in params_std]), np.mean(dark_std)), np.mean(r2s), np.mean(r2s_st)
+    if not per_diode:
+        return currents, currents2, np.mean(netto_signals, axis=1), linear_func(currents2, np.mean([i[0] for i in params])), signal_std, exp_func(currents2, np.mean([i[0][0] for i in params_std]), np.mean(dark_std)), np.mean(r2s), np.mean(r2s_st)
+    else:
+        return currents, currents2, netto_signals, np.array([linear_func(currents2, np.array(i[0])) for i in params]), signal_std, np.array([exp_func(currents2, np.array(i[0][0]), np.mean(dark_std)) for i in params_std]), r2s, r2s_st
 
 def signal_comparison_voltage(folder_path, results_path, list_of_crit, dark_crit, instance, names=None,
                       voltage_range=[0.9, 2.0]):
