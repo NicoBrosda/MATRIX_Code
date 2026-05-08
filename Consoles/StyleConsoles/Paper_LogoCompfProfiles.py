@@ -44,7 +44,7 @@ A2 = load_image(folder_path, image, background_subtraction=background_subtractio
                position=position)
 A2.maps[0] = overlap_treatment(A2.maps[0], A2, super_res=True)
 # Correction to make measurements comparable | I = 2.385
-A2.maps[0]['z'] = A2.maps[0]['z']*0.95* (2/2.385) / 0.82
+A2.maps[0]['z'] = A2.maps[0]['z'] * (2/2.385) / 0.9478
 A2.maps[0]['y'] = A2.maps[0]['y'][-55:]
 A2.maps[0]['z'] = A2.maps[0]['z'][-55:]
 A2.maps[0]['y'], A2.maps[0]['z'] = np.append(A2.maps[0]['y'], A2.maps[0]['y'][-1]+0.25), np.append(A2.maps[0]['z'], [np.zeros_like(A2.maps[0]['z'][-1])], axis=0)
@@ -61,7 +61,7 @@ for i, image_map in enumerate(A3.maps):
     A3.maps[i]['z'] = simple_zero_replace(image_map['z'])
 A3.maps[0] = overlap_treatment(A3.maps[0], A3, True)
 # Correction of signal current | I = 2.02 nA
-A3.maps[0]['z'] = A3.maps[0]['z'] * (2/2.02) / 0.82
+A3.maps[0]['z'] = A3.maps[0]['z'] * (2/2.02) / 0.574
 
 # Image 0.25x0.5
 folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_230924/')
@@ -77,7 +77,7 @@ A4.maps[0]['z'] = A4.maps[0]['z'][-2 * dist:]
 for i, image_map in enumerate(A4.maps):
     A4.maps[i]['z'] = simple_zero_replace(image_map['z'])
 A4.maps[0] = overlap_treatment(A4.maps[0], A4, True)
-A4.maps[0]['z'] = A4.maps[0]['z']*0.95* (2/2.435) / 0.82
+A4.maps[0]['z'] = A4.maps[0]['z'] * (2/2.435) / 0.9478
 
 print('-'*50)
 print(np.shape(A2.maps[0]['z']))

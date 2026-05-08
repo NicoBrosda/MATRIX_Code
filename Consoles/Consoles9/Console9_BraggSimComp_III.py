@@ -41,8 +41,8 @@ def simulation_Bragg(run_name, diff=200, pixel_size=50/200, mean_range=(20, 30))
         img_std = sitk.ReadImage(str(output_file).replace(".mhd", "_edep_uncertainty.mhd"))
         data = np.array(sitk.GetArrayFromImage(img))[0][::-1, :] / simn
         data_std = np.array(sitk.GetArrayFromImage(img_std))[0][::-1, :] / simn
-        line = np.mean(data[:, int(mean_range[0] / pixel_size):int(mean_range[1] / pixel_size)], axis=1)[::-1]
-        line_std = np.mean(data_std[:, int(mean_range[0] / pixel_size):int(mean_range[1] / pixel_size)], axis=1)[::-1]
+        line = np.mean(data[:, int(mean_range[0] / pixel_size):int(mean_range[1] / pixel_size)], axis=1)  # [::-1]
+        line_std = np.mean(data_std[:, int(mean_range[0] / pixel_size):int(mean_range[1] / pixel_size)], axis=1)  # [::-1]
         data_cache.append(data)
         line_cache.append(line)
         line_std_cache.append(line_std)
@@ -236,7 +236,8 @@ bragg_pos_wedge200_middle = 67.5
 # bragg_pos_sim = -17
 # realer_bragg_pos_sim = -17 + 2.1
 realer_bragg_pos_sim = -20 + (20 - 11.2)
-bragg_pos_sim = realer_bragg_pos_sim
+
+bragg_pos_sim = -20
 # To compare with measurement I will align the y-scale, so that it begins at 0
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -293,7 +294,7 @@ def plot_maps_sim(save_path, comp_list, map_cache, signal_cache, param_color, sh
 
         if add_wedge:
             shape = LineShape([[0.0, 0.4], [37.81, wedge_thick]], distance_mode=True)
-            shape2 = LineShape([[0.0, 1e-9], [37.81, wedge_thick]], distance_mode=True)
+            shape2 = LineShape([[0.0, 1e-9], [40, wedge_thick]], distance_mode=True)
 
             # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             shape.print_shape()
@@ -360,7 +361,7 @@ def plots_sim_comp(save_path, comp_list, signal_cache, material_depth, material_
             ax.plot(y_pos, line, c='k', zorder=-1, ls='-', label='Experiment')
             ax2.plot(y_pos_sim, line_sim, c='k', zorder=-1, ls='--', label='Simulation')
 
-    shape = LineShape([[0, 1e-9], [40-2.1, 10]], distance_mode=True)
+    shape = LineShape([[0, 0.4], [37.81, 10]], distance_mode=True)
     shape.print_shape()
     shape.position(shape_position, 0)
     shape.add_to_plot(0.0, 0.5, color='grey', alpha=0.6, zorder=5, edgecolor='k')
@@ -741,7 +742,7 @@ save_path = results_path / 'CorrectedIII_Wedge200/'
 # for wedge_mat in ['PEEK', 'PEEKII', 'PEEKpB', 'PEEKmB', 'PEEKpi', 'PEEKmi', 'PEEKpii', 'PEEKmii', 'PEEKpiii', 'PEEKmiii']:
 # for wedge_mat in ['PEEKmBI', 'PEEKmBII', 'PEEKmBIII', 'PEEKmBIIII']:
 cache = []
-for wedge_mat in ['Polypropylene', '1um_Detector']:
+for wedge_mat in ['Polypropylene']:
     print(wedge_mat)
     wedge_thick = 10
     save_path = results_path / f'DensityVar/WedgeDensityVar_{wedge_mat}/'
@@ -764,6 +765,9 @@ for wedge_mat in ['Polypropylene', '1um_Detector']:
         save_path = results_path / f'DensityVar/DoubleWedgeDensityVar_{wedge_mat}/'
         wedge_thick = 20
     # run_name = 'RealerWedge200um1e7_param'
+
+    run_name = f'1e+0814degSortieAir200Polypropylene_param'
+    save_path = results_path / f'NewGeometry/'
 
     material_depth, signal_height, signal_pos, material_depth_sim, signal_height_sim, signal_pos_sim = (
         plot_maps_sim(save_path / 'SimComp/', comp_list, map_cache, signal_cache, param_color, shape_position,

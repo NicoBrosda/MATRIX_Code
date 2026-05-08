@@ -1,6 +1,9 @@
 import matplotlib
 import matplotlib.patheffects as pe
+import matplotlib.ticker as mticker
 import numpy as np
+import csv
+from copy import deepcopy
 from matplotlib.collections import LineCollection
 
 from Consoles.StyleConsoles.Utils_ImageLoad import *
@@ -9,6 +12,7 @@ from Consoles.Consoles_13_202511.PasteIn_DosePerDiode import *
 
 linearity_signal_before = np.array(signal, copy=True)
 linearity_signal_after = np.array(signal2, copy=True)
+linearity_signal_middle = np.array(signal3, copy=True)
 
 SMALL_SIZE = 9  # 8
 MEDIUM_SIZE = 10  # 9
@@ -30,11 +34,11 @@ normalization = True
 dpi = 300
 save_format = 'png'
 
-plot_size = (18 * cm, 2 / 2 * 18 / 1.2419 * cm)
+plot_size = (18 * cm, 3 / 2 * 18 / 1.2419 * cm)
 # Setup of the final figure
 # Structure: Ax1 Logo Line Super Res - Ax2 Logo Gaf - Ax3 BeamShape 2-Line - Ax4 BeamShape Gaf -
 # Ax5 Logo Overlay - Ax6 Beam Overlay
-fig, [[ax1, ax2], [ax3, ax4]] = plt.subplots(2, 2, figsize=plot_size)
+fig, [[ax1, ax2], [ax3, ax4], [ax5, ax6]] = plt.subplots(3, 2, figsize=plot_size)
 # Adjust spacing: left, right, bottom, top, wspace, hspace
 fig.subplots_adjust(wspace=0.35, hspace=0.25)
 # Axis limits
@@ -170,9 +174,6 @@ for j, param in enumerate(param_list):
     data_cache, line_cache, line_std_cache = get_sim(crit, param=param)
     line_cache = line_cache[int(start/0.25):int(end/0.25)]
 
-ax.set_xlabel(r'Position (mm)')
-ax.set_ylabel(f'Normed signal Current')
-
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(ax.get_ylim())
 
@@ -182,8 +183,8 @@ handles.append(sigma_item)
 labels.append('E$_\\mathrm{Proton}$')
 ax.legend(handles, labels, handler_map={SigmaLegendItem: HandlerSigmaLegendItem()}, loc='lower center')
 
-ax.set_xlabel(r'Position (mm)')
-ax.set_ylabel(f'Relative response normed to 1')
+ax.set_xlabel(r'Position along wedge (mm)')
+ax.set_ylabel(r'Normalized signal/simulated E$_\mathrm{dep}$')
 ax_r.set_ylabel(f'Simulated proton energy (MeV)')
 ax_r.tick_params(axis='y', colors='red')
 ax_r.yaxis.label.set_color('red')
@@ -215,8 +216,8 @@ for i in range(0, 128)[::-1]:
 
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(0, ax.get_ylim()[1])
 
-ax.set_xlabel(r'Number of protons per diode (1e12)')
-ax.set_ylabel(f'Relative response normed to 1')
+ax.set_xlabel(r'Number of protons per pixel (1e12)')
+ax.set_ylabel(f'Normalized pixel response')
 
 # Manual annotation targets for panel (b), given as (x, y) in axis data coordinates.
 drop_events = [
@@ -368,9 +369,48 @@ ax2_symbol_ax = add_wedge_signal_symbol(ax2, 0.5, 0.6, 0.35, 0.35, show_proton_d
 # ------------------------------------------------------------------------------------------------------------------
 ax = ax4
 
-irradiation_datasets = build_global_damage_datasets(exp_data)
+# Minimum total-dose threshold for channels included in the staged global degradation fit.
+# Units: MGy
+dose_reference_mgy = 1.0
+
+irradiation_datasets_all = build_global_damage_datasets(exp_data)
+irradiation_datasets = [
+    dataset for dataset in irradiation_datasets_all
+    if td[dataset['diode_idx']] >= dose_reference_mgy
+]
+excluded_diode_indices = sorted(
+    dataset['diode_idx'] for dataset in irradiation_datasets_all
+    if td[dataset['diode_idx']] < dose_reference_mgy
+)
+
+if not irradiation_datasets:
+    raise RuntimeError(
+        f"No channels pass dose_reference_mgy={dose_reference_mgy:.3f} MGy. "
+        "Lower the threshold or check dose estimation."
+    )
+
 global_damage_fit = run_staged_global_damage_fit(irradiation_datasets)
 deg_curve_map = {curve_result['diode_idx']: curve_result for curve_result in global_damage_fit['curve_results']}
+
+
+def _rmse(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    if y_true.size == 0:
+        return np.nan
+    return float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+
+
+def _r_squared(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    if y_true.size == 0:
+        return np.nan
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+    if ss_tot <= 0:
+        return np.nan
+    return float(1.0 - ss_res / ss_tot)
 
 print(
     "Axis 4 global damage fit:",
@@ -378,16 +418,107 @@ print(
     f"beta={global_damage_fit['beta']:.4f}",
     f"shared_A={global_damage_fit['shared_A']:.4f}",
     f"highest_dose_diode={global_damage_fit['highest_dose_diode_idx'] + 1}",
+    f"dose_reference_mgy={dose_reference_mgy:.3f}",
+    f"n_fit_channels={len(irradiation_datasets)}",
+    f"n_excluded_channels={len(excluded_diode_indices)}",
     f"strategy={global_damage_fit['fit_strategy']}",
 )
+if excluded_diode_indices:
+    print(
+        "Axis 4 excluded channels (dose below threshold):",
+        [diode_idx + 1 for diode_idx in excluded_diode_indices],
+    )
+
+all_y_true = []
+all_y_pred = []
+n_channels_total = int(exp_data.shape[1])
+nrmse_pct_per_channel = np.full(n_channels_total, np.nan, dtype=float)
+print("Axis 4 per-channel fit quality (on fitted points):")
+for curve_result in sorted(global_damage_fit['curve_results'], key=lambda item: item['diode_idx']):
+    y_true = np.asarray(curve_result['y_fit'], dtype=float)
+    y_pred = np.asarray(curve_result['y_model_fit'], dtype=float)
+    if y_true.size == 0:
+        continue
+
+    curve_rmse = _rmse(y_true, y_pred)
+    y_span = float(np.ptp(y_true))
+    curve_nrmse_pct = np.nan if y_span <= 0 else float(100.0 * curve_rmse / y_span)
+    curve_r2 = curve_result.get('r_squared', _r_squared(y_true, y_pred))
+    nrmse_pct_per_channel[curve_result['diode_idx']] = curve_nrmse_pct
+
+    all_y_true.append(y_true)
+    all_y_pred.append(y_pred)
+
+    print(
+        f"  diode={curve_result['diode_idx'] + 1:3d}",
+        f"k={curve_result['k']:.6g}",
+        f"RMSE={curve_rmse:.6f}",
+        f"NRMSE={curve_nrmse_pct:.2f}%",
+        f"R2={curve_r2:.5f}",
+    )
+
+valid_nrmse_mask = np.isfinite(nrmse_pct_per_channel)
+if np.any(valid_nrmse_mask):
+    valid_nrmse = nrmse_pct_per_channel[valid_nrmse_mask]
+    q25 = float(np.percentile(valid_nrmse, 25))
+    q75 = float(np.percentile(valid_nrmse, 75))
+    nrmse_mean = float(np.mean(valid_nrmse))
+    nrmse_median = float(np.median(valid_nrmse))
+    nrmse_std = float(np.std(valid_nrmse))
+    nrmse_iqr = float(q75 - q25)
+    nrmse_min = float(np.min(valid_nrmse))
+    nrmse_max = float(np.max(valid_nrmse))
+    nrmse_range = float(nrmse_max - nrmse_min)
+    best_channel_idx = int(np.nanargmin(nrmse_pct_per_channel))
+    worst_channel_idx = int(np.nanargmax(nrmse_pct_per_channel))
+    print(
+        "Axis 4 NRMSE summary (%):",
+        f"mean={nrmse_mean:.4f}",
+        f"median={nrmse_median:.4f}",
+        f"std={nrmse_std:.4f}",
+        f"IQR={nrmse_iqr:.4f}",
+        f"min={nrmse_min:.4f}",
+        f"max={nrmse_max:.4f}",
+        f"range={nrmse_range:.4f}",
+        f"n_valid={valid_nrmse.size}",
+        f"n_total={n_channels_total}",
+    )
+    print(
+        "Axis 4 NRMSE best/worst channel:",
+        f"best={best_channel_idx + 1} (NRMSE={nrmse_pct_per_channel[best_channel_idx]:.4f}%)",
+        f"worst={worst_channel_idx + 1} (NRMSE={nrmse_pct_per_channel[worst_channel_idx]:.4f}%)",
+    )
+else:
+    print(
+        "Axis 4 NRMSE summary: no valid channel NRMSE values available "
+        f"(n_total={n_channels_total})."
+    )
+
+if all_y_true:
+    global_y_true = np.concatenate(all_y_true)
+    global_y_pred = np.concatenate(all_y_pred)
+    global_rmse = _rmse(global_y_true, global_y_pred)
+    global_span = float(np.ptp(global_y_true))
+    global_nrmse_pct = np.nan if global_span <= 0 else float(100.0 * global_rmse / global_span)
+    global_r2 = _r_squared(global_y_true, global_y_pred)
+    print(
+        "Axis 4 global fit quality:",
+        f"RMSE={global_rmse:.6f}",
+        f"NRMSE={global_nrmse_pct:.2f}%",
+        f"R2={global_r2:.5f}",
+        f"n_points={global_y_true.size}",
+    )
+else:
+    print("Axis 4 global fit quality: no fitted points available.")
 
 selected_curve_results = [
     deg_curve_map[diode_idx]
     for diode_idx in diodes_to_plot
     if diode_idx in deg_curve_map
 ]
-annotation_offsets = np.linspace(0.035, -0.035, len(selected_curve_results)) if selected_curve_results else []
-for curve_result, y_offset in zip(selected_curve_results[::-1], annotation_offsets[::-1]):
+
+y_offset = 0
+for curve_result in selected_curve_results[::-1]:
     curve_color = ddc(td[curve_result['diode_idx']])
     ax.plot(curve_result['x_fit'], curve_result['y_fit'], marker='.', color=curve_color, ls='', alpha=0.5, zorder=3)
     (fit_line,) = ax.plot(
@@ -401,6 +532,8 @@ for curve_result, y_offset in zip(selected_curve_results[::-1], annotation_offse
     fit_line.set_path_effects(fit_curve_pe)
 
     annotation_x = 0.8 * curve_result['x_full'][-1]
+    if annotation_x > ax.get_xlim()[1]*0.6:
+        annotation_x = ax.get_xlim()[1]*0.6
     annotation_y = stretched_damage_model(
         annotation_x,
         global_damage_fit['shared_A'],
@@ -411,7 +544,7 @@ for curve_result, y_offset in zip(selected_curve_results[::-1], annotation_offse
     ax.text(
         annotation_x,
         annotation_y+0.05,
-        rf"$k={curve_result['k']:.2f}$",
+        f"$k={1/curve_result['k']:.2f}\\,$MGy",
         color=curve_color,
         fontsize=SMALL_SIZE - 1,
         ha='left',
@@ -440,7 +573,7 @@ ax4_symbol_ax, ax4_scale_ax = add_wedge_signal_symbol(
 )
 
 ax.set_xlabel("Total dose (MGy)")
-ax.set_ylabel(f'Relative response normed to 1')
+ax.set_ylabel(f'Normalized pixel response')
 
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(0, ax.get_ylim()[1])
 
@@ -450,22 +583,33 @@ ax.set_xlim(ax.get_xlim()), ax.set_ylim(0, ax.get_ylim()[1])
 ax = ax3
 
 comp_dose = 1  # MGy
+k_energy = []
+k_values = []
 
 for diode_idx in range(len(mean_energy_per_diode)):
     curve_result = deg_curve_map.get(diode_idx)
     if curve_result is None or np.max(curve_result['x_full']) < comp_dose:
         continue
-    x_ind = np.argmin(np.abs(comp_dose - curve_result['x_full']))
+    k_value = 1 / curve_result['k']
+    k_energy.append(curve_result['mean_energy_mev'])
+    k_values.append(k_value)
     ax.plot(
         curve_result['mean_energy_mev'],
-        curve_result['y_model_full'][x_ind] * 100,
+        k_value,
         marker='.',
         c=ddc(td[diode_idx]),
         alpha=0.8,
     )
 
 ax.set_xlabel("Mean Proton Energy behind wedge (MeV)")
-ax.set_ylabel(f"Residual signal after {comp_dose}$\\,$MGy ($\\%$)")
+ax.xaxis.label.set_color('red')
+ax.tick_params(axis='x', colors='red')
+ax.spines['bottom'].set_color('red')
+
+# ax.set_ylabel(f"Residual signal after {comp_dose}$\\,$MGy ($\\%$)")
+ax.set_ylabel(f"Damage scaling $k$ from fit (MGy)")
+# Keep secondary axis reserved but empty for now.
+
 
 x_vals = np.array([0.25 * i + x for i in range(len(line_cache))])
 x_data_min = x_vals[0]
@@ -484,47 +628,380 @@ ax.invert_xaxis()
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 
 mean_signal_before = np.mean(linearity_signal_before, axis=1)
+mean_signal_middle = np.mean(linearity_signal_middle, axis=1)
 mean_signal_after = np.mean(linearity_signal_after, axis=1)
 mean_fit_before = np.mean(fit, axis=0)
+mean_fit_middle = np.mean(fit3, axis=0)
 mean_fit_after = np.mean(fit2, axis=0)
 mean_fit_r2_before = float(np.mean(fit_r2))
+mean_fit_r2_middle = float(np.mean(fit_r23))
 mean_fit_r2_after = float(np.mean(fit_r22))
 
-ax3_inset = ax.inset_axes([0.22, 0.21, 0.42, 0.42])
-ax3_inset.plot(currents, mean_signal_before, color='k', marker='.', ls='', alpha=0.75)
-ax3_inset.plot(fit_currents, mean_fit_before, color='k', ls='--', lw=1.0, alpha=0.85)
-ax3_inset.plot(currents2, mean_signal_after, color='b', marker='.', ls='', alpha=0.75)
-ax3_inset.plot(fit_currents2, mean_fit_after, color='b', ls='--', lw=1.0, alpha=0.85)
-ax3_inset.set_xlabel(r'Beam current (pA$\,\mathrm{cm}^{-2}$)', fontsize=SMALL_SIZE - 1, labelpad=2)
-ax3_inset.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)', fontsize=SMALL_SIZE - 1)
-ax3_inset.set_xscale('log')
-ax3_inset.set_yscale('log')
-ax3_inset.set_xlim([0.9e+1, 1.7e+3])
-ax3_inset.set_ylim(0.5e-2, ax3_inset.get_ylim()[1] * 2)
-ax3_inset.tick_params(axis='both', labelsize=SMALL_SIZE - 2)
-ax3_inset.text(
-    *transform_axis_to_data_coordinates(ax3_inset, [0.98, 0.14]),
-    rf'Before $R^2={mean_fit_r2_before:.4f}$',
+
+def compute_linearity_nrmse_per_channel(currents_data, signal_data, fit_currents_data, fit_data):
+    currents_data = np.asarray(currents_data, dtype=float)
+    fit_currents_data = np.asarray(fit_currents_data, dtype=float)
+    signal_data = np.asarray(signal_data, dtype=float)
+    fit_data = np.asarray(fit_data, dtype=float)
+
+    if signal_data.ndim != 2 or fit_data.ndim != 2:
+        raise ValueError("Signal and fit data must be 2D arrays.")
+
+    # Accept both layouts: (n_points, n_channels) and (n_channels, n_points)
+    if signal_data.shape[0] == currents_data.size:
+        signal_matrix = signal_data
+    elif signal_data.shape[1] == currents_data.size:
+        signal_matrix = signal_data.T
+    else:
+        raise ValueError(
+            f"Signal data shape {signal_data.shape} does not match currents length {currents_data.size}."
+        )
+
+    if fit_data.shape[0] == fit_currents_data.size:
+        fit_matrix = fit_data
+    elif fit_data.shape[1] == fit_currents_data.size:
+        fit_matrix = fit_data.T
+    else:
+        raise ValueError(
+            f"Fit data shape {fit_data.shape} does not match fit-currents length {fit_currents_data.size}."
+        )
+
+    if fit_matrix.shape[1] != signal_matrix.shape[1]:
+        raise ValueError(
+            f"Channel mismatch between signal ({signal_matrix.shape[1]}) and fit ({fit_matrix.shape[1]})."
+        )
+
+    n_channels = signal_matrix.shape[1]
+    nrmse = np.full(n_channels, np.nan, dtype=float)
+    for diode_idx in range(n_channels):
+        y_true = signal_matrix[:, diode_idx]
+        y_fit_raw = fit_matrix[:, diode_idx]
+        valid_fit = np.isfinite(fit_currents_data) & np.isfinite(y_fit_raw)
+        if np.count_nonzero(valid_fit) < 2:
+            continue
+
+        x_fit = fit_currents_data[valid_fit]
+        y_fit = y_fit_raw[valid_fit]
+        order = np.argsort(x_fit)
+        x_fit = x_fit[order]
+        y_fit = y_fit[order]
+        unique_x, unique_idx = np.unique(x_fit, return_index=True)
+        if unique_x.size < 2:
+            continue
+        y_fit = y_fit[unique_idx]
+
+        valid_true = np.isfinite(currents_data) & np.isfinite(y_true)
+        if np.count_nonzero(valid_true) < 2:
+            continue
+        x_true = currents_data[valid_true]
+        y_true = y_true[valid_true]
+
+        y_pred = np.interp(x_true, unique_x, y_fit)
+        rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+        y_span = np.ptp(y_true)
+        if y_span > 0:
+            nrmse[diode_idx] = 100.0 * rmse / y_span
+
+    return nrmse
+
+
+def orient_linearity_matrix(x_data, y_data):
+    x_data = np.asarray(x_data, dtype=float)
+    y_data = np.asarray(y_data, dtype=float)
+    if y_data.ndim != 2:
+        raise ValueError("Linearity matrix must be 2D.")
+    if y_data.shape[0] == x_data.size:
+        return y_data
+    if y_data.shape[1] == x_data.size:
+        return y_data.T
+    raise ValueError(f"Linearity matrix shape {y_data.shape} does not match x-data length {x_data.size}.")
+
+
+def compute_linearity_slope_per_channel(fit_currents_data, fit_data):
+    fit_currents_data = np.asarray(fit_currents_data, dtype=float)
+    fit_matrix = orient_linearity_matrix(fit_currents_data, fit_data)
+    n_channels = fit_matrix.shape[1]
+    slopes = np.full(n_channels, np.nan, dtype=float)
+    for diode_idx in range(n_channels):
+        y_fit = fit_matrix[:, diode_idx]
+        valid = np.isfinite(fit_currents_data) & np.isfinite(y_fit)
+        if np.count_nonzero(valid) < 2:
+            continue
+        x_valid = fit_currents_data[valid]
+        y_valid = y_fit[valid]
+        # Linear slope from fitted curve values (works for both a*x and a*x+b models)
+        slopes[diode_idx] = np.polyfit(x_valid, y_valid, 1)[0]
+    return slopes
+
+
+nrmse_before = compute_linearity_nrmse_per_channel(currents, linearity_signal_before, fit_currents, fit)
+nrmse_middle = compute_linearity_nrmse_per_channel(currents3, linearity_signal_middle, fit_currents3, fit3)
+nrmse_after = compute_linearity_nrmse_per_channel(currents2, linearity_signal_after, fit_currents2, fit2)
+slope_before = compute_linearity_slope_per_channel(fit_currents, fit)
+slope_middle = compute_linearity_slope_per_channel(fit_currents3, fit3)
+slope_after = compute_linearity_slope_per_channel(fit_currents2, fit2)
+print("After linearity NRMSE vs diode channel (%):")
+for diode_channel, nrmse_value in enumerate(nrmse_after, start=1):
+    if np.isfinite(nrmse_value):
+        print(f"  channel {diode_channel:3d}: {nrmse_value:.4f}")
+    else:
+        print(f"  channel {diode_channel:3d}: nan")
+
+r2_before = np.asarray(fit_r2, dtype=float)
+r2_middle = np.asarray(fit_r23, dtype=float)
+r2_after = np.asarray(fit_r22, dtype=float)
+n_channels = len(nrmse_after)
+k_ax3 = np.full(n_channels, np.nan, dtype=float)
+for diode_idx in range(n_channels):
+    curve_result = deg_curve_map.get(diode_idx)
+    if curve_result is None or np.max(curve_result['x_full']) < comp_dose:
+        continue
+    k_ax3[diode_idx] = 1.0 / curve_result['k']
+
+if not (len(slope_before) == len(slope_middle) == len(slope_after) == len(r2_before) == len(r2_middle) == len(r2_after) == n_channels):
+    raise RuntimeError(
+        "Linearity export dimension mismatch: "
+        f"slopes=({len(slope_before)}, {len(slope_middle)}, {len(slope_after)}), "
+        f"r2=({len(r2_before)}, {len(r2_middle)}, {len(r2_after)}), nrmse={n_channels}."
+    )
+
+linearity_export_path = results_path / "Graph2X_LongTermWedge_LinearityChannelStats.csv"
+with open(linearity_export_path, "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow([
+        "diode_channel",
+        "slope_before",
+        "slope_middle",
+        "slope_after",
+        "r2_before",
+        "r2_middle",
+        "r2_after",
+        "nrmse_before_pct",
+        "nrmse_middle_pct",
+        "nrmse_after_pct",
+        "k_ax3_mgy",
+    ])
+    for diode_channel in range(1, n_channels + 1):
+        idx = diode_channel - 1
+        writer.writerow([
+            diode_channel,
+            slope_before[idx],
+            slope_middle[idx],
+            slope_after[idx],
+            r2_before[idx],
+            r2_middle[idx],
+            r2_after[idx],
+            nrmse_before[idx],
+            nrmse_middle[idx],
+            nrmse_after[idx],
+            k_ax3[idx],
+        ])
+print(f"Saved linearity channel comparison CSV to: {linearity_export_path}")
+
+# ------------------------------------------------------------------------------------------------------------------
+# Ax5: NRMSE of linearity fits vs proton energy
+# ------------------------------------------------------------------------------------------------------------------
+ax = ax5
+energy_axis = np.asarray(mean_energy_per_diode, dtype=float)
+valid_before = np.isfinite(energy_axis) & np.isfinite(nrmse_before)
+valid_middle = np.isfinite(energy_axis) & np.isfinite(nrmse_middle)
+valid_after = np.isfinite(energy_axis) & np.isfinite(nrmse_after)
+
+ax.plot(energy_axis[valid_before][0:-5], nrmse_before[valid_before][0:-5], color='k', marker='.', ls='', alpha=0.8, label='Before')
+# ax.plot(energy_axis[valid_middle], nrmse_middle[valid_middle], color='tab:orange', marker='.', ls='', alpha=0.8, label='Middle')
+ax.plot(energy_axis[valid_after][1:-5], nrmse_after[valid_after][1:-5], color='b', marker='.', ls='', alpha=0.8, label='After')
+
+ax.set_xlabel("Mean Proton Energy behind wedge (MeV)")
+ax.xaxis.label.set_color('red')
+ax.tick_params(axis='x', colors='red')
+ax.spines['bottom'].set_color('red')
+ax.set_ylabel("Linearity fit NRMSE ($\\%$)")
+ax.set_xlim(ax3.get_xlim()), ax.set_ylim(0, 5.5)
+ax.tick_params(axis='both', labelsize=SMALL_SIZE - 1)
+# ax.legend(loc='lower right', frameon=True)
+
+ax5_inset = ax.inset_axes([0.2, 0.43, 0.52, 0.5])
+ax5_inset.plot(currents, mean_signal_before, color='k', marker='.', ls='', alpha=0.75)
+ax5_inset.plot(fit_currents, mean_fit_before, color='k', ls='--', lw=1.0, alpha=0.85)
+# ax5_inset.plot(currents3, mean_signal_middle, color='tab:orange', marker='.', ls='', alpha=0.75)
+# ax5_inset.plot(fit_currents3, mean_fit_middle, color='tab:orange', ls='--', lw=1.0, alpha=0.85)
+ax5_inset.plot(currents2, mean_signal_after, color='b', marker='.', ls='', alpha=0.75)
+ax5_inset.plot(fit_currents2, mean_fit_after, color='b', ls='--', lw=1.0, alpha=0.85)
+ax5_inset.set_xlabel(r'Beam current (pA$\,\mathrm{cm}^{-2}$)', fontsize=9, labelpad=0)
+ax5_inset.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)', fontsize=9, labelpad=0.8)
+ax5_inset.set_xscale('log')
+ax5_inset.set_yscale('log')
+ax5_inset.set_xlim([1e+1, 1e+4])
+ax5_inset.set_ylim(0.5e+1, ax5_inset.get_ylim()[1] * 2)
+ax5_inset.xaxis.set_major_locator(mticker.LogLocator(base=10.0, numticks=4))
+ax5_inset.xaxis.set_major_formatter(mticker.LogFormatterMathtext(base=10.0))
+ax5_inset.xaxis.set_minor_locator(mticker.LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1, numticks=40))
+ax5_inset.xaxis.set_minor_formatter(mticker.NullFormatter())
+ax5_inset.tick_params(axis='x', which='major', length=3)
+ax5_inset.tick_params(axis='x', which='minor', length=2)
+ax5_inset.tick_params(axis='both', labelsize=9)
+
+ax5_inset.text(
+    *transform_axis_to_data_coordinates(ax5_inset, [0.04, 0.95]),
+    rf'$R^2={mean_fit_r2_before:.4f}$' + '\n' +  rf'Before',
     color='k',
-    fontsize=SMALL_SIZE - 2,
-    ha='right',
-    va='bottom',
-    bbox=dict(boxstyle='round,pad=0.15', facecolor='white', edgecolor='none', alpha=0.75),
+    fontsize=10,
+    ha='left',
+    va='top',
+    # bbox=dict(boxstyle='round,pad=0.12', facecolor='white', edgecolor='none', alpha=0.75),
 )
-ax3_inset.text(
-    *transform_axis_to_data_coordinates(ax3_inset, [0.98, 0.06]),
-    rf'After $R^2={mean_fit_r2_after:.4f}$',
+"""
+ax5_inset.text(
+    *transform_axis_to_data_coordinates(ax5_inset, [0.52, 0.95]),
+    rf'Middle' + '\n' + rf'$R^2={mean_fit_r2_middle:.4f}$',
+    color='tab:orange',
+    fontsize=SMALL_SIZE - 3,
+    ha='left',
+    va='top',
+    bbox=dict(boxstyle='round,pad=0.12', facecolor='white', edgecolor='none', alpha=0.75),
+)
+"""
+ax5_inset.text(
+    *transform_axis_to_data_coordinates(ax5_inset, [0.96, 0.04]),
+    rf'After' + '\n' + rf'$R^2={mean_fit_r2_after:.4f}$',
     color='b',
-    fontsize=SMALL_SIZE - 2,
+    fontsize=10,
     ha='right',
     va='bottom',
-    bbox=dict(boxstyle='round,pad=0.15', facecolor='white', edgecolor='none', alpha=0.75),
+    # bbox=dict(boxstyle='round,pad=0.12', facecolor='white', edgecolor='none', alpha=0.75),
+)
+
+# ------------------------------------------------------------------------------------------------------------------
+# Ax6: Degraded vs compensated wedge map (half/half)
+# ------------------------------------------------------------------------------------------------------------------
+ax = ax6
+map_folder_path = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_171225/')
+map_results_path = Path('/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_161225/')
+map_measurements = ['exp9_', 'exp10_']
+
+image_path = Path('/Users/nico_brosda/Cyrce_Messungen/Info_Files/Wedge5deg.jpeg')
+
+map_readout, map_position_parser, map_voltage_parser, map_current_parser = (
+    lambda x, y: ams_2line_fast_avg(x, y, channel_assignment=channel_assignment),
+    standard_position,
+    standard_voltage,
+    current5
+)
+map_A = Analyzer(
+    (2, 64), (0.4, 0.4), (0.1, 0.1),
+    readout=map_readout,
+    diode_offset=[[0, -0.25], np.zeros(64)],
+    position_parser=map_position_parser,
+    voltage_parser=map_voltage_parser,
+    current_parser=map_current_parser,
+)
+
+map_files = []
+for map_crit in map_measurements:
+    map_A.set_measurement(map_folder_path, map_crit)
+    map_files += map_A.measurement_files
+map_A.measurement_files = map_files
+map_A.set_dark_measurement(map_folder_path, ['dark_current'])
+map_A.normalization(
+    Path('/Users/nico_brosda/Cyrce_Messungen/matrix_260325/'),
+    ['exp7_norm1,9V_'],
+    normalization_module=lambda list_of_files, instance, method='least_squares': normalization_from_translated_array_v3(
+        list_of_files, instance, method, align_lines=True
+    ),
+)
+
+map_A.name = 'ax6_degraded'
+map_A.load_measurement()
+map_A.create_map(inverse=[True, False])
+raw_map = overlap_treatment(deepcopy(map_A.maps[0]), map_A, True)
+
+def deinterleave_to_2x64(a):
+    a = np.asarray(a)
+    if a.shape[-1] != 128:
+        raise ValueError(f"Expected last axis = 128, got {a.shape}")
+    even = a[..., 0::2]
+    odd = a[..., 1::2]
+    return np.stack((odd, even), axis=-2)
+
+correction_factor = np.load(map_results_path / 'correction_factor.npy')
+correction_factor = deinterleave_to_2x64(correction_factor)
+map_norm_factor = deepcopy(map_A.norm_factor)
+map_A.norm_factor = map_norm_factor / correction_factor
+map_A.name = 'ax6_compensated'
+map_A.load_measurement()
+map_A.create_map(inverse=[True, False])
+comp_map = overlap_treatment(deepcopy(map_A.maps[0]), map_A, True)
+map_A.norm_factor = map_norm_factor
+
+raw_z = np.asarray(raw_map['z'], dtype=float)
+comp_z = np.asarray(comp_map['z'], dtype=float)
+rows = min(raw_z.shape[0], comp_z.shape[0])
+cols = min(raw_z.shape[1], comp_z.shape[1])
+raw_z = raw_z[:rows, :cols]
+comp_z = comp_z[:rows, :cols]
+mix_z = np.array(raw_z, copy=True)
+split_col = cols // 2
+mix_z[:, split_col:] = comp_z[:, split_col:]
+
+mix_map = {
+    'x': np.asarray(raw_map['x'])[:cols]-np.min(np.asarray(raw_map['x'])[:cols]),
+    'y': np.asarray(raw_map['y'])[:rows][::-1],
+    'z': mix_z,
+    'position': '',
+}
+map_A.maps = [mix_map]
+shared_vmax = float(np.nanmax([np.nanmax(raw_z), np.nanmax(comp_z)]))
+map_A.plot_map(
+    save_path=None,
+    pixel='fill',
+    intensity_limits=[0, shared_vmax],
+    ax_in=ax,
+    fig_in=fig,
+    colorbar=True,
+)
+
+ax.set_xlabel("Transversal position (mm)")
+ax.set_ylabel("Position along wedge (mm)")
+ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
+ax.invert_yaxis()
+ax.set_ylim(ax.get_ylim()[0]*0.95, ax.get_ylim()[1]*1.05)
+
+'''
+# Add setup image via OffsetImage/AnnotationBbox with ~0.3x0.3 axis-fraction footprint.
+ax_bbox = ax.get_window_extent()
+with Image.open(image_path) as setup_img:
+    img_w_px, img_h_px = setup_img.size
+target_w_frac = 0.40
+target_h_frac = 0.40
+zoom_w = target_w_frac * ax_bbox.width / img_w_px
+zoom_h = target_h_frac * ax_bbox.height / img_h_px
+# OffsetImage applies DPI correction (dpi_cor=True), so compensate for figure DPI.
+setup_zoom = min(zoom_w, zoom_h) / (dpi / 72.0)
+add_image(ax, image_path, location=(0.65, 0.98), align_corner=(0.5, 1), zoom=setup_zoom, background=True)
+'''
+
+ax.text(
+    *transform_axis_to_data_coordinates(ax, [0.25, 0.02]),
+    "Degraded",
+    ha='center',
+    va='bottom',
+    fontsize=10,
+    color='k',
+)
+ax.text(
+    *transform_axis_to_data_coordinates(ax, [0.75, 0.02]),
+    "Compensated",
+    ha='center',
+    va='bottom',
+    fontsize=10,
+    color='k',
 )
 
 # ------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------
 
-# add_png_icon(ax1, A, 'top left', translation=None, zoom=0.2)
+add_png_icon(ax1, A, 'custom', translation=None, zoom=0.17, custom_in=((0.02, 0.6), (0, 0.5)))
+add_png_icon(ax6, A, 'top left', translation='x', zoom=0.17)
 
 ax1.text(*transform_axis_to_data_coordinates(ax1, [0.97, 0.97]), r'\textbf{(a)}', fontsize=10, ha='right',
          va='top', color='k')
@@ -534,6 +1011,10 @@ ax3.text(*transform_axis_to_data_coordinates(ax3, [0.97, 0.97]), r'\textbf{(c)}'
          va='top', color='k')
 ax4.text(*transform_axis_to_data_coordinates(ax4, [0.97, 0.97]), r'\textbf{(d)}', fontsize=10, ha='right',
          va='top', color='k')
+ax5.text(*transform_axis_to_data_coordinates(ax5, [0.97, 0.97]), r'\textbf{(e)}', fontsize=10, ha='right',
+         va='top', color='k')
+ax6.text(*transform_axis_to_data_coordinates(ax6, [0.97, 0.97]), r'\textbf{(f)}', fontsize=10, ha='right',
+         va='top', color='k')
 
 format_save(
     save_path=results_path,
@@ -542,6 +1023,6 @@ format_save(
     plot_size=plot_size,
     save_format=save_format,
     fig=fig,
-    axes=[ax1, ax2, ax3, ax4, ax_r, ax3_inset, ax2_symbol_ax, ax4_symbol_ax],
+    axes=[ax1, ax2, ax3, ax4, ax5, ax6, ax_r, ax2_symbol_ax, ax4_symbol_ax, ax5_inset],
     legend=False,
 )

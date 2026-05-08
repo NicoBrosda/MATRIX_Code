@@ -84,7 +84,7 @@ if poster:
     plt.rc('figure', titlesize=posterfont+4)  # fontsize of the figure title
     fullsize_plot = (28 * cm, 28 * cm / 1.2419)
 
-presentation = True
+presentation = False
 if presentation:
     posterfont = 16
     plt.rc('font', size=posterfont)  # controls default text sizes

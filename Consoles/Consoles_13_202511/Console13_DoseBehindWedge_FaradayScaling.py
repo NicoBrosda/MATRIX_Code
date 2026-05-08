@@ -5,21 +5,16 @@ cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black"
 # save_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_161225/Simulation/')
 # save_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_161225/SimulationIdeal/')
 # save_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_161225/SimulationNoNuc2/')
-save_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_161225/SimulationActiveLayer_FaradayScaled/')
 
 
 save_format = '.png'
 
+run_stem = '1e+085degActiveLayerSortieAir50PEEK'
 output_path = Path("/Users/nico_brosda/GateSimulation/GATE10/Simulation/output/")
-# hdf5_filename = output_path / "1e+085degDosePEEK/1e+085degDosePEEK_param24.92.h5"
-# hdf5_filename = output_path / "1e+085degDoseidealPEEK/1e+085degDoseidealPEEK_param24.92.h5"
-# hdf5_filename = output_path / "1e+085degNoNucPEEK/1e+085degNoNucPEEK_param24.92.h5"
-hdf5_filename = output_path / "1e+085degActiveLayerPEEK/1e+085degActiveLayerPEEK_param24.92.h5"
+hdf5_filename = output_path / f"{run_stem}/{run_stem}_param24.92.h5"
+run_name = f"{run_stem}_param24.92"
+save_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsPEEK_161225/{run_stem}/')
 
-# run_name = "1e+085degDosePEEK_param24.92"
-# run_name = "1e+085degDoseidealPEEK_param24.92"
-# run_name = "1e+085degNoNucPEEK_param24.92"
-run_name = "1e+085degActiveLayerPEEK_param24.92"
 
 dose_base_path = output_path / run_name[:run_name.rindex('_')]
 
@@ -260,6 +255,8 @@ except (FileNotFoundError, KeyError):
     )
     print("Saved PHSP1 energy statistics to cache.")
 
+proton_current_scaling = get_proton_counts(hdf5_filename, run_name)
+
 filter_mask = counts <= 500
 mean_energy[filter_mask] = 0
 
@@ -361,7 +358,7 @@ fig, ax = plt.subplots()
 for i, row in enumerate(mean_energy):
     if wedge_thickness[i] <= 0 or np.sum(counts[i]) < 500:
         continue
-    edep_calc = edep_norm[i, 90:110]*1e3/4.5
+    edep_calc = edep_norm[i, 90:110]*1e3
     edep_mean = np.mean(edep_calc[edep_calc>0])
     edep_std = np.std(edep_calc[edep_calc>0])
     ax.errorbar(wedge_thickness[i], edep_mean, edep_std, color='k', marker='x', capsize=3)
@@ -374,7 +371,7 @@ fig, ax = plt.subplots()
 for i, row in enumerate(mean_energy):
     if wedge_thickness[i] <= 0 or np.sum(counts[i]) < 500:
         continue
-    edep_calc = edep_norm[i, 90:110] * 1e3 / 4.5
+    edep_calc = edep_norm[i, 90:110] * 1e3
     edep_mean = np.mean(edep_calc[edep_calc > 0])
     edep_std = np.std(edep_calc[edep_calc > 0])
     ax.errorbar(medians[i], edep_mean, edep_std, color='k', marker='x', capsize=3)
@@ -387,7 +384,7 @@ fig, ax = plt.subplots()
 for i, row in enumerate(mean_energy):
     if wedge_thickness[i] <= 0 or np.sum(counts[i]) < 500:
         continue
-    edep_calc = edep_norm[i, 90:110] * 1e3 / 4.5
+    edep_calc = edep_norm[i, 90:110] * 1e3
     edep_mean = np.mean(edep_calc[edep_calc > 0])
     edep_std = np.std(edep_calc[edep_calc > 0])
     point = ax.errorbar(medians[i], edep_mean, edep_std, color='k', marker='x', capsize=3)
@@ -403,12 +400,12 @@ format_save(save_path, "DepEnergy_vs_EMedian_PlusSRIM", save_format=save_format,
 
 fig, ax = plt.subplots()
 im = ax.imshow(dose_norm*1e3, cmap=cmap)
-plt.colorbar(im, ax=ax, label="4.5 um GaN deposited dose (mGy/p+)")
+plt.colorbar(im, ax=ax, label="1 um GaN deposited dose (mGy/p+)")
 format_save(save_path, "NormedDoseMap", save_format=save_format)
 
 fig, ax = plt.subplots()
 im = ax.imshow(edep_norm*1e3, cmap=cmap)
-plt.colorbar(im, ax=ax, label="4.5 um GaN deposited Energy (keV/p+)")
+plt.colorbar(im, ax=ax, label="1 um GaN deposited Energy (keV/p+)")
 format_save(save_path, "NormedEdepMap", save_format=save_format)
 
 # -----------------
@@ -427,14 +424,14 @@ plt.figure()
 plt.scatter(mean_E_flat[mask], dose_flat[mask], s=5, alpha=0.5)
 plt.xlabel("Mean Proton Energy (MeV)")
 plt.ylabel("Dose (mGy/p+)")
-plt.title("4.5 um GaN Dose vs Mean Proton Energy")
+plt.title("1 um GaN Dose vs Mean Proton Energy")
 format_save(save_path, "NormedDose_vs_MeanProtonEnergy", save_format=save_format)
 
 plt.figure()
 plt.scatter(median_E_flat[mask], dose_flat[mask], s=5, alpha=0.5)
 plt.xlabel("Median Proton Energy (MeV)")
 plt.ylabel("Dose (mGy/p+)")
-plt.title("4.5 um GaN Dose vs Mean Proton Energy")
+plt.title("1 um GaN Dose vs Mean Proton Energy")
 format_save(save_path, "NormedDose_vs_MedianProtonEnergy", save_format=save_format)
 
 plt.figure()
@@ -455,14 +452,14 @@ plt.figure()
 plt.scatter(mean_E_flat[mask], edep_flat[mask], s=5, alpha=0.5)
 plt.xlabel("Mean Proton Energy (MeV)")
 plt.ylabel("Deposited Energy (keV/p+)")
-plt.title("4.5 um GaN Edep vs Mean Proton Energy")
+plt.title("1 um GaN Edep vs Mean Proton Energy")
 format_save(save_path, "NormedEdep_vs_MeanProtonEnergy", save_format=save_format)
 
 plt.figure()
 plt.scatter(median_E_flat[mask], edep_flat[mask], s=5, alpha=0.5)
 plt.xlabel("Median Proton Energy (MeV)")
 plt.ylabel("Deposited Energy (keV/p+)")
-plt.title("4.5 um GaN Edep vs Median Proton Energy")
+plt.title("1 um GaN Edep vs Median Proton Energy")
 format_save(save_path, "NormedEdep_vs_MedianProtonEnergy", save_format=save_format)
 
 fig, ax = plt.subplots()

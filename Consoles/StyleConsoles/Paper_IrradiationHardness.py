@@ -102,31 +102,37 @@ data = pd.read_excel(mapping, header=1)
 channel_assignment = [int(k[-3:])-1 for k in data['direction_2']]
 readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position, standard_voltage, lambda c: current3(c, conversion_factor=0.688)
 A = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage_parser, current_parser)
-A.scale = 'nano'
+A.scale = 'pico'
 
 standard_layout = lambda axes: standard_layout(axes, second_axis=True)
 currents, fit_currents, signal, fit, std, fit_std, fit_r2, std_r2 = linearity_return(folder_path1, crit, dark_crit, A)
+
+currents = currents / (np.pi * 1.8**2) * 1e3
+fit_currents = fit_currents / (np.pi * 1.8**2) * 1e3
 
 folder_path2 = Path('/Users/nico_brosda/Cyrce_Messungen/matrix_130225/')
 crit = ['exp3_', 'exp4_', 'exp5_', 'exp6_', 'exp7_', 'exp8_']
 dark_crit = ['exp2_']
 readout, position_parser, voltage_parser, current_parser = lambda x, y: ams_channel_assignment_readout(x, y, channel_assignment=channel_assignment), standard_position, standard_voltage, current4
 B = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage_parser, current_parser)
-B.scale = 'nano'
+B.scale = 'pico'
 
 currents2, fit_currents2, signal2, fit2, std2, fit_std2, fit_r22, std_r22 = linearity_return(folder_path2, crit, dark_crit, B)
+
+currents2 = currents2 / (np.pi * 1.8**2) * 1e3
+fit_currents2 = fit_currents2 / (np.pi * 1.8**2) * 1e3
 
 ax.plot(currents, signal, marker='x', color='b', label='Before irradiation', ls='')
 ax.plot(fit_currents, fit, marker='', color='b', ls='--')
 ax.plot(currents2, signal2, marker='x', color='r', label='After 3$\\,$mon', ls='')
 ax.plot(fit_currents2, fit2, marker='', color='r', ls='--')
  
-ax.set_xlabel('Proton current at Faraday cup (nA)', labelpad=2)
+ax.set_xlabel(r'Proton current density (pA$\\,$cm$^{-2}$)', labelpad=2)
 ax.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)')
 ax.set_yscale('log')
 ax.set_xscale('log')
-ax.set_xlim(ax.get_xlim())
-ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*2)
+ax.set_xlim([1e+1, 1e+4])
+ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1])
 ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.11]), r'Before $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=10,
         ha='right', va='bottom', c='b')
 ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.1]), r'After $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r22), fontsize=10,
@@ -146,7 +152,7 @@ signal_before = signal_comparison_channel(folder_path1, results_path, ['exp6_25n
 
 signal_after = signal_comparison_channel(folder_path2, results_path, ['exp3_nA_1.9_x_28.25_y_0.0'], 'exp2_nA_1.9_x_28.25_y_0.0', B, names=[r'After'], add_plot=ax, normed=True, lw=1.5, color_list=['r'], save_plot=False, pos_scale=[0.5, 0])
 
-ax.plot(signal_after[0][-1], signal_after[0][1]/np.max(signal_before[0][1]), marker='', ls='--', c='r', alpha=1, label='Signal \n loss')
+ax.plot(signal_after[0][-1], signal_after[0][1]/np.max(signal_before[0][1]), marker='', ls='--', c='r', alpha=1, label='Original \n ratio')
 
 gradient_arrow(ax, (31, 1), ((31, 1.08*(np.max(signal_after[0][1])/np.max(signal_before[0][1])))), lw=2.5,
                cmap=matplotlib.colors.LinearSegmentedColormap.from_list("", ["b", "r"]), alpha=1, zorder=-1)

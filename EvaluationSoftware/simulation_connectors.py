@@ -128,7 +128,6 @@ def simulation_response2(run_name):
         dist_from_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
         mask = dist_from_center <= radius_px
         response = np.mean(data[mask])
-        print(np.mean(data_std[mask]), np.std(data[mask]))
         response_std = np.sqrt(np.mean(data_std[mask]) ** 2 + (np.std(data[mask])/np.sqrt(len(data[mask]))) ** 2)
 
         data_cache.append(data)
@@ -193,10 +192,16 @@ def compute_phsp1_energy_stats(
     # 1. Load PHSP1 data
     # --------------------------------------------------
     with h5py.File(hdf5_filename, "r") as f:
-        group = f[f"{run_name}/phsp1"]
-        X = group["X"][:]
-        Y = group["Y"][:]
-        E = group["E"][:]  # MeV
+        if len(f[f"{run_name}"].keys()) != 4:
+            group = f[f"{run_name}/phsp1"]
+            X = group["X"][:]
+            Y = group["Y"][:]
+            E = group["E"][:]  # MeV
+        else:
+            group = f[f"{run_name}/phsp4"]
+            X = group["X"][:]
+            Y = group["Y"][:]
+            E = group["E"][:]  # MeV
 
     # --------------------------------------------------
     # 2. Define detector geometry
@@ -298,10 +303,16 @@ def compute_row_energy_statistics_fast(
     # 1. Load PHSP1
     # --------------------------------------------------
     with h5py.File(hdf5_filename, "r") as f:
-        group = f[f"{run_name}/phsp1"]
-        X = group["X"][:]
-        Y = group["Y"][:]
-        E = group["E"][:]
+        if len(f[f"{run_name}"].keys()) != 4:
+            group = f[f"{run_name}/phsp1"]
+            X = group["X"][:]
+            Y = group["Y"][:]
+            E = group["E"][:]  # MeV
+        else:
+            group = f[f"{run_name}/phsp4"]
+            X = group["X"][:]
+            Y = group["Y"][:]
+            E = group["E"][:]  # MeV
 
     half_size = detector_size_mm / 2.0
     y_edges = np.linspace(-half_size, half_size, n_pixels + 1)
@@ -486,3 +497,97 @@ def convert_columns_to_units(df, column_unit_map):
     for col, target_unit in column_unit_map.items():
         df[col] = df[col].apply(lambda val: convert_with_unit(val, target_unit))
     return df
+
+
+def get_proton_counts(hdf5_filename, run_name,):
+    with h5py.File(hdf5_filename, "r") as f:
+        cache = []
+        for phsp_id in f[f"{run_name}"].keys():
+            if phsp_id.startswith("phsp"):
+                group = f[f"{run_name}/{phsp_id}"]
+                cache.append(len(group["E"][:]))
+        return cache
+
+
+def load_normalized_edep_maps(output_root, simulation_name, simulation_stem, param_list,
+                              phsp_id=4, transpose_count_map=True, flip_edep_y=False):
+    """
+    Load PHSP count maps and DoseActor edep maps and return edep normalized by proton count.
+
+    Parameters
+    ----------
+    output_root : str or Path
+        Base output directory (e.g. ".../Simulation/output").
+    simulation_name : str
+        Simulation folder name inside output_root (typically run_phrase).
+    simulation_stem : str
+        Run stem used to build run names, e.g. "1e8ALDensity_param".
+    param_list : iterable
+        Parameters appended to simulation_stem to form run names.
+    phsp_id : int, optional
+        Phase space id to read from HDF5. Default is 4.
+    transpose_count_map : bool, optional
+        If True, transpose count map before matching to edep map.
+    flip_edep_y : bool, optional
+        If True, flip edep map along y-axis (first image axis).
+
+    Returns
+    -------
+    dict
+        Dictionary mapping each parameter to the normalized edep map (float32).
+    """
+    output_root = Path(output_root)
+    simulation_dir = output_root / simulation_name
+
+    normalized_maps = {}
+    for param in param_list:
+        run_name = f"{simulation_stem}{param}"
+        hdf5_filename = simulation_dir / f"{run_name}.h5"
+        edep_filename = simulation_dir / f"_{run_name}_dose_edep.mhd"
+        group_path = f"{run_name}/phsp{phsp_id}"
+
+        if not hdf5_filename.exists():
+            raise FileNotFoundError(f"HDF5 file not found: {hdf5_filename}")
+        if not edep_filename.exists():
+            raise FileNotFoundError(f"Edep image not found: {edep_filename}")
+
+        with h5py.File(hdf5_filename, "r") as hdf5_file:
+            if group_path not in hdf5_file:
+                raise ValueError(f"Group '{group_path}' not found in {hdf5_filename}")
+            group = hdf5_file[group_path]
+            if "count_map" not in group:
+                raise ValueError(f"'count_map' missing in group '{group_path}' of {hdf5_filename}")
+            count_map = group["count_map"][...].astype(np.float32)
+
+        if transpose_count_map:
+            count_map = count_map.T
+
+        edep_img = sitk.ReadImage(str(edep_filename))
+        edep_data = np.array(sitk.GetArrayFromImage(edep_img), dtype=np.float32)
+        if edep_data.ndim == 3:
+            edep_map = edep_data[0]
+        elif edep_data.ndim == 2:
+            edep_map = edep_data
+        else:
+            raise ValueError(f"Unexpected edep image dimensions {edep_data.shape} in {edep_filename}")
+
+        if flip_edep_y:
+            edep_map = edep_map[::-1, :]
+
+        if edep_map.shape != count_map.shape:
+            if edep_map.shape == count_map.T.shape:
+                count_map = count_map.T
+            else:
+                raise ValueError(
+                    f"Shape mismatch for '{run_name}': edep {edep_map.shape} vs count_map {count_map.shape}"
+                )
+
+        normalized_edep = np.divide(
+            edep_map,
+            count_map,
+            out=np.zeros_like(edep_map, dtype=np.float32),
+            where=count_map > 0,
+        )
+        normalized_maps[param] = normalized_edep
+
+    return normalized_maps

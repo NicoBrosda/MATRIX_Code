@@ -154,7 +154,7 @@ class LineShape:
         angle_mark = AngleAnnotation([x0+5, y0], [x0+20, y0], [x0+20, y0+20*np.tan(np.deg2rad(angle))], ax=ax,
                                      text=text_fmt.format(angle), color='red', size=5000)
 
-    def add_to_plot(self, y_min=0.2, y_max=0.8, ax=None, add_angle=False, text_fmt="{:.1f}°", *args, **kwargs):
+    def add_to_plot(self, y_min=0.2, y_max=0.8, ax=None, add_angle=False, text_fmt="{:.1f}°", fs=24, bbox=False, *args, **kwargs):
         if ax is None:
             ax = plt.gca()
         if ax.get_xlim()[0] > min(min(self.points[:, 0]), ax.get_xlim()[0]) or ax.get_xlim()[1] < max(max(self.points[:, 0]), ax.get_xlim()[1]):
@@ -181,14 +181,15 @@ class LineShape:
             ratio = height / max_height
             p0 = [x_coord, transform_axis_to_data_coordinates(ax, [0.1, y_min])[1]]
             p2 = [x_coord, transform_axis_to_data_coordinates(ax, [0.1, y_max*ratio])[1]]
-            p1 = [x_coord+dx/30, p0[1]+(p2[1]-p0[1])/2]
-
-            print(p0, p1, p2)
+            p1 = [x_coord+dx/30, p0[1]+(p2[1]-p0[1])/2.5]
 
             z = kwargs.get("zorder", 1)
-            curved_line_through_points(p0, p1, p2, ax=ax, color='w', zorder=z)
-            ax.text(p0[0], p1[1], text_fmt.format(self.get_angle()), va='center', ha='right', fontsize=24, c='w')
-                    # bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.9, 'pad': 2})
+            curved_line_through_points(p0, p1, p2, ax=ax, color='w', zorder=z+1)
+            if not bbox:
+                ax.text(p0[0], p1[1], text_fmt.format(self.get_angle()), va='center', ha='right', fontsize=fs, c='w', zorder=4)
+            else:
+                ax.text(p0[0], p1[1], text_fmt.format(self.get_angle()), va='center', ha='right', fontsize=fs, c='w', zorder=4,
+                        bbox={'facecolor': 'grey', 'edgecolor': 'grey', 'alpha': 0.7, 'pad': 0.2})
 
         '''
         y_raw = self.points[:, 1]

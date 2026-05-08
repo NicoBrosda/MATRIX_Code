@@ -199,8 +199,9 @@ A = Analyzer((1, 128), (0.4, 0.4), (0.1, 0.1), readout, position_parser, voltage
 
 currents, fit_currents, signal, fit, std, fit_std, fit_r2, std_r2 = linearity_return(folder_path, crit, dark_crit, A)
 
-currents = currents / (np.pi * 30e-1**2) * 1e3
-fit_currents = fit_currents / (np.pi * 30e-1**2) * 1e3
+currents = currents / (np.pi * 1.8**2) * 1e3
+fit_currents = fit_currents / (np.pi * 1.8**2) * 1e3
+print(np.min(currents), np.max(currents))
 
 linearity_colour = sns.color_palette("husl", 8)
 
@@ -215,24 +216,15 @@ ax.set_ylabel(f'Signal current ({scale_dict[instance.scale][1]}A)')
 ax.set_yscale('log')
 ax.set_xscale('log')
 
-print(ax.get_xlim())
-print(currents[0], currents[-1])
-
-print('--'*20)
-print(fit_currents[-1])
-print(fit[-1])
 slope = (fit[-1] - fit[0])/(fit_currents[-1] - fit_currents[0])
-print(f"{slope:.2e}")
-print(f"{140e+3 / slope:.2e}")
-print(f"{140e+3 / 5 / slope:.2e}")
-print(f"{140e+3 / 10 / slope:.2e}")
-print(f"{140e+3 / 20 / slope:.2e}")
 
-ax.set_xlim([1e+1, 1.7e+3])
+ax.set_xlim([1e+1, 1e+4])
 ax.set_ylim(ax.get_ylim()[0]/3, ax.get_ylim()[1])
-ax.text(1.1e+1, signal[2]+0.5e+2, r'Signal linear fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=9,
+
+text_x = transform_axis_to_data_coordinates(ax, [0.03, 0.97])[0]
+ax.text(text_x, signal[2]+0.5e+2, r'Signal linear fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=9,
         ha='left', va='bottom', c=linearity_colour[-1])
-ax.text(1.1e+1, std[2], r'Std sqrt fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.3f}'.format(x=std_r2), fontsize=9,
+ax.text(text_x, std[2], r'Std sqrt fit \\ $\bar{\mathrm{R}}^2$' + ' = {x:.3f}'.format(x=std_r2), fontsize=9,
         ha='left', va='bottom', c=linearity_colour[-2])
 
 leg = ax.legend(

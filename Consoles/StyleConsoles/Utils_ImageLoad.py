@@ -276,7 +276,7 @@ def add_diode_geometry_indicator(ax, analyzer, position='upper right', fig=None)
                     pitch_text_y, ha='right', va='center', rotation=90, fontsize=8)
 
 
-def add_png_icon(ax, instance, location='top right', zoom=96/400, translation=None, background=False):
+def add_png_icon(ax, instance, location='top right', zoom=96/400, translation=None, background=False, custom_in=((0.9, 0.9), (0, 0))):
     """
     Adds a PNG icon to a specified location within a Matplotlib axis, with options for customization such as
     zoom level, translations, and background.
@@ -326,6 +326,9 @@ def add_png_icon(ax, instance, location='top right', zoom=96/400, translation=No
             'bottom left': ((0.02, 0.02), (0, 0)),
             'bottom right': ((0.98, 0.02), (1, 0)),
             'bottom center': ((0.35, 0.02), (0, 1)),
+            'center left': ((0.02, 0.5), (0, 0.5)),
+            'center right': ((0.98, 0.5), (1, 0.5)),
+            'custom': custom_in
         }
         (xy, box_alignment) = location_map.get(location, ((1, 1), (1, 1)))
 

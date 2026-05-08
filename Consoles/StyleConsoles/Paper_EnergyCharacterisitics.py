@@ -73,13 +73,13 @@ sim_res_400, sim_std_400, sim_energy_400, sim_energy_std_400 = simulation_respon
 #----------------------------------------------------------------------------------------------------------------
 rescale_sim = 1e3
 scale_sim = 'k'
-simn = 1e7 / rescale_sim / 5026.548245743669 / 4.965
+simn = 1e7 / rescale_sim / (np.pi * (10e-3)**2)/(0.25e-3)**2 / 4.965
 
-additional_scale = 1/e * 1e-18 * 4417.864669110646
+additional_scale = 1/e * 1e-18 * ((np.pi * (18e-3)**2) / (0.47e-3)**2)
 rescale_current = 1e6 * additional_scale
 scale_current = r'e$^{-}$/primary'
-currents_400 = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 / e / rescale_current
-currents_200 = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) *1e-9 / e /rescale_current
+currents_400 = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 * 0.568 / e / rescale_current
+currents_200 = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) *1e-9 * 0.568 / e /rescale_current
 
 normed_200, std_200 = np.array([i[1] for i in cache_200]) / currents_200, np.array([i[2] for i in cache_200]) / currents_200
 normed_400, std_400 = np.array([i[1] for i in cache_400]) / currents_400, np.array([i[2] for i in cache_400]) / currents_400
@@ -90,7 +90,7 @@ sim_energy, sim_res, sim_std = simulation_response2('EnergyVariation1e6_param')
 
 rescale_sim = 1e3
 scale_sim = 'k'
-simn = 1e6 / rescale_sim / 5026.548245743669
+simn = 1e6 / rescale_sim / ((np.pi * (10e-3)**2)/(0.25e-3)**2)
 sim_res, sim_std = sim_res / simn / 2, sim_std / simn / 2
 
 sim_res_400 = np.interp(data_wheel_400['energies'][0:len(cache_400)], sim_energy, sim_res)
@@ -107,6 +107,30 @@ def proportional(x, a):
 # How good is this resembled by a proportional relation?
 def linear(x, a, b):
     return a*x + b
+
+
+def fitted_peak_position(x_values, y_values, window=2):
+    x_values = np.asarray(x_values, dtype=float)
+    y_values = np.asarray(y_values, dtype=float)
+    peak_idx = int(np.argmax(y_values))
+
+    left = max(0, peak_idx - window)
+    right = min(len(y_values), peak_idx + window + 1)
+    x_local = x_values[left:right]
+    y_local = y_values[left:right]
+
+    if len(x_local) < 3:
+        return x_values[peak_idx]
+
+    coeffs = np.polyfit(x_local, y_local, 2)
+    a, b, _ = coeffs
+    if np.isclose(a, 0):
+        return x_values[peak_idx]
+
+    peak_position = -b / (2 * a)
+    if peak_position < x_local.min() or peak_position > x_local.max():
+        return x_values[peak_idx]
+    return peak_position
 
 sim, res, std = np.append(sim_res_400, sim_res_200), np.append(normed_400, normed_200), np.append(std_400, std_200)
 energies = np.append(data_wheel_400['energies'][0:len(cache_400)], data_wheel_200['energies'][0:len(cache_200)])
@@ -190,19 +214,39 @@ for i, object in enumerate(energies):
     continue
     ax.errorbar(sim_res_400[i], normed_400[i], std_400[i], sim_std_400[i], c=energy_color(data_wheel_400['energies'][i]), marker='', capsize=4, markersize=7, alpha=0.7)
 
-ax.plot(sim, proportional(sim, *popt), c='r', ls='--', zorder=2)
-ax.plot(sim, linear(sim, *popt2), c='b', ls='--', zorder=2)
+x_fits = np.linspace(0, 50, 100)
+ax.plot(x_fits, proportional(x_fits, *popt), c='r', ls='--', zorder=2)
+ax.plot(x_fits, linear(x_fits, *popt2), c='b', ls='--', zorder=2)
 
-ax.plot(np.interp([100, 226.7], sim_energy, sim_res), [98, 56.4], ls='', marker='o', c='orange', label='WPE data')
+wpe_prelim_y = np.array([77, 87, 73, 88, 75, 75, 78, 61, 67, 63, 51, 54, 46, 42], dtype=float)
+wpe_prelim_x = np.interp([100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 226.7], sim_energy, sim_res)
+
+ax.plot(wpe_prelim_x, wpe_prelim_y, ls='', marker='+', c='orange', label='WPE Preliminary!')
+# ax.plot(np.interp([100, 226.7], sim_energy, sim_res), [98, 56.4], ls='', marker='o', c='orange', label='WPE Preliminary!')
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 
 ax.set_xlim(ax.get_xlim())
 ax.set_ylim(0, 1.1*ax.get_ylim()[1])
 
-ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.85]), f'Proportional law $\\mathrm{"{R}"}^2$={r_squared:.4f}', fontsize=9, ha='left', va='top', c='r')
-ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.77]), f'Linear law $\\mathrm{"{R}"}^2$={r_squared2:.4f}', fontsize=9, ha='left', va='top', c='b')
-ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.975]), f'Effectivity C =', fontsize=9, ha='left', va='top')
-ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.92]), f'{popt[0]:.3f}$\\,${scale_current}/{scale_sim}eV', fontsize=9, ha='left', va='top')
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.91]), f'Proportional law $\\mathrm{"{R}"}^2$={r_squared:.4f}', fontsize=9, ha='left', va='top', c='r')
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.835]), f'Linear law $\\mathrm{"{R}"}^2$={r_squared2:.4f}', fontsize=9, ha='left', va='top', c='b')
+ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.975]), f'Effectivity C = {popt[0]:.1f}$\\,${scale_current}/{scale_sim}eV', fontsize=9, ha='left', va='top')
+# ax.text(*transform_axis_to_data_coordinates(ax, [0.03, 0.92]), f'{popt[0]:.1f}$\\,${scale_current}/{scale_sim}eV', fontsize=9, ha='left', va='top')
+
+ax_inset = ax.inset_axes([0.12, 0.46, 0.37, 0.31])
+ax_inset.plot(sim, res, c='k', ls='', marker='x', alpha=0.5)
+ax_inset.plot(x_fits, proportional(x_fits, *popt), c='r', ls='--', zorder=2)
+ax_inset.plot(x_fits, linear(x_fits, *popt2), c='b', ls='--', zorder=2)
+ax_inset.plot(wpe_prelim_x, wpe_prelim_y, ls='', marker='+', c='orange')
+ax_inset.set_xlim(np.min(wpe_prelim_x) - 1.0, np.max(wpe_prelim_x) + 1.0)
+ax_inset.set_ylim(np.min(wpe_prelim_y) - 4.0, np.max(wpe_prelim_y) + 4.0)
+ax_inset.tick_params(labelsize=7)
+for tick_label in ax_inset.get_xticklabels() + ax_inset.get_yticklabels():
+    tick_label.set_bbox(dict(facecolor='white', edgecolor='white', alpha=0.9, pad=0.2))
+    tick_label.set_zorder(10)
+# ax_inset.set_title('WPE zoom', fontsize=8)
+if hasattr(ax, 'indicate_inset_zoom'):
+    ax.indicate_inset_zoom(ax_inset, edgecolor='0.3', alpha=0.8)
 
 ax.legend(loc='lower right')
 ax.set_xlabel(r'Simulated E$_\mathrm{dep}$ (keV/primary)')
@@ -237,11 +281,11 @@ try:
                  voltage_parser=voltage_parser, current_parser=current_parser)
 except FileNotFoundError as _error:
     print(_error)
-additional_scale = 1/e * 1e-18 * 4417.864669110646
+additional_scale = 1/e * 1e-18 * ((np.pi * (18e-3)**2) / (0.47e-3)**2)
 rescale_current = 1e6 * additional_scale
 scale_current = f'$\\#$electrons'
-currents_400_aperture = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 1e-12 / e / rescale_current
-currents_200_aperture = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) *1e-9 / e /rescale_current
+currents_400_aperture = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871, 888, 887, 884, 881, 881, 877, 882, 880, 879]) * 0.568 * 1e-12 / e / rescale_current
+currents_200_aperture = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76]) * 0.568 * 1e-9 / e /rescale_current
 factor_200 = []
 for i in range(len(currents_200_aperture)):
     aperture_200[i]['z'] = aperture_200[i]['z'] / currents_200_aperture[i]
@@ -256,8 +300,8 @@ for i in range(len(currents_400_aperture)):
 rescale_current = 1e6 * additional_scale
 scale_current = f'$\\#$electrons'
 # Correctly ordered from P0 (or P12) increasing
-currents_400 = np.array([882.5, 879, 877.5, 877, 874.5, 874, 872, 876.5, 876, 875.5, 873.5, 873.5, 872.5, 872, 870.5, 888, 888.5, 888, 881]) * 1e-12 / e / rescale_current
-currents_200 = np.array([1.74, 1.736, 1.7295, 1.7245, 1.7195, 1.715, 1.7115, 1.7085, 1.710, 1.7345, 1.726, 1.735, 1.7335, 1.731, 1.7265, 1.726, 1.725, 1.7225, 1.7455, 1.7225]) * 1e-9 / e / rescale_current
+currents_400 = np.array([882.5, 879, 877.5, 877, 874.5, 874, 872, 876.5, 876, 875.5, 873.5, 873.5, 872.5, 872, 870.5, 888, 888.5, 888, 881]) * 0.568 * 1e-12 / e / rescale_current
+currents_200 = np.array([1.74, 1.736, 1.7295, 1.7245, 1.7195, 1.715, 1.7115, 1.7085, 1.710, 1.7345, 1.726, 1.735, 1.7335, 1.731, 1.7265, 1.726, 1.725, 1.7225, 1.7455, 1.7225]) * 1e-9 * 0.568  / e / rescale_current
 currents_200_middle = np.array([1.7815, 1.781, 1.778, 1.778, 1.777, 1.7765, 1.7745, 1.774]) * 1e-9 / e / rescale_current
 for i in range(len(currents_200)):
     wedge_200[i]['z'] = wedge_200[i]['z'] / currents_200[i]
@@ -365,36 +409,38 @@ for data in wedge_400:
         [data['wheel_position'], data['y'], np.mean(data['z'][:, indices[0]:indices[1]], axis=1)])
 A.scale = 'atto'
 
-signal_max = np.max(signal_cache_200[1][-1])
-for i in range(len(signal_cache_200)):
+PEEK_energies = np.array([data_wheel_200['energies'][i] for i, j in enumerate(signal_cache_200[0:14])])
+
+signal_max = np.max([signal_cache_200[i][-1] for i in range(len(cache_200))])
+for i in range(len(PEEK_energies)):
     x = signal_cache_200[i][1]
     ind = (28.25-16 <= x) & (x <= 28.25+16)
     x, sig = x[ind]-28.25+16, signal_cache_200[i][-1][ind]
     # ax.plot(x, sig/signal_max, color=energy_color(signal_cache_200[i][0]))
-    # ax.plot([i*0.25 for i in range(len(signal_cache_200[i][-1]))], signal_cache_200[i][-1]/signal_max, color=energy_color(signal_cache_200[i][0]))
+    ax.plot([i*0.25 for i in range(len(signal_cache_200[i][-1]))], signal_cache_200[i][-1]/signal_max, color=energy_color(PEEK_energies[i]), zorder=1)
 
-PEEK_energies = np.array([data_wheel_400['energies'][i] for i, j in enumerate(signal_cache_400[0:-3])])
+# PEEK_energies = np.array([data_wheel_400['energies'][i] for i, j in enumerate(signal_cache_400[0:-3])])
 
-signal_max = np.max(signal_cache_400[1][-1])
+signal_max = np.max([signal_cache_400[i][-1] for i in range(len(cache_400))])
 for i in range(len(signal_cache_400[0:-3])):
     x = signal_cache_400[i][1]
     ind = (28.25-16 <= x) & (x <= 28.25+16)
     x, sig = x[ind]-28.25+16, signal_cache_400[i][-1][ind]
     # ax.plot(x, sig/signal_max, color=energy_color(signal_cache_200[i][0]))
-    ax.plot([i*0.25 for i in range(len(signal_cache_400[i][-1]))], signal_cache_400[i][-1]/signal_max, color=energy_color(PEEK_energies[i]))
+    # ax.plot([i*0.25 for i in range(len(signal_cache_400[i][-1]))], signal_cache_400[i][-1]/signal_max, color=energy_color(PEEK_energies[i]))
 
 ax.set_xlabel(r'Position (mm)')
 ax.set_ylabel(f'Normed signal current')
 
 ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 
-shape = LineShape([[-4, 0], [36, 10]], distance_mode=False)
+shape = LineShape([[6, 0], [46, 10]], distance_mode=False)
 shape.print_shape()
-shape.add_to_plot(0.0, 0.5, color='grey', alpha=1, zorder=-1, edgecolor='k', add_angle=True, ax=ax)
+shape.add_to_plot(0.0, 0.5, color='grey', alpha=1, edgecolor='k', fs=14, bbox=True, add_angle=True, ax=ax, zorder=0)
 
 ax.set_xlim(3, 36)
 
-PEEK_energies = np.array([data_wheel_400['energies'][i] for i, j in enumerate(signal_cache_400[0:-3])])
+# PEEK_energies = np.array([data_wheel_400['energies'][i] for i, j in enumerate(signal_cache_400[0:-3])])
 start, end = [0.83, 0.80], [0.83, 0.67]
 txtend = end[1] - 0.075 if end[1] < start[1] else end[1]+0.075
 frac1 = 1 - (PEEK_energies.min() - energies.min()) / (energies.max()- energies.min())
@@ -406,10 +452,43 @@ gradient_arrow(ax, transform_axis_to_data_coordinates(ax, start),
                        transform_axis_to_data_coordinates(ax, end), cmap=new_cmap, lw=10, zorder=5)
 ax.text(*transform_axis_to_data_coordinates(ax, start),
         f"{PEEK_energies.min(): .2f}$\\,${'MeV'}", fontsize=11,
-        c=energy_color(PEEK_energies.min()), zorder=3, va='bottom', ha='center')  # , bbox={'facecolor': freq_colour(1033), 'alpha': 0.2, 'pad': 2})
+        c=energy_color(PEEK_energies.min()), zorder=3, va='bottom', ha='center', bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.8, 'pad': 0.1})
 ax.text(*transform_axis_to_data_coordinates(ax, [end[0], txtend]),
         f"{PEEK_energies.max(): .2f}$\\,${'MeV'}", fontsize=11,
-        c=energy_color(PEEK_energies.max()), zorder=3, va='top', ha='center')  # , bbox={'facecolor': freq_colour(32033), 'alpha': 0.2, 'pad': 2})
+        c=energy_color(PEEK_energies.max()), zorder=3, va='top', ha='center', bbox={'facecolor': 'white', 'edgecolor': 'white', 'alpha': 0.8, 'pad': 0.1})
+
+x = 0.25
+start, end = 1, 34
+crit = f'1e+0814degDiff200SortieAir200Polypropylene_param'
+crit = f'1e+0814degDiff200SortieAir200WiderApperturePolypropylene_param'
+
+param_list = data_wheel_200['thickness']
+max_line_cache = 0
+for j, param in enumerate(param_list):
+    if j >= len(PEEK_energies):
+        break
+    data_cache, line_cache, line_std_cache = get_sim(crit, param=param)
+    line_cache = line_cache[int(start/0.25):int(end/0.25)]
+    max_line_cache = max(np.max(line_cache), max_line_cache)
+
+for j, param in enumerate(param_list):
+    if j >= len(PEEK_energies):
+        break
+    data_cache, line_cache, line_std_cache = get_sim(crit, param=param)
+    line_cache = line_cache[int(start/0.25):int(end/0.25)]
+    max_line_cache = np.max(line_cache)
+    sim_positions = np.array([0.25 * i + x for i in range(len(line_cache))])
+    sim_peak_position = fitted_peak_position(sim_positions, line_cache / max_line_cache)
+    # ax.plot([0.25*i+x for i in range(len(line_cache))], line_cache / np.max(line_cache), label=param, color=colors(j/len(param_list)), lw=1.5, alpha=0.7, zorder=2)
+    if j == 0:
+        ax.plot(sim_positions, line_cache / max_line_cache, color='orange', ls='--',  lw=1.5, alpha=1, zorder=2, label='GATE')
+    else:
+        pass
+        # ax.plot([0.25*i+x for i in range(len(line_cache))], line_cache / max_line_cache, color='orange', ls='--',  lw=1.5, alpha=1, zorder=4)
+
+    ax.axvline(sim_peak_position, color='orange', ls='--', zorder=0, alpha=1, lw=1.2)
+
+ax.legend(loc='lower right')
 
 # ------------------------------------------------------------------------------------------------------------------
 # Ax4: New 5° wedge - high obtained energy resolution + comparison with simulation
@@ -476,13 +555,15 @@ print(cache)
 for i, curve in enumerate(cache[0:]):
     print(curve)
     cache_max = np.max(curve)
-    cache_max = np.max(cache[0:])
-    ax.plot([0.25*i for i in range(len(curve))], curve / cache_max, color=colors(i/len(cache)), lw=1.5, zorder=3, label=f'{energy[i]:.1f} MeV')
+    # cache_max = np.max(cache[0:])
+    ax.plot([0.25*i for i in range(len(curve))], curve / cache_max, color=colors(i/len(cache)), marker='.', lw=1.5, zorder=3, label=f'{energy[i]:.1f} MeV')
     ax.axvline([0.25*i for i in range(len(curve))][np.argmax(curve / cache_max)], color=colors(i/len(cache)), zorder=2, alpha=1, lw=1.5)
 
-x = 0
+x = +0.25
 start, end = 9, 41
 crit = f'5e+075degInitialNewPEEK_param'
+crit = f'1e+085degActiveLayerSortieAir50PEEK_param'
+
 param_list = [24.92, 23.92, 22.92]
 max_line_cache = 0
 for j, param in enumerate(param_list):
@@ -493,13 +574,16 @@ for j, param in enumerate(param_list):
 for j, param in enumerate(param_list):
     data_cache, line_cache, line_std_cache = get_sim(crit, param=param)
     line_cache = line_cache[int(start/0.25):int(end/0.25)]
+    max_line_cache = np.max(line_cache)
+    sim_positions = np.array([0.25 * i + x for i in range(len(line_cache))])
+    sim_peak_position = fitted_peak_position(sim_positions, line_cache / max_line_cache)
     # ax.plot([0.25*i+x for i in range(len(line_cache))], line_cache / np.max(line_cache), label=param, color=colors(j/len(param_list)), lw=1.5, alpha=0.7, zorder=2)
     if j == 0:
-        ax.plot([0.25*i+x for i in range(len(line_cache))], line_cache / max_line_cache, color='orange', ls='--',  lw=1.5, alpha=1, zorder=4, label='GATE')
+        ax.plot(sim_positions, line_cache / max_line_cache, color='orange', ls='--',  lw=1.5, alpha=1, zorder=4, label='GATE')
     else:
-        ax.plot([0.25*i+x for i in range(len(line_cache))], line_cache / max_line_cache, color='orange', ls='--',  lw=1.5, alpha=1, zorder=4)
+        ax.plot(sim_positions, line_cache / max_line_cache, color='orange', ls='--',  lw=1.5, alpha=1, zorder=4)
 
-    ax.axvline([0.25*i+x for i in range(len(line_cache))][np.argmax(line_cache / np.max(line_cache))], color='orange', ls='--', zorder=2, alpha=1, lw=1.2)
+    ax.axvline(sim_peak_position, color='orange', ls='--', zorder=2, alpha=1, lw=1.2)
 
 ax.legend()
 
@@ -512,13 +596,15 @@ ax.set_xlim(ax.get_xlim()), ax.set_ylim(ax.get_ylim())
 # The wedge is positioned with ± 20 mm from beam center in plot coordinates 16 mm
 shape = LineShape([[-4, 2.14], [36, 5.64]], distance_mode=False)
 shape.print_shape()
-shape.add_to_plot(0.0, 0.28, color='grey', alpha=1, zorder=-1, edgecolor='k', add_angle=True, ax=ax)
+shape.add_to_plot(0.0, 0.28, color='grey', alpha=1, zorder=-1, edgecolor='k', fs=14, add_angle=True, ax=ax)
 
 for j, param in enumerate(param_list):
     data_cache, line_cache, line_std_cache = get_sim(crit, param=param)
     line_cache = line_cache[int(start/0.25):int(end/0.25)]
+    sim_positions = np.array([0.25 * i + x for i in range(len(line_cache))])
+    sim_peak_position = fitted_peak_position(sim_positions, line_cache)
     print(param)
-    print(shape.calculate_value([0.25*i+x for i in range(len(line_cache))][np.argmax(line_cache / np.max(line_cache))]))
+    print(shape.calculate_value(sim_peak_position))
 
 ax.set_xlabel(r'Position (mm)')
 ax.set_ylabel(f'Normed signal Current')
