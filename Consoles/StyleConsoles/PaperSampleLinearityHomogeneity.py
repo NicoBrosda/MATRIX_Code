@@ -242,4 +242,96 @@ ax2.text(*transform_axis_to_data_coordinates(ax2, [0.03, 0.97]), r'\textbf{(h)}'
 ax3.text(*transform_axis_to_data_coordinates(ax3, [0.03, 0.97]), r'\textbf{(i)}', fontsize=7, ha='left',
         va='top', color='k')
 
+# ------------------------------------------------------------------------------------------------------------------
+# Data export for reproducibility
+# ------------------------------------------------------------------------------------------------------------------
+# Ax2 (Homogeneity): raw per-diode normalization factors
+hom_rows = []
+for array_idx, factor in enumerate(factors):
+    flat = np.asarray(factor).flatten()
+    for diode_idx, value in enumerate(flat):
+        hom_rows.append({
+            'array_label': labels[array_idx],
+            'array_index': array_idx,
+            'diode_index': diode_idx,
+            'normalization_factor': float(value),
+        })
+pd.DataFrame(hom_rows).to_csv(
+    results_path / 'DataSet_SampleLinearityHomogeneity_Homogeneity.csv',
+    index=False
+)
+
+# Optional helper export: histogram bins/counts exactly as plotted
+hist_rows = []
+for array_idx, factor in enumerate(factors):
+    counts, edges = np.histogram(np.asarray(factor).flatten(), bins=bins)
+    for bin_idx in range(len(counts)):
+        hist_rows.append({
+            'array_label': labels[array_idx],
+            'array_index': array_idx,
+            'bin_index': bin_idx,
+            'bin_left': float(edges[bin_idx]),
+            'bin_right': float(edges[bin_idx + 1]),
+            'count': int(counts[bin_idx]),
+        })
+pd.DataFrame(hist_rows).to_csv(
+    results_path / 'DataSet_SampleLinearityHomogeneity_HomogeneityHistogram.csv',
+    index=False
+)
+
+# Channel-wise factor curves (exactly what is plotted in the factor plot below)
+factor_plot_df = pd.DataFrame({'diode_index': np.arange(len(np.asarray(factors[0]).flatten()))})
+for array_idx, factor in enumerate(factors):
+    factor_plot_df[f'factor_array_{array_idx}'] = np.asarray(factor).flatten()
+    factor_plot_df[f'factor_array_{array_idx}_label'] = labels[array_idx]
+factor_plot_df.to_csv(
+    results_path / 'DataSet_SampleLinearityHomogeneity_HomogeneityFactorsPlot.csv',
+    index=False
+)
+
+# Plot factor curves for both arrays
+fig_fac, ax_fac = plt.subplots(figsize=(7.5 * cm, 4.2 * cm))
+for array_idx, factor in enumerate(factors):
+    flat = np.asarray(factor).flatten()
+    ax_fac.plot(np.arange(len(flat)), flat, color=color[array_idx], lw=1.2, label=labels[array_idx])
+ax_fac.axhline(1.0, color='k', lw=1.0, ls='--', alpha=0.8)
+ax_fac.set_xlabel('Diode channel')
+ax_fac.set_ylabel('Normalization factor')
+ax_fac.set_xlim(0, len(np.asarray(factors[0]).flatten()) - 1)
+ax_fac.legend(frameon=False, loc='upper right')
+fig_fac.tight_layout()
+fig_fac.savefig(
+    results_path / f'DataSet_SampleLinearityHomogeneity_HomogeneityFactors{save_format}',
+    dpi=dpi,
+    bbox_inches='tight'
+)
+plt.close(fig_fac)
+
+# Ax3 (Linearity): measured points and fit curves
+pd.DataFrame({
+    'current_density_pA_cm2': currents,
+    'signal_current': signal,
+    'signal_std_current': std,
+}).to_csv(
+    results_path / 'DataSet_SampleLinearityHomogeneity_LinearityMeasured.csv',
+    index=False
+)
+
+# Fit parameters (instead of full fitted curves)
+signal_slope, signal_intercept = np.polyfit(fit_currents, fit, 1)
+std_sqrt_slope, std_sqrt_intercept = np.polyfit(np.sqrt(fit_currents), fit_std, 1)
+pd.DataFrame([{
+    'signal_fit_model': 'a*x+b',
+    'signal_fit_a': float(signal_slope),
+    'signal_fit_b': float(signal_intercept),
+    'signal_fit_r2': float(fit_r2),
+    'std_fit_model': 'a*sqrt(x)+b',
+    'std_fit_a': float(std_sqrt_slope),
+    'std_fit_b': float(std_sqrt_intercept),
+    'std_fit_r2': float(std_r2),
+}]).to_csv(
+    results_path / 'DataSet_SampleLinearityHomogeneity_LinearityFitParams.csv',
+    index=False
+)
+
 format_save(save_path=results_path, save_name=f"HomogemeityLinearity", dpi=dpi, plot_size=plot_size, save_format=save_format, fig=fig, axes=[ax2, ax3], legend=False)

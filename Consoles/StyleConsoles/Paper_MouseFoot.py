@@ -11,7 +11,7 @@ y_limits = [66.5-11, 66.5+11]
 # y_limits = np.array([94, 126])
 zero_scale = True
 
-intensity_limits = np.array([75, 105]) * (2/1.995) / 0.82
+intensity_limits = np.array([75, 105]) * (2/1.995) / 0.82 * 4.31
 pixel = 'fill'
 
 plot_size = fullsize_plot

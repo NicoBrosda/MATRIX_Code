@@ -13,6 +13,7 @@ Experiment metrics (all ROI-restricted):
                     and fit a full Gaussian to the synthetic distribution
     roi_mean      — current default
     roi_median    — current default
+    plateau       — 1 mm-disc median for non-PEEK, top-200 mean for PEEK
 
 Simulation references (one x-value per measurement):
     equivalent — same metric applied to sim ROI distribution (1:1 pairing)
@@ -28,7 +29,7 @@ from EvaluationSoftware.simulation_connectors import *
 import h5py
 import pickle
 import matplotlib
-matplotlib.rcParams['text.usetex'] = False
+matplotlib.rcParams['text.usetex'] = True
 from scipy.stats import norm as scipy_norm
 from scipy.optimize import curve_fit
 from scipy.constants import e
@@ -47,11 +48,20 @@ metric_root.mkdir(parents=True, exist_ok=True)
 sim_root = Path('/Users/nico_brosda/GateSimulation/GATE10/Simulation/output')
 SIM_CONFIGS = [
     {'tag': 'Normal50um',
-     'sim_path_200': sim_root / '1e+07ALDensityNormal50umwindow200diff',
-     'sim_path_400': sim_root / '1e+07ALDensityNormal50umwindow400diff'},
+     'sim_path_200': sim_root / '1e+08ALDensityNormal50umwindow200diff',
+     'sim_path_400': sim_root / '1e+08ALDensityNormal50umwindow400diff'},
     {'tag': 'Var50um',
      'sim_path_200': sim_root / '1e+08ALDensityVar50umwindow200diff',
      'sim_path_400': sim_root / '1e+08ALDensityVar50umwindow400diff'},
+    {'tag': 'VarI50um',
+     'sim_path_200': sim_root / '1e+08ALDensity2,7150umwindow200diff',
+     'sim_path_400': sim_root / '1e+08ALDensity2,7150umwindow400diff'},
+    {'tag': 'VarIi50um',
+     'sim_path_200': sim_root / '1e+08ALDensity2,71550umwindow200diff',
+     'sim_path_400': sim_root / '1e+08ALDensity2,71550umwindow400diff'},
+    {'tag': 'VarII50um',
+     'sim_path_200': sim_root / '1e+08ALDensity2,7250umwindow200diff',
+     'sim_path_400': sim_root / '1e+08ALDensity2,7250umwindow400diff'},
     {'tag': 'Var200um',
      'sim_path_200': sim_root / '1e+08ALDensityVar200umwindow200diff',
      'sim_path_400': sim_root / '1e+08ALDensityVar200umwindow400diff'},
@@ -64,12 +74,19 @@ P0_MANUAL_CENTER = (18.0, 67.5)
 _PEEK_CX, _PEEK_CY = (11.5 + 24.0) / 2, 65.5
 _PEEK_RX, _PEEK_RY = (24.0 - 11.5) / 2, 6.5
 
+# Plateau metric: 1 mm-radius disc for non-PEEK; top-N average for PEEK
+# (PEEK has no clean plateau so we fall back to the brightest channels).
+PLATEAU_ROI_RADIUS_MM = 1.0
+PLATEAU_PEEK_TOPN     = 200
+
 MAX_PERCENTILE = 99.0
 HALF_SYM_THRESHOLD = 0.6
 HIST_BINS = 40
 
-aperture_radii = np.array([15, 16, 17, 18, 19, 20], dtype=float)
-r_baseline = 15.0
+aperture_radii = np.array([10.5, 11.0, 11.5, 12.0, 12.5, 13.0], dtype=float)
+# Standard aperture: 12 ± 0.25 mm (uncertainty documented; sweep covers the
+# range with ±0.25 mm bracketed at r=11.75…12.25 inside aperture_radii).
+r_baseline = 12.0
 
 flare_cmap = sns.color_palette("flare", as_cmap=True)
 
@@ -102,14 +119,16 @@ raw_400 = np.array([887, 888, 885, 880, 876, 872, 884, 880, 876, 871,
 raw_200 = np.array([1.73, 1.72, 1.72, 1.70, 1.71, 1.70, 1.72, 1.71, 1.70,
                     1.72, 1.72, 1.71, 1.70, 1.72, 1.72, 1.71, 1.70, 1.69, 1.69, 1.76])
 
-r_aperture = 15e-3
+r_aperture = 12e-3  # standard aperture: 12 ± 0.25 mm (must match r_baseline)
 additional_scale = (1 / e) * 1e-18 * (np.pi * r_aperture ** 2) / (0.47e-3) ** 2
 rescale_current = 1e6 * additional_scale
 currents_400 = raw_400 * 1e-12 * 0.568 / e / rescale_current
 currents_200 = raw_200 * 1e-9 * 0.568 / e / rescale_current
 
 # ── WPE preliminary points ────────────────────────────────────────────────────
-wpe_y = np.array([77, 87, 73, 88, 75, 75, 78, 61, 67, 63, 51, 54, 46, 42], dtype=float)
+# Preliminary WPE values were captured with the old signal_conversion that under-
+# reported by a factor of ~4.3; rescale here to match the corrected pipeline.
+wpe_y = np.array([77, 87, 73, 88, 75, 75, 78, 61, 67, 63, 51, 54, 46, 42], dtype=float) * 4.3
 wpe_x = np.interp([100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 226.7],
                   sim_energy_old, sim_res_old)
 
@@ -128,7 +147,8 @@ def make_peek_mask(pos1_y, scale=1.0):
     return mask
 
 
-def build_exp_dist(meas, cx_default, cy_default, peek_variant='standard'):
+def build_exp_dist(meas, cx_default, cy_default, peek_variant='standard',
+                   roi_radius_mm=ROI_RADIUS_MM):
     is_peek = meas['is_peek']
     sig_list = []
 
@@ -144,7 +164,7 @@ def build_exp_dist(meas, cx_default, cy_default, peek_variant='standard'):
     else:
         cx, cy = cx_default, cy_default
         def roi_mask(x_ch, y_ch):
-            return np.sqrt((x_ch - cx) ** 2 + (y_ch - cy) ** 2) <= ROI_RADIUS_MM
+            return np.sqrt((x_ch - cx) ** 2 + (y_ch - cy) ** 2) <= roi_radius_mm
 
     for pos, sig, _ in meas['entries']:
         x_ch = pos[0] + DX_CH
@@ -241,6 +261,15 @@ def metric_roi_median(values):
     return float(np.median(values))
 
 
+def metric_plateau(values):
+    """Sim/non-PEEK plateau metric: median of an already-restricted plateau dist
+    (1 mm-radius disc around the centre). For PEEK exp the call site replaces the
+    values with a top-N selection before calling this — see special-case below."""
+    if len(values) == 0:
+        return np.nan
+    return float(np.median(values))
+
+
 METRICS = {
     'max':           metric_max,
     'top200':        metric_top200,
@@ -248,6 +277,7 @@ METRICS = {
     'half_gaussian': metric_half_gaussian,
     'roi_mean':      metric_roi_mean,
     'roi_median':    metric_roi_median,
+    'plateau':       metric_plateau,
 }
 METRIC_NAMES = list(METRICS.keys())
 
@@ -258,6 +288,7 @@ method_colors = {
     'half_gaussian': 'magenta',
     'roi_mean':      'blue',
     'roi_median':    'purple',
+    'plateau':       'black',
 }
 
 # ── consensus centers ─────────────────────────────────────────────────────────
@@ -294,6 +325,20 @@ def linear(x, a, b):
     return a * x + b
 
 
+def tex_escape(text):
+    escaped = str(text)
+    for old, new in (
+        ('_', r'\_'),
+        ('%', r'\%'),
+        ('&', r'\&'),
+        ('#', r'\#'),
+        ('{', r'\{'),
+        ('}', r'\}'),
+    ):
+        escaped = escaped.replace(old, new)
+    return escaped
+
+
 def df_to_grid(df, value_col):
     rows = METRIC_NAMES
     cols = ['equivalent', 'gaussian', 'old']
@@ -316,9 +361,9 @@ def _adaptive_text_color(v, vmin, vmax):
 def draw_heatmap(ax, grid, rows, cols, title, fmt='{:.4f}'):
     im = ax.imshow(grid, aspect='auto', cmap=flare_cmap)
     ax.set_xticks(np.arange(len(cols)))
-    ax.set_xticklabels(cols)
+    ax.set_xticklabels([tex_escape(c) for c in cols])
     ax.set_yticks(np.arange(len(rows)))
-    ax.set_yticklabels(rows)
+    ax.set_yticklabels([tex_escape(r) for r in rows])
     ax.set_title(title)
     vmin = np.nanmin(grid)
     vmax = np.nanmax(grid)
@@ -367,7 +412,8 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
     print(f'  Sim maps loaded: 200µm={len(sim_maps_200)}, 400µm={len(sim_maps_400)}')
 
     # ── compute per-measurement distributions and metrics (cached per sim set) ─
-    metric_cache_path = save_folder / 'cache_metric_comparison.pkl'
+    # v2: introduces the plateau metric (1 mm-ROI median / PEEK top-N).
+    metric_cache_path = save_folder / 'cache_metric_comparison_v2.pkl'
     try:
         with open(metric_cache_path, 'rb') as _f:
             records = pickle.load(_f)
@@ -393,12 +439,19 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
 
             cx, cy = get_center(diffuser, wp)
             exp_dist = build_exp_dist(meas, cx, cy, peek_variant='standard')
+            # Plateau-only exp dist: 1 mm disc around centre for non-PEEK.
+            # Unused for PEEK (handled below by top-N selection on exp_dist).
+            exp_plateau_dist = (
+                build_exp_dist(meas, cx, cy, peek_variant='standard',
+                               roi_radius_mm=PLATEAU_ROI_RADIUS_MM)
+                if not is_peek else np.array([]))
 
             sim_map = lookup_sim_map(sim_maps, thickness)
             if sim_map is None:
                 print(f'  WARN: no sim map for ({diffuser}µm, P{wp}, t={thickness}); skipped')
                 continue
             sim_dist = build_sim_dist(sim_map)
+            sim_plateau_dist = build_sim_dist(sim_map, roi_radius_mm=PLATEAU_ROI_RADIUS_MM)
 
             exp_metrics, sim_metrics = {}, {}
             truncation = {}
@@ -408,6 +461,16 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
                     sim_v, sim_trunc = fn(sim_dist)
                     truncation['exp'] = exp_trunc
                     truncation['sim'] = sim_trunc
+                elif name == 'plateau':
+                    if is_peek:
+                        # PEEK has no clean plateau — fall back to the top-N
+                        # brightest channels inside the full PEEK ROI.
+                        n_top = min(PLATEAU_PEEK_TOPN, len(exp_dist))
+                        exp_v = (float(np.mean(np.sort(exp_dist)[-n_top:]))
+                                 if n_top > 0 else np.nan)
+                    else:
+                        exp_v = fn(exp_plateau_dist)
+                    sim_v = fn(sim_plateau_dist)
                 else:
                     exp_v = fn(exp_dist)
                     sim_v = fn(sim_dist)
@@ -495,9 +558,9 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
     # ── summary heatmap (2×2) ─────────────────────────────────────────────────
     fig_hm, axes_hm = plt.subplots(2, 2, figsize=(14, 12))
     panels_hm = [
-        (axes_hm[0, 0], 'r2_prop',    'R² (proportional fit)',    '{:.4f}'),
+        (axes_hm[0, 0], 'r2_prop',    r'$R^2$ (proportional fit)',    '{:.4f}'),
         (axes_hm[0, 1], 'slope_prop', 'Slope (proportional fit)', '{:.2f}'),
-        (axes_hm[1, 0], 'r2_lin',     'R² (linear fit)',          '{:.4f}'),
+        (axes_hm[1, 0], 'r2_lin',     r'$R^2$ (linear fit)',          '{:.4f}'),
         (axes_hm[1, 1], 'slope_lin',  'Slope (linear fit)',       '{:.2f}'),
     ]
     for ax, value_col, title, fmt in panels_hm:
@@ -537,9 +600,9 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
     fig_wpe, axes_wpe = plt.subplots(2, 2, figsize=(14, 12))
     panels_wpe = [
         (axes_wpe[0, 0], 'wpe_rmse_prop', 'WPE RMSE (proportional fit)', '{:.2f}'),
-        (axes_wpe[0, 1], 'wpe_r2_prop',   'WPE R² (proportional fit)',    '{:.3f}'),
+        (axes_wpe[0, 1], 'wpe_r2_prop',   r'WPE $R^2$ (proportional fit)',    '{:.3f}'),
         (axes_wpe[1, 0], 'wpe_rmse_lin',  'WPE RMSE (linear fit)',        '{:.2f}'),
-        (axes_wpe[1, 1], 'wpe_r2_lin',    'WPE R² (linear fit)',          '{:.3f}'),
+        (axes_wpe[1, 1], 'wpe_r2_lin',    r'WPE $R^2$ (linear fit)',          '{:.3f}'),
     ]
     for ax, value_col, title, fmt in panels_wpe:
         grid, rows, cols = df_to_grid(wpe_df, value_col)
@@ -606,10 +669,10 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
         sub = ap_df[ap_df['sim_ref'] == ref]
         for col, m in zip(exp_palette, METRIC_NAMES):
             sm = sub[sub['exp_method'] == m].sort_values('r_mm')
-            ax.plot(sm['r_mm'], sm['wpe_rmse_prop'], marker='o', color=col, label=m)
+            ax.plot(sm['r_mm'], sm['wpe_rmse_prop'], marker='o', color=col, label=tex_escape(m))
         ax.set_xlabel('Aperture radius (mm)')
         ax.set_ylabel('WPE RMSE (proportional fit)')
-        ax.set_title(f'sim_ref = {ref}')
+        ax.set_title(f'sim\\_ref = {tex_escape(ref)}')
         ax.grid(alpha=0.2)
         ax.legend(fontsize=8)
     plt.tight_layout()
@@ -633,8 +696,8 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
         ax.set_xticks(np.arange(3))
         ax.set_xticklabels(['equivalent', 'gaussian', 'old'])
         ax.set_yticks(np.arange(len(METRIC_NAMES)))
-        ax.set_yticklabels(METRIC_NAMES)
-        ax.set_title(f'r = {r:.0f} mm — WPE RMSE (prop fit)')
+        ax.set_yticklabels([tex_escape(m) for m in METRIC_NAMES])
+        ax.set_title(f'r = {r:.1f} mm - WPE RMSE (prop fit)')
         for i in range(grid.shape[0]):
             for j in range(grid.shape[1]):
                 v = grid[i, j]
@@ -656,10 +719,10 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
         ax_sl = axes_apr[1, col_idx]
         for col, m in zip(exp_palette, METRIC_NAMES):
             sm = sub[sub['exp_method'] == m].sort_values('r_mm')
-            ax_r2.plot(sm['r_mm'], sm['r2_prop'],    marker='o', color=col, label=m)
-            ax_sl.plot(sm['r_mm'], sm['slope_prop'], marker='o', color=col, label=m)
-        ax_r2.set_ylabel('R² (proportional fit)')
-        ax_r2.set_title(f'sim_ref = {ref}')
+            ax_r2.plot(sm['r_mm'], sm['r2_prop'],    marker='o', color=col, label=tex_escape(m))
+            ax_sl.plot(sm['r_mm'], sm['slope_prop'], marker='o', color=col, label=tex_escape(m))
+        ax_r2.set_ylabel(r'$R^2$ (proportional fit)')
+        ax_r2.set_title(f'sim\\_ref = {tex_escape(ref)}')
         ax_r2.grid(alpha=0.2)
         ax_sl.set_xlabel('Aperture radius (mm)')
         ax_sl.set_ylabel('Slope (proportional fit)')
@@ -679,11 +742,11 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
         ax_int = axes_apl[2, col_idx]
         for col, m in zip(exp_palette, METRIC_NAMES):
             sm = sub[sub['exp_method'] == m].sort_values('r_mm')
-            ax_r2.plot( sm['r_mm'], sm['r2_lin'],        marker='o', color=col, label=m)
-            ax_sl.plot( sm['r_mm'], sm['slope_lin'],     marker='o', color=col, label=m)
-            ax_int.plot(sm['r_mm'], sm['intercept_lin'], marker='o', color=col, label=m)
-        ax_r2.set_ylabel('R² (linear fit)')
-        ax_r2.set_title(f'sim_ref = {ref}')
+            ax_r2.plot( sm['r_mm'], sm['r2_lin'],        marker='o', color=col, label=tex_escape(m))
+            ax_sl.plot( sm['r_mm'], sm['slope_lin'],     marker='o', color=col, label=tex_escape(m))
+            ax_int.plot(sm['r_mm'], sm['intercept_lin'], marker='o', color=col, label=tex_escape(m))
+        ax_r2.set_ylabel(r'$R^2$ (linear fit)')
+        ax_r2.set_title(f'sim\\_ref = {tex_escape(ref)}')
         ax_r2.grid(alpha=0.2)
         ax_sl.set_ylabel('Slope (linear fit)')
         ax_sl.grid(alpha=0.2)
@@ -705,7 +768,7 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
 
     for r in aperture_radii:
         k = (r / r_baseline) ** 2
-        folder_r = save_folder / f'signal_vs_edep_r{int(r)}'
+        folder_r = save_folder / f'signal_vs_edep_r{r:.1f}'
         folder_r.mkdir(exist_ok=True)
 
         for fr in fit_results:
@@ -746,16 +809,17 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
             x_fit = np.linspace(0, x_max, 100)
             if np.isfinite(slope_p_r):
                 ax.plot(x_fit, slope_p_r * x_fit, 'r--', lw=1.5,
-                        label=f'Prop:  a={slope_p_r:.2f}, R²={fr["r2_prop"]:.4f}\n'
-                              f'        WPE_RMSE={sub["wpe_rmse_prop"]:.2f}, WPE_R²={sub["wpe_r2_prop"]:.3f}')
+                        label=f'Prop:  a={slope_p_r:.2f}, $R^2$={fr["r2_prop"]:.4f}\n'
+                              f'        WPE\\_RMSE={sub["wpe_rmse_prop"]:.2f}, WPE $R^2$={sub["wpe_r2_prop"]:.3f}')
             if np.isfinite(slope_l_r):
                 ax.plot(x_fit, slope_l_r * x_fit + intercept_l_r, 'b--', lw=1.5,
-                        label=f'Lin:   a={slope_l_r:.2f}, b={intercept_l_r:.2f}, R²={fr["r2_lin"]:.4f}\n'
-                              f'        WPE_RMSE={sub["wpe_rmse_lin"]:.2f}, WPE_R²={sub["wpe_r2_lin"]:.3f}')
+                        label=f'Lin:   a={slope_l_r:.2f}, b={intercept_l_r:.2f}, $R^2$={fr["r2_lin"]:.4f}\n'
+                              f'        WPE\\_RMSE={sub["wpe_rmse_lin"]:.2f}, WPE $R^2$={sub["wpe_r2_lin"]:.3f}')
 
             ax.set_xlabel('Simulated Edep (keV/primary)')
-            ax.set_ylabel(f'Signal / current (a.u.)   [r = {r:.0f} mm]')
-            ax.set_title(f'exp: {m}  ×  sim_ref: {ref}   (r = {r:.0f} mm, n={fr["n"]})')
+            ax.set_ylabel(f'Signal / current (a.u.)   [r = {r:.1f} mm]')
+            ax.set_title(f'exp: {tex_escape(m)}  x  sim\\_ref: {tex_escape(ref)}   '
+                         f'(r = {r:.1f} mm, n={fr["n"]})')
             ax.legend(fontsize=8, loc='lower right')
             ax.grid(alpha=0.2)
             ax.set_xlim(0, ax.get_xlim()[1])
@@ -782,8 +846,8 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
                 if np.isfinite(v):
                     ls = '-' if name in ('roi_mean', 'roi_median') else '--'
                     ax_e.axvline(v, color=method_colors[name], lw=1.5, ls=ls,
-                                 label=f'{name}={v:.3g}')
-        title_e = f'Exp ROI - {diff_label}, E_table={r["table_energy"]:.2f} MeV'
+                                 label=f'{tex_escape(name)}={v:.3g}')
+        title_e = f'Exp ROI - {tex_escape(diff_label)}, E\\_table={r["table_energy"]:.2f} MeV'
         if r['truncation'].get('exp', False):
             title_e += '  [TRUNCATED -> half-Gaussian]'
         ax_e.set_xlabel('Signal (a.u.)')
@@ -800,7 +864,7 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
                 if np.isfinite(v):
                     ls = '-' if name in ('roi_mean', 'roi_median') else '--'
                     ax_s.axvline(v * 1e3, color=method_colors[name], lw=1.5, ls=ls,
-                                 label=f'{name}={v*1e3:.3g}')
+                                 label=f'{tex_escape(name)}={v*1e3:.3g}')
         title_s = 'Sim ROI Edep - same wheel position'
         if r['truncation'].get('sim', False):
             title_s += '  [TRUNCATED -> half-Gaussian]'
@@ -872,8 +936,8 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
         flag = 'TRUNCATED -> mirrored half-fit' if truncated else 'untruncated -> full fit'
         ax.set_xlabel('Signal (a.u.)')
         ax.set_ylabel('Counts')
-        ax.set_title(f'{diff_label} - symmetry={sym:.2f} ({flag}), '
-                     f'E_table={r["table_energy"]:.2f} MeV', fontsize=10)
+        ax.set_title(f'{tex_escape(diff_label)} - symmetry={sym:.2f} ({flag}), '
+                     f'E\\_table={r["table_energy"]:.2f} MeV', fontsize=10)
         ax.legend(fontsize=8, loc='upper right')
 
         fig.savefig(save_folder / 'half_gaussian_fits' / f'{diff_label}{save_format}',
@@ -892,6 +956,10 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
             for name, fn in METRICS.items():
                 if name == 'half_gaussian':
                     v, _ = fn(dist)
+                elif name == 'plateau':
+                    n_top = min(PLATEAU_PEEK_TOPN, len(dist))
+                    v = (float(np.mean(np.sort(dist)[-n_top:]))
+                         if n_top > 0 else np.nan)
                 else:
                     v = fn(dist)
                 ms[name] = v
@@ -911,7 +979,7 @@ def run_for_sim_set(sim_path_200, sim_path_400, save_folder):
                     v = peek_results[variant]['metrics'][name]
                     if np.isfinite(v):
                         ax.axvline(v, color=method_colors[name], lw=1.2, ls='--',
-                                   label=f'{name}={v:.2g}')
+                                   label=f'{tex_escape(name)}={v:.2g}')
             ax.set_xlabel('Signal (a.u.)')
             ax.set_ylabel('Counts')
             ax.set_title(f'PEEK - ROI variant: {variant}')

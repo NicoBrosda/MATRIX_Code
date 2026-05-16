@@ -132,7 +132,7 @@ ax.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)')
 ax.set_yscale('log')
 ax.set_xscale('log')
 ax.set_xlim([1e+1, 1e+4])
-ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1])
+ax.set_ylim(ax.get_ylim()[0], 1e+4)
 ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.11]), r'Before $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r2), fontsize=10,
         ha='right', va='bottom', c='b')
 ax.text(*transform_axis_to_data_coordinates(ax, [0.98, 0.1]), r'After $\bar{\mathrm{R}}^2$' + ' = {x:.5f}'.format(x=fit_r22), fontsize=10,

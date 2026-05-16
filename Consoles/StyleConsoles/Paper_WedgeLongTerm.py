@@ -832,7 +832,7 @@ ax5_inset.set_ylabel(f'Signal current ({scale_dict[A.scale][1]}A)', fontsize=9, 
 ax5_inset.set_xscale('log')
 ax5_inset.set_yscale('log')
 ax5_inset.set_xlim([1e+1, 1e+4])
-ax5_inset.set_ylim(0.5e+1, ax5_inset.get_ylim()[1] * 2)
+ax5_inset.set_ylim(2e+1, 2e+4)
 ax5_inset.xaxis.set_major_locator(mticker.LogLocator(base=10.0, numticks=4))
 ax5_inset.xaxis.set_major_formatter(mticker.LogFormatterMathtext(base=10.0))
 ax5_inset.xaxis.set_minor_locator(mticker.LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1, numticks=40))

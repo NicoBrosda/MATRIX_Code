@@ -98,13 +98,14 @@ class Analyzer:
         self.maps = [{'x': np.array([]), 'y': np.array([]), 'z': np.array([]), 'position': ''}]
         self.excluded = np.full(self.diode_dimension, False)
 
-        self.clock = 3e6
+        self.clock = 3e6 / (9+8)
         self.gain = 1e-6
+        self.tint = 1e-3
         self.scale = 'pico'
 
     def signal_conversion(self, signal):
         scale = scale_dict[self.scale][0]
-        return self.gain * self.clock / 3e6 * signal / 2 ** 26 / scale
+        return self.gain * (self.clock / 3e6) * (signal / (self.clock**3 * self.tint**3 / 6)) / scale
 
     def set_measurement(self, path_to_folder, filter_criterion, file_format='.csv', blacklist=['.png', '.pdf', '.jpg']):
         self.measurement_files = []

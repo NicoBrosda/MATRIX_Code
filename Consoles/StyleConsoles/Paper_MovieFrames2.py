@@ -9,7 +9,7 @@ crit = '2DLarge_MovieBeamChanges2_'
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["white", "black", "red", "yellow"])
 output_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/ResultsMovies/MatrixArray/')
 plot_size = (18*cm, 9.3/1.2419*cm)
-save_format = '.svg'
+save_format = '.png'
 dpi = 300
 results_path = Path(f'/Users/nico_brosda/Cyrce_Messungen/Style/Paper/Frames{crit}/')
 
@@ -30,6 +30,6 @@ zero_frame = None
 graph_multipanel_frames(analyzer, folder_path, crit, frame_select[0], frame_select[1], frame_select[2],
                         fbunch, zero_frame=zero_frame, plot_size=plot_size, save_format=save_format, info=False,
                         output_path=results_path, dpi=dpi, title_text=r'\textbf{(b)} ms timescale - beam spot development',
-                        intensity_limits=[0, 4.1])
+                        intensity_limits=[0, 4.1*4.31])
 # '''
 
